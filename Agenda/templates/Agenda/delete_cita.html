@@ -1,0 +1,188 @@
+{% extends 'Agenda/base.html' %}
+
+{% block content %}
+<style>
+    .delete-container {
+        padding: 3rem 0;
+        min-height: calc(100vh - 400px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .delete-card {
+        background: white;
+        border-radius: 25px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+        max-width: 600px;
+        width: 100%;
+        border: 3px solid var(--danger-color);
+    }
+    
+    .delete-header {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        padding: 2rem;
+        text-align: center;
+        color: white;
+    }
+    
+    .delete-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        animation: shake 0.5s ease-in-out;
+    }
+    
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+    }
+    
+    .delete-header h2 {
+        font-weight: 800;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .delete-body {
+        padding: 2.5rem;
+        text-align: center;
+    }
+    
+    .delete-message {
+        font-size: 1.2rem;
+        color: var(--dark-color);
+        margin-bottom: 1rem;
+        line-height: 1.6;
+    }
+    
+    .delete-highlight {
+        color: var(--danger-color);
+        font-weight: 700;
+        font-size: 1.3rem;
+    }
+    
+    .delete-warning {
+        background: rgba(231, 76, 60, 0.1);
+        border-left: 4px solid var(--danger-color);
+        padding: 1rem;
+        margin: 2rem 0;
+        text-align: left;
+    }
+    
+    .delete-warning p {
+        margin: 0;
+        color: var(--dark-color);
+        font-weight: 500;
+    }
+    
+    .delete-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+    
+    .btn-delete-confirm {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .btn-delete-confirm:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+    }
+    
+    .btn-cancel {
+        background: rgba(74, 144, 226, 0.1);
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-cancel:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(74, 144, 226, 0.4);
+    }
+    
+    @media (max-width: 767.98px) {
+        .delete-actions {
+            flex-direction: column;
+        }
+        
+        .delete-actions button,
+        .delete-actions a {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+<section class="delete-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12">
+                <div class="delete-card">
+                    <div class="delete-header">
+                        <div class="delete-icon">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                        <h2>Confirmar Eliminación</h2>
+                        <p>Esta acción no se puede deshacer</p>
+                    </div>
+                    
+                    <div class="delete-body">
+                        <p class="delete-message">
+                            ¿Está seguro que desea eliminar la cita con el médico<br>
+                            <span class="delete-highlight">{{ cita.nombre_medico }}</span>?
+                        </p>
+                        
+                        <div class="delete-warning">
+                            <p>
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                <strong>Advertencia:</strong> Al eliminar esta cita, se perderán todos los datos asociados y no podrán ser recuperados.
+                            </p>
+                        </div>
+                        
+                        <form method="POST" style="display: inline;">
+                            {% csrf_token %}
+                            <div class="delete-actions">
+                                <button type="submit" class="btn-delete-confirm">
+                                    <i class="bi bi-trash-fill"></i>
+                                    <span>Sí, Eliminar Cita</span>
+                                </button>
+                                <a href="{% url 'lista-citas' %}" class="btn-cancel">
+                                    <i class="bi bi-x-circle-fill"></i>
+                                    <span>No, Cancelar</span>
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

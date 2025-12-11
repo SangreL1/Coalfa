@@ -1,0 +1,179 @@
+{% extends 'Agenda/base.html' %}
+
+{% block content %}
+<style>
+    .form-container {
+        padding: 3rem 0;
+        min-height: calc(100vh - 400px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .form-card {
+        background: white;
+        border-radius: 25px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+        max-width: 600px;
+        width: 100%;
+        border: 3px solid transparent;
+        background-image: linear-gradient(white, white), var(--gradient-medical);
+        background-origin: border-box;
+        background-clip: padding-box, border-box;
+    }
+    
+    .form-header {
+        background: var(--gradient-medical);
+        padding: 2rem;
+        text-align: center;
+        color: white;
+    }
+    
+    .form-header h2 {
+        font-weight: 800;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-header p {
+        opacity: 0.95;
+        margin: 0;
+    }
+    
+    .form-body {
+        padding: 2.5rem;
+    }
+    
+    .form-body form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .form-body label {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .form-body input,
+    .form-body select,
+    .form-body textarea {
+        width: 100%;
+        padding: 0.9rem 1.2rem;
+        border: 2px solid rgba(74, 144, 226, 0.2);
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    
+    .form-body input:focus,
+    .form-body select:focus,
+    .form-body textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.1);
+    }
+    
+    .form-body textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .form-submit-btn {
+        background: var(--gradient-medical);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+    
+    .form-submit-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(74, 144, 226, 0.4);
+    }
+    
+    .form-submit-btn:active {
+        transform: translateY(-1px);
+    }
+    
+    .form-field {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-help-text {
+        font-size: 0.85rem;
+        color: #5a6c7d;
+        margin-top: 0.5rem;
+    }
+    
+    @media (max-width: 767.98px) {
+        .form-body {
+            padding: 1.5rem;
+        }
+        
+        .form-header h2 {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+
+<section class="form-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12">
+                <div class="form-card">
+                    <div class="form-header">
+                        <h2>
+                            <i class="bi bi-pencil-square"></i> Actualizar Cita Médica
+                        </h2>
+                        <p>Modifique los datos de su cita</p>
+                    </div>
+                    
+                    <div class="form-body">
+                        <form method="POST">
+                            {% csrf_token %}
+                            
+                            {% for field in form %}
+                                <div class="form-field">
+                                    {{ field.label_tag }}
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                        <small class="form-help-text">{{ field.help_text }}</small>
+                                    {% endif %}
+                                    {% if field.errors %}
+                                        <div class="text-danger mt-2">
+                                            {% for error in field.errors %}
+                                                <small>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                            
+                            <button type="submit" class="form-submit-btn">
+                                <i class="bi bi-save-fill"></i>
+                                <span>Guardar Cambios</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

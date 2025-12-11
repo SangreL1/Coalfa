@@ -1,0 +1,254 @@
+{% extends 'Agenda/base.html' %} {% block content %}
+
+<style>
+  .form-container {
+    padding: 3rem 0;
+    min-height: calc(100vh - 400px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .form-card {
+    background: white;
+    border-radius: 25px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    max-width: 600px;
+    width: 100%;
+    border: 3px solid transparent;
+    background-image: linear-gradient(white, white), var(--gradient-medical);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .form-header {
+    background: var(--gradient-medical);
+    padding: 2rem;
+    text-align: center;
+    color: white;
+  }
+
+  .form-header h2 {
+    font-weight: 800;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-header p {
+    opacity: 0.95;
+    margin: 0;
+  }
+
+  .form-body {
+    padding: 2.5rem;
+  }
+
+  .form-body form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-body label {
+    font-weight: 600;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .form-body input,
+  .form-body select,
+  .form-body textarea {
+    width: 100%;
+    padding: 0.9rem 1.2rem;
+    border: 2px solid rgba(74, 144, 226, 0.2);
+    border-radius: 12px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+  }
+
+  .form-body input:focus,
+  .form-body select:focus,
+  .form-body textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.1);
+  }
+
+  .form-submit-btn {
+    background: var(--gradient-medical);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .form-submit-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(74, 144, 226, 0.4);
+  }
+
+  .form-submit-btn:active {
+    transform: translateY(-1px);
+  }
+
+  .form-field {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-help-text {
+    font-size: 0.85rem;
+    color: #5a6c7d;
+    margin-top: 0.5rem;
+  }
+
+  @media (max-width: 767.98px) {
+    .form-body {
+      padding: 1.5rem;
+    }
+
+    .form-header h2 {
+      font-size: 1.5rem;
+    }
+  }
+</style>
+
+<section class="form-container">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12">
+        <div class="form-card">
+          <div class="form-header">
+            <h2><i class="bi bi-calendar-plus"></i> Agendar Cita Médica</h2>
+            <p>Seleccione paciente, fecha y hora para la cita</p>
+            {% if medico_obj %}
+            <p style="margin-top: 0.25rem; font-weight: 600">
+              Días laborales del médico: {% if medico_obj.dias_laborales %} {{
+              medico_obj.dias_laborales }} {% else %} No configurados {% endif
+              %}
+            </p>
+            {% endif %}
+          </div>
+
+          <div class="form-body">
+            <form method="POST">
+              {% csrf_token %} {% for field in form %}
+              <div class="form-field">
+                {{ field.label_tag }} {{ field }} {% if field.help_text %}
+                <small class="form-help-text">{{ field.help_text }}</small>
+                {% endif %} {% if field.errors %}
+                <div class="text-danger mt-2">
+                  {% for error in field.errors %}
+                  <small>{{ error }}</small>
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %}
+
+              <button type="submit" class="form-submit-btn">
+                <i class="bi bi-check-circle-fill"></i>
+                <span>Agendar Cita</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- Flatpickr CSS/JS -->
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const fechaInput = document.querySelector('input[name="fecha"]');
+    const medicoSelect = document.querySelector('select[name="medico"]'); // Si existe en el form (admin/recepción)
+
+    // Mapa de códigos a getDay() JS
+    const mapaDias = {
+      DOM: 0,
+      LUN: 1,
+      MAR: 2,
+      MIER: 3,
+      JUE: 4,
+      VIE: 5,
+      SAB: 6,
+    };
+
+    // Días laborales del médico actual como string
+    const diasLaboralesStr =
+      '{% if medico_obj and medico_obj.dias_laborales %}{{ medico_obj.dias_laborales|escapejs }}{% endif %}';
+    const diasLaborales = diasLaboralesStr
+      ? diasLaboralesStr
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean)
+      : [];
+
+    // Inicializar Flatpickr en el campo fecha para deshabilitar días no laborales
+    if (fechaInput && window.flatpickr) {
+      const permitidos = diasLaborales
+        .map((c) => mapaDias[c])
+        .filter((v) => v !== undefined);
+      const defaultDateStr = "{{ fecha|default:'' }}";
+
+      const config = {
+        dateFormat: 'Y-m-d',
+        minDate: 'today',
+        locale: 'es',
+        defaultDate: defaultDateStr || undefined,
+      };
+
+      if (permitidos.length > 0) {
+        config.disable = [
+          function (date) {
+            // Deshabilitar si NO está en permitidos
+            return !permitidos.includes(date.getDay());
+          },
+        ];
+      }
+
+      window.fp = flatpickr(fechaInput, config);
+    }
+
+    function refiltrar() {
+      // Si hay selector de médico, recargamos al cambiar
+      const medico = medicoSelect
+        ? medicoSelect.value
+        : "{{ medico_id|default:'' }}";
+      const fecha = fechaInput.value;
+
+      const params = new URLSearchParams(window.location.search);
+      if (medico) params.set('medico', medico);
+      if (fecha) params.set('fecha', fecha);
+
+      // Solo recargar si cambiamos algo relevante para filtrar horas
+      // Evitamos bucle si solo seleccionamos fecha y no hay médico definido aun
+      if (medico && (medico !== '{{ medico_id }}' || fecha !== '{{ fecha }}')) {
+        window.location.replace(`?` + params.toString());
+      }
+    }
+
+    if (fechaInput) fechaInput.addEventListener('change', refiltrar);
+    if (medicoSelect) medicoSelect.addEventListener('change', refiltrar);
+  });
+</script>
+{% endblock %}

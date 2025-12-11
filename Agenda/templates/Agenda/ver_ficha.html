@@ -1,0 +1,261 @@
+{% extends 'Agenda/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .patient-header {
+        background: white;
+        border-radius: 0 0 25px 25px;
+        padding: 2rem 0;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 2rem;
+        border-top: 5px solid var(--primary-color);
+    }
+
+    .patient-avatar {
+        width: 100px;
+        height: 100px;
+        background: var(--gradient-medical);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: white;
+        margin-right: 1.5rem;
+    }
+
+    .info-label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        color: #6c757d;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .info-value {
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: var(--dark-color);
+    }
+
+    .medical-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: var(--shadow-sm);
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .medical-card-header {
+        background: #f8f9fa;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #eee;
+        font-weight: 700;
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .medical-card-body {
+        padding: 1.5rem;
+    }
+
+    .alert-custom {
+        border-left: 4px solid;
+        background: #f8f9fa;
+    }
+
+    .alert-danger-custom {
+        border-color: var(--danger-color);
+        background: #fff5f5;
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-bottom: 2rem;
+    }
+
+    .timeline-dot {
+        position: absolute;
+        left: -2rem;
+        top: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--primary-color);
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px var(--primary-color);
+        transform: translateX(-5px);
+    }
+
+    .visit-card {
+        background: white;
+        border: 1px solid #eee;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .visit-card:hover {
+        box-shadow: var(--shadow-md);
+        border-color: var(--primary-color);
+    }
+
+    .visit-date {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+</style>
+
+<!-- Encabezado del Paciente -->
+<div class="patient-header">
+    <div class="container">
+        <div class="d-flex align-items-center flex-wrap">
+            <div class="patient-avatar">
+                <i class="bi bi-person"></i>
+            </div>
+            <div>
+                <p>{{ paciente.user.first_name }}</p>
+                <h1 class="fw-bold mb-1">{{ paciente.user.get_full_name }}</h1>
+                <div class="d-flex gap-3 text-muted">
+                    <span><i class="bi bi-person-vcard me-1"></i> {{ paciente.rut }}</span>
+                    <span><i class="bi bi-cake2 me-1"></i> {{ paciente.fecha_nacimiento|date:"d/m/Y" }}</span>
+                    <span><i class="bi bi-telephone me-1"></i> {{ paciente.telefono }}</span>
+                </div>
+            </div>
+            <div class="ms-auto mt-3 mt-md-0">
+                <a href="{% url 'crear_atencion' paciente.id %}" class="btn btn-primary rounded-pill px-4 fw-bold">
+                    <i class="bi bi-plus-lg me-2"></i>Nueva Atención
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mb-5">
+    <div class="row">
+        <!-- Columna Izquierda: Antecedentes -->
+        <div class="col-lg-4 mb-4">
+            <div class="medical-card mb-4">
+                <div class="medical-card-header justify-content-between">
+                    <span><i class="bi bi-clipboard-pulse"></i> Antecedentes Médicos</span>
+                    <a href="{% url 'editar_ficha' paciente.id %}" class="btn btn-sm btn-outline-primary rounded-pill">
+                        <i class="bi bi-pencil-fill"></i> Editar
+                    </a>
+                </div>
+                <div class="medical-card-body">
+                    <div class="mb-3">
+                        <label class="info-label">Alergias</label>
+                        <div class="alert alert-danger-custom p-2 mt-1 rounded">
+                            {{ ficha.alergias|default:"Sin alergias registradas" }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="info-label">Enfermedades Crónicas</label>
+                        <p class="info-value">{{ ficha.enfermedades_cronicas|default:"Ninguna" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="info-label">Medicamentos</label>
+                        <p class="info-value">{{ ficha.medicamentos|default:"Ninguno" }}</p>
+                    </div>
+                    <div>
+                        <label class="info-label">Antecedentes Familiares</label>
+                        <p class="info-value">{{ ficha.antecedentes_familiares|default:"Sin antecedentes" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Historial de Atenciones -->
+        <div class="col-lg-8">
+            <h3 class="fw-bold mb-4 text-secondary"><i class="bi bi-clock-history me-2"></i>Historial de Atenciones</h3>
+            
+            <div class="timeline">
+                {% for visita in visitas %}
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="visit-card">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="visit-date">
+                                <i class="bi bi-calendar-event me-1"></i> {{ visita.fecha_atencion|date:"d M Y, H:i" }}
+                            </span>
+                            <span class="badge bg-light text-dark border">
+                                Dr. {{ visita.medico.user.last_name }}
+                                {% if visita.especialidad %}
+                                    <span class="text-muted">| {{ visita.especialidad.nombre }}</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <h5 class="fw-bold text-primary mb-3">
+                            {% if visita.especialidad %}
+                                {{ visita.especialidad.nombre }}
+                            {% else %}
+                                Atención Médica
+                            {% endif %}
+                        </h5>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="info-label">Diagnóstico</label>
+                                <p class="mb-0">{{ visita.diagnostico }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="info-label">Anamnesis</label>
+                                <p class="mb-0">{{ visita.anamnesis|default:"-" }}</p>
+                            </div>
+                        </div>
+                        
+                        {% if visita.medicamentos.all %}
+                        <div class="mt-3 pt-3 border-top">
+                            <label class="info-label text-success"><i class="bi bi-capsule me-1"></i> Medicamentos Recetados</label>
+                            <ul class="mb-0">
+                                {% for medicamento in visita.medicamentos.all %}
+                                <li><strong>{{ medicamento.nombre }}</strong>: {{ medicamento.descripcion }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if visita.examenes.all %}
+                        <div class="mt-3 pt-3 border-top">
+                            <label class="info-label text-warning"><i class="bi bi-file-earmark-medical me-1"></i> Exámenes Solicitados</label>
+                            <ul class="mb-0">
+                                {% for examen in visita.examenes.all %}
+                                <li><strong>{{ examen.nombre }}</strong>: {{ examen.descripcion }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-folder2-open fs-1 d-block mb-2"></i>
+                    <p>No hay atenciones registradas para este paciente.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

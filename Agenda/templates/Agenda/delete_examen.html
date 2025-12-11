@@ -1,0 +1,122 @@
+{% extends 'Agenda/base.html' %} {% block content %}
+<style>
+  .delete-container {
+    padding: 3rem 0;
+    min-height: calc(100vh - 400px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .delete-card {
+    background: white;
+    border-radius: 25px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    max-width: 550px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .delete-header {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    padding: 2rem;
+    color: white;
+  }
+
+  .delete-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+  }
+
+  .delete-header h2 {
+    font-weight: 800;
+    font-size: 1.8rem;
+    margin: 0;
+  }
+
+  .delete-body {
+    padding: 2.5rem;
+  }
+
+  .delete-body h3 {
+    color: var(--dark-color);
+    margin-bottom: 1rem;
+  }
+
+  .delete-body p {
+    color: #5a6c7d;
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+
+  .delete-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+  }
+
+  .btn-confirm-delete {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    border: none;
+    padding: 0.9rem 2rem;
+    border-radius: 50px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .btn-confirm-delete:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+  }
+
+  .btn-cancel {
+    background: transparent;
+    color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+    padding: 0.9rem 2rem;
+    border-radius: 50px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+
+  .btn-cancel:hover {
+    background: var(--primary-color);
+    color: white;
+  }
+</style>
+
+<section class="delete-container">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-12">
+        <div class="delete-card">
+          <div class="delete-header">
+            <i class="bi bi-exclamation-triangle-fill delete-icon"></i>
+            <h2>Confirmar Eliminación</h2>
+          </div>
+
+          <div class="delete-body">
+            <h3>{{ examen.nombre }}</h3>
+            <p>¿Está seguro de que desea eliminar este examen? Esta acción no se puede deshacer.</p>
+
+            <form method="POST" class="delete-actions">
+              {% csrf_token %}
+              <button type="submit" class="btn-confirm-delete">
+                <i class="bi bi-trash-fill"></i> Eliminar
+              </button>
+              <a href="{% url 'lista_examenes' %}" class="btn-cancel">
+                <i class="bi bi-x-circle"></i> Cancelar
+              </a>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

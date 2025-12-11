@@ -1,0 +1,338 @@
+{% extends 'Agenda/base.html' %}
+
+{% block content %}
+
+<style>
+    .citas-header {
+        padding: 3rem 0 2rem;
+        text-align: center;
+    }
+    
+    .citas-title {
+        font-weight: 800;
+        font-size: clamp(2rem, 4vw, 3rem);
+        background: var(--gradient-medical);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 1rem;
+    }
+    
+    .citas-subtitle {
+        color: #5a6c7d;
+        font-size: 1.2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .cita-card {
+        background: white;
+        border-radius: 20px;
+        box-shadow: var(--shadow-sm);
+        transition: all 0.3s ease;
+        margin-bottom: 1.5rem;
+        border: 2px solid transparent;
+        overflow: hidden;
+    }
+    
+    .cita-card:hover {
+        transform: translateX(5px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary-color);
+    }
+    
+    .cita-card-header {
+        background: linear-gradient(135deg, rgba(74, 144, 226, 0.1), rgba(22, 160, 133, 0.1));
+        padding: 1.5rem;
+        border-bottom: 2px solid rgba(74, 144, 226, 0.2);
+    }
+    
+    .cita-patient-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--dark-color);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .cita-badge {
+        background: var(--gradient-medical);
+        color: white;
+        padding: 0.4rem 1rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .cita-card-body {
+        padding: 2rem;
+    }
+    
+    .cita-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .cita-info-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .cita-info-icon {
+        width: 50px;
+        height: 50px;
+        background: var(--gradient-medical);
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    
+    .cita-info-icon i {
+        color: white;
+        font-size: 1.4rem;
+    }
+    
+    .cita-info-content {
+        flex: 1;
+    }
+    
+    .cita-info-label {
+        font-size: 0.85rem;
+        color: #5a6c7d;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+    
+    .cita-info-value {
+        font-size: 1.1rem;
+        color: var(--dark-color);
+        font-weight: 600;
+    }
+    
+    .cita-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding-top: 1.5rem;
+        border-top: 2px solid rgba(74, 144, 226, 0.1);
+    }
+    
+    .btn-edit-cita {
+        background: rgba(74, 144, 226, 0.1);
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        padding: 0.75rem 1.5rem;
+        border-radius: 50px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-edit-cita:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+    }
+    
+    .btn-delete-cita {
+        background: rgba(231, 76, 60, 0.1);
+        color: var(--danger-color);
+        border: 2px solid var(--danger-color);
+        padding: 0.75rem 1.5rem;
+        border-radius: 50px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-delete-cita:hover {
+        background: var(--danger-color);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 5rem 2rem;
+    }
+    
+    .empty-state-icon {
+        font-size: 5rem;
+        color: var(--primary-color);
+        opacity: 0.3;
+        margin-bottom: 2rem;
+    }
+    
+    .empty-state-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--dark-color);
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state-text {
+        color: #5a6c7d;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .btn-primary-action {
+        background: var(--gradient-medical);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary-action:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
+        color: white;
+    }
+    
+    @media (max-width: 767.98px) {
+        .cita-info-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .cita-actions {
+            flex-direction: column;
+        }
+        
+        .cita-actions a {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .cita-patient-name {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+</style>
+
+<section class="citas-section">
+    <div class="container">
+        <div class="citas-header">
+            <h1 class="citas-title">
+                <i class="bi bi-calendar-check"></i> Mis Citas Médicas
+            </h1>
+            <p class="citas-subtitle">Gestiona todas tus citas programadas en un solo lugar</p>
+        </div>
+
+        {% if listareserva %}
+            {% for cita in listareserva %}
+                <div class="cita-card">
+                    <div class="cita-card-header">
+                        <div class="cita-patient-name">
+                            <i class="bi bi-person-fill-check"></i>
+                            <span>{{ cita.usuario.nombre }} {{ cita.usuario.apellido }}</span>
+                            <span class="cita-badge">
+                                <i class="bi bi-clock-fill"></i>
+                                Programada
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="cita-card-body">
+                        <div class="cita-info-grid">
+                            <div class="cita-info-item">
+                                <div class="cita-info-icon">
+                                    <i class="bi bi-calendar-event"></i>
+                                </div>
+                                <div class="cita-info-content">
+                                    <div class="cita-info-label">Fecha</div>
+                                    <div class="cita-info-value">{{ cita.fecha }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="cita-info-item">
+                                <div class="cita-info-icon">
+                                    <i class="bi bi-clock"></i>
+                                </div>
+                                <div class="cita-info-content">
+                                    <div class="cita-info-label">Hora</div>
+                                    <div class="cita-info-value">{{ cita.hora }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="cita-info-item">
+                                <div class="cita-info-icon">
+                                    <i class="bi bi-person-badge"></i>
+                                </div>
+                                <div class="cita-info-content">
+                                    <div class="cita-info-label">Médico</div>
+                                    <div class="cita-info-value">Dr(a). {{ cita.medico.nombre }} {{ cita.medico.apellido }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="cita-info-item">
+                                <div class="cita-info-icon">
+                                    <i class="bi bi-heart-pulse"></i>
+                                </div>
+                                <div class="cita-info-content">
+                                    <div class="cita-info-label">Servicio</div>
+                                    <div class="cita-info-value">{{ cita.servicio }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if user.is_authenticated %}
+                            <div class="cita-actions">
+                                <a class="btn-edit-cita" href="{% url 'update-cita' cita.id %}">
+                                    <i class="bi bi-pencil-fill"></i>
+                                    <span>Modificar Cita</span>
+                                </a>
+                                <a class="btn-delete-cita" href="{% url 'delete-cita' cita.id %}">
+                                    <i class="bi bi-trash-fill"></i>
+                                    <span>Cancelar Cita</span>
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="bi bi-calendar-x"></i>
+                </div>
+                <h2 class="empty-state-title">No tienes citas programadas</h2>
+                <p class="empty-state-text">
+                    Agenda tu primera cita con nuestros especialistas y comienza a cuidar tu salud.
+                </p>
+                <a href="{% url 'lista' %}" class="btn-primary-action">
+                    <i class="bi bi-calendar-plus"></i>
+                    <span>Agendar Primera Cita</span>
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+
+{% endblock %}

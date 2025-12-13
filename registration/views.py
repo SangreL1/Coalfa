@@ -17,9 +17,9 @@ def loginView(request):
 
             # Lógica de Redirección según Rol (HU-01)
             if user.is_staff:
-                return redirect("lista_medicos")  # Admin -> Gestión
+                return redirect("/")  # Admin -> Home
             elif hasattr(user, "medico"):
-                return redirect("/")  # Médico -> Panel Clínico
+                return redirect("/")  # Médico -> Home
             else:
                 return redirect("home")  # Home
         else:

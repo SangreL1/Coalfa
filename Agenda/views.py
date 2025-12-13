@@ -51,20 +51,33 @@ def dashboard_medico(request):
         "-fecha_atencion"
     )
 
-    # Búsqueda de atenciones por nombre o RUT
+    # Búsqueda de atenciones por nombre, RUT o fecha
     query = request.GET.get("q")
+    fecha_inicio = request.GET.get("fecha_inicio")
+    fecha_fin = request.GET.get("fecha_fin")
+    
     if query:
-        atenciones = VisitaAtencion.objects.filter(
-            Q(medico=medico)
-            & (
-                Q(paciente__user__first_name__icontains=query)
-                | Q(paciente__user__last_name__icontains=query)
-                | Q(paciente__rut__icontains=query)
-            )
-        ).order_by("-fecha_atencion")
+        atenciones = atenciones.filter(
+            Q(paciente__user__first_name__icontains=query)
+            | Q(paciente__user__last_name__icontains=query)
+            | Q(paciente__rut__icontains=query)
+        )
+        
+    if fecha_inicio:
+        atenciones = atenciones.filter(fecha_atencion__date__gte=fecha_inicio)
+        
+    if fecha_fin:
+        atenciones = atenciones.filter(fecha_atencion__date__lte=fecha_fin)
 
     return render(
-        request, "Agenda/dashboard_medico.html", {"citas": atenciones, "query": query}
+        request, 
+        "Agenda/dashboard_medico.html", 
+        {
+            "citas": atenciones, 
+            "query": query,
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin
+        }
     )
 
 
@@ -146,14 +159,30 @@ def ver_ficha(request, paciente_id):
         messages.info(request, "Por favor complete la ficha médica del paciente.")
         return redirect("editar_ficha", paciente_id=paciente.id)
 
-    visitas = VisitaAtencion.objects.filter(paciente=paciente).order_by(
-        "-fecha_atencion"
-    )
+    # Obtener parámetros de filtro de fechas
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    
+    visitas = VisitaAtencion.objects.filter(paciente=paciente)
+    
+    # Aplicar filtros de fecha si están presentes
+    if fecha_inicio:
+        visitas = visitas.filter(fecha_atencion__date__gte=fecha_inicio)
+    if fecha_fin:
+        visitas = visitas.filter(fecha_atencion__date__lte=fecha_fin)
+        
+    visitas = visitas.order_by("-fecha_atencion")
 
     return render(
         request,
         "Agenda/ver_ficha.html",
-        {"paciente": paciente, "visitas": visitas, "ficha": ficha},
+        {
+            "paciente": paciente, 
+            "visitas": visitas, 
+            "ficha": ficha,
+            "fecha_inicio": fecha_inicio,
+            "fecha_fin": fecha_fin
+        },
     )
 
 
@@ -452,9 +481,7 @@ def buscar_medicamentos(request):
 @user_passes_test(es_admin)
 def lista_especialidades(request):
     especialidades = Especialidad.objects.all()
-    return render(
-        request, "Agenda/especialidades.html", {"especialidades": especialidades}
-    )
+    return render(request, "Agenda/especialidades.html", {"especialidades": especialidades})
 
 
 @login_required

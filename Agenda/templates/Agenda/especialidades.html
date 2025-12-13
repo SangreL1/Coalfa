@@ -90,7 +90,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
- }
+  }
 
   .especialidad-description {
     color: #5a6c7d;
@@ -135,6 +135,29 @@
     background: var(--danger-color);
     color: white;
   }
+  
+  .search-form {
+    margin-bottom: 2rem;
+  }
+  
+  .search-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+  }
+  
+  .search-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.1);
+  }
+  
+  .especialidad-item {
+    display: block;
+  }
 </style>
 
 <section class="especialidades-section">
@@ -153,9 +176,14 @@
       {% endif %}
     </div>
 
+    <!-- Search Form -->
+    <form class="search-form">
+      <input type="text" id="especialidad-search" class="search-input" placeholder="Buscar especialidades por nombre...">
+    </form>
+
     <div class="row">
       {% for especialidad in especialidades %}
-      <div class="col-md-6 col-lg-4 mb-4">
+      <div class="col-md-6 col-lg-4 mb-4 especialidad-item" data-name="{{ especialidad.nombre }}">
         <div class="especialidad-card">
           <div class="especialidad-card-body">
             <h2 class="especialidad-name">
@@ -183,5 +211,28 @@
     </div>
   </div>
 </section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('especialidad-search');
+    const especialidadItems = document.querySelectorAll('.especialidad-item');
+    
+    if (searchInput) {
+      searchInput.addEventListener('keyup', function(e) {
+        const searchText = e.target.value.toLowerCase();
+        
+        especialidadItems.forEach(function(item) {
+          const especialidadName = item.getAttribute('data-name').toLowerCase();
+          
+          if (especialidadName.includes(searchText)) {
+            item.style.display = "";
+          } else {
+            item.style.display = "none";
+          }
+        });
+      });
+    }
+  });
+</script>
 
 {% endblock %}

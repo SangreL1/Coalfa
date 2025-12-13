@@ -109,8 +109,8 @@
             <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-danger">
               <i class="bi bi-box-arrow-right"></i> Salir
             </a>
-            {% else %}
-            <a href="{% url 'login' %}">Iniciar Sesión</a>
+            {% comment %} {% else %}
+            <a href="{% url 'login' %}">Iniciar Sesión</a> {% endcomment %}
             {% endif %}
           </div>
         </div>

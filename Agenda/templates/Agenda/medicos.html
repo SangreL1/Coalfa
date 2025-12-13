@@ -110,6 +110,12 @@
     margin-bottom: 0.5rem;
   }
 
+  .medico-rut {
+    color: #6c757d;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
   .medico-specialty-list {
     display: flex;
     flex-wrap: wrap;
@@ -162,6 +168,29 @@
     border: 2px solid var(--danger-color);
     color: var(--danger-color);
   }
+  
+  .search-form {
+    margin-bottom: 2rem;
+  }
+  
+  .search-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+  }
+  
+  .search-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.1);
+  }
+  
+  .medico-item {
+    display: block;
+  }
 </style>
 
 <section class="medicos-section">
@@ -181,15 +210,20 @@
       {% endif %}
     </div>
 
+    <!-- Search Form -->
+    <form class="search-form">
+      <input type="text" id="medico-search" class="search-input" placeholder="Buscar médicos por nombre o RUT...">
+    </form>
+
     {% for medico in medicos %}
-    <div class="medico-card">
+    <div class="medico-card medico-item" data-name="{{ medico.user.get_full_name }}" data-rut="{{ medico.rut }}">
       <div class="medico-card-body">
         <div class="row align-items-center">
           <div class="col-md-3 medico-image-container">
             {% if medico.foto %}
             <img
               src="{{ medico.foto.url }}"
-              alt="Dr. {{ medico.usuario.last_name }}"
+              alt="Dr. {{ medico.user.last_name }}"
               class="medico-image"
             />
             {% else %}
@@ -201,7 +235,8 @@
             {% endif %}
           </div>
           <div class="col-md-9 medico-info">
-            <h2 class="medico-name">{{ medico }}</h2>
+            <h2 class="medico-name">{{ medico.user.get_full_name }}</h2>
+            <div class="medico-rut">RUT: {{ medico.rut }}</div>
 
             <div class="medico-specialty-list">
               {% for esp in medico.especialidades.all %}
@@ -234,5 +269,29 @@
     {% endfor %}
   </div>
 </section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('medico-search');
+    const medicoItems = document.querySelectorAll('.medico-item');
+    
+    if (searchInput) {
+      searchInput.addEventListener('keyup', function(e) {
+        const searchText = e.target.value.toLowerCase();
+        
+        medicoItems.forEach(function(item) {
+          const medicoName = item.getAttribute('data-name').toLowerCase();
+          const medicoRut = item.getAttribute('data-rut').toLowerCase();
+          
+          if (medicoName.includes(searchText) || medicoRut.includes(searchText)) {
+            item.style.display = "";
+          } else {
+            item.style.display = "none";
+          }
+        });
+      });
+    }
+  });
+</script>
 
 {% endblock %}

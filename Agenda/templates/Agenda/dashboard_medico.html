@@ -115,6 +115,108 @@
         display: block;
         opacity: 0.5;
     }
+    
+    /* Search filter styles */
+    .search-filter-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 2rem;
+        border: 1px solid #eee;
+    }
+    
+    .search-filter-header {
+        background: #f8f9fa;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #eee;
+        font-weight: 700;
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .search-filter-body {
+        padding: 1.5rem;
+    }
+    
+    .filter-form-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: end;
+    }
+    
+    .filter-form-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .filter-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: #495057;
+    }
+    
+    .filter-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ced4da;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.15s ease-in-out;
+    }
+    
+    .filter-input:focus {
+        border-color: var(--primary-color);
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(74, 144, 226, 0.25);
+    }
+    
+    .filter-button {
+        background: var(--gradient-medical);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .filter-button:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .clear-button {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .clear-button:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .results-count {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        background: #e9f7fe;
+        border-radius: 8px;
+        color: #0c5460;
+        font-weight: 500;
+    }
 </style>
 
 <div class="dashboard-header">
@@ -134,13 +236,73 @@
 </div>
 
 <div class="container mb-5">
+    <!-- Search Filter Card -->
+    <div class="search-filter-card">
+        <div class="search-filter-header">
+            <i class="bi bi-funnel"></i>
+            <span>Filtrar Atenciones</span>
+        </div>
+        <div class="search-filter-body">
+            <form method="GET" class="filter-form">
+                <div class="filter-form-row">
+                    <div class="filter-form-group">
+                        <label class="filter-label" for="q">Nombre o RUT del Paciente</label>
+                        <input 
+                            type="text" 
+                            id="q" 
+                            name="q" 
+                            class="filter-input" 
+                            placeholder="Ingrese nombre o RUT" 
+                            value="{{ query|default:'' }}">
+                    </div>
+                    <div class="filter-form-group">
+                        <label class="filter-label" for="fecha_inicio">Fecha Inicio</label>
+                        <input 
+                            type="date" 
+                            id="fecha_inicio" 
+                            name="fecha_inicio" 
+                            class="filter-input" 
+                            value="{{ fecha_inicio|default:'' }}">
+                    </div>
+                    <div class="filter-form-group">
+                        <label class="filter-label" for="fecha_fin">Fecha Fin</label>
+                        <input 
+                            type="date" 
+                            id="fecha_fin" 
+                            name="fecha_fin" 
+                            class="filter-input" 
+                            value="{{ fecha_fin|default:'' }}">
+                    </div>
+                    <div class="filter-form-group">
+                        <button type="submit" class="filter-button">
+                            <i class="bi bi-search me-1"></i>
+                            Filtrar
+                        </button>
+                        {% if query or fecha_inicio or fecha_fin %}
+                        <a href="{% url 'dashboard_medico' %}" class="clear-button ms-2">
+                            <i class="bi bi-x-lg me-1"></i>
+                            Limpiar
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+            {% if query or fecha_inicio or fecha_fin %}
+            <div class="results-count">
+                <i class="bi bi-info-circle me-1"></i>
+                Mostrando {{ citas|length }} atención(es) que coinciden con los criterios de búsqueda
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
     <div class="row mb-4">
         <div class="col-md-4 mb-3">
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <div class="stat-number">{{ citas|length }}</div>
-                        <div class="stat-label">Cantida de Atenciones</div>
+                        <div class="stat-label">Cantidad de Atenciones</div>
                     </div>
                     <i class="bi bi-calendar-check fs-2 text-primary opacity-25"></i>
                 </div>
@@ -186,7 +348,7 @@
             {% else %}
                 <div class="empty-state">
                     <i class="bi bi-calendar-x"></i>
-                    <h4>No hay atenciones aun</h4>
+                    <h4>No hay atenciones aún</h4>
                     <p>Disfruta de tu tiempo libre o revisa fichas de pacientes anteriores.</p>
                 </div>
             {% endif %}
@@ -194,3 +356,4 @@
     </div>
 </div>
 {% endblock %}
+</file>

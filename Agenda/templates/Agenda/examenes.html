@@ -123,6 +123,29 @@
     background: var(--danger-color);
     color: white;
   }
+  
+  .search-form {
+    margin-bottom: 2rem;
+  }
+  
+  .search-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+  }
+  
+  .search-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.1);
+  }
+  
+  .examen-item {
+    display: block;
+  }
 </style>
 
 <section class="examenes-section">
@@ -141,9 +164,14 @@
       {% endif %}
     </div>
 
+    <!-- Search Form -->
+    <form class="search-form">
+      <input type="text" id="examen-search" class="search-input" placeholder="Buscar exámenes por nombre...">
+    </form>
+
     <div class="row">
       {% for examen in examenes %}
-      <div class="col-md-6">
+      <div class="col-md-6 examen-item" data-name="{{ examen.nombre }}">
         <div class="examen-card">
           <div class="examen-card-body">
             <h2 class="examen-name">
@@ -172,5 +200,28 @@
     </div>
   </div>
 </section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('examen-search');
+    const examenItems = document.querySelectorAll('.examen-item');
+    
+    if (searchInput) {
+      searchInput.addEventListener('keyup', function(e) {
+        const searchText = e.target.value.toLowerCase();
+        
+        examenItems.forEach(function(item) {
+          const examenName = item.getAttribute('data-name').toLowerCase();
+          
+          if (examenName.includes(searchText)) {
+            item.style.display = "";
+          } else {
+            item.style.display = "none";
+          }
+        });
+      });
+    }
+  });
+</script>
 
 {% endblock %}

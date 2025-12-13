@@ -242,6 +242,18 @@ class MedicamentosForm(forms.ModelForm):
             "nombre": forms.TextInput(attrs={"class": "form-control"}),
             "descripcion": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
         }
+        
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get("nombre")
+        if nombre:
+            # Verificar si ya existe un medicamento con el mismo nombre (case insensitive)
+            existing = Medicamentos.objects.filter(nombre__iexact=nombre)
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise forms.ValidationError("Ya existe un medicamento con este nombre.")
+            return nombre
+        return nombre
 
 
 class EspecialidadForm(forms.ModelForm):
@@ -260,6 +272,13 @@ class EspecialidadForm(forms.ModelForm):
     def clean_nombre(self):
         nombre = self.cleaned_data.get("nombre", "")
         if nombre:
+            # Verificar si ya existe una especialidad con el mismo nombre (case insensitive)
+            existing = Especialidad.objects.filter(nombre__iexact=nombre)
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise forms.ValidationError("Ya existe una especialidad con este nombre.")
+                
             # Correcciones de tildes comunes
             correcciones = {
                 "ginecologia": "Ginecología",
@@ -294,3 +313,15 @@ class ExamenesForm(forms.ModelForm):
             "nombre": forms.TextInput(attrs={"class": "form-control"}),
             "descripcion": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
         }
+        
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get("nombre")
+        if nombre:
+            # Verificar si ya existe un examen con el mismo nombre (case insensitive)
+            existing = Examenes.objects.filter(nombre__iexact=nombre)
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise forms.ValidationError("Ya existe un examen con este nombre.")
+            return nombre
+        return nombre

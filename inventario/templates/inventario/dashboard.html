@@ -39,6 +39,14 @@
     margin-bottom: 2rem;
 }
 
+@media (max-width: 1200px) {
+    .kpi-container { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+    .kpi-container { grid-template-columns: 1fr; }
+}
+
 .kpi-enterprise {
     padding: 1.5rem;
     position: relative;
@@ -139,19 +147,34 @@
 
 @media (max-width: 1200px) {
     .dashboard-layout { grid-template-columns: 1fr; }
-    .kpi-container { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+    .page-content { padding: 1rem; }
+    
+    .dashboard-header { 
+        flex-direction: column; 
+        align-items: flex-start !important; 
+        gap: 1rem; 
+    }
+
+    .glass-card { padding: 1rem; }
+
+    .analytics-grid {
+        grid-template-columns: 1fr !important;
+    }
 }
 {% endblock %}
 
 {% load inventario_filters %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+<div class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <div>
         <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text);">Resumen Operativo</h2>
         <p style="color: var(--text-muted); font-size: 0.875rem;">Control de stock, vencimientos y trazabilidad de alimentos.</p>
     </div>
-    <div style="display: flex; gap: 0.75rem;">
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
         <a href="{% url 'inventario_mapa_bodega' %}" class="btn btn-primary btn-sm">🗺️ Ver Mapa Visual</a>
         <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-ghost btn-sm">➕ Recibir Lote</a>
         <div style="position:relative; display:inline-block;">
@@ -222,7 +245,7 @@
     <div style="display:flex; flex-direction:column; gap:1.5rem;">
         
         <!-- Analytics & Distribution -->
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
+        <div class="analytics-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
             <div class="glass-card">
                 <div class="card-header" style="border:none; margin-bottom:1rem;">
                     <div class="card-title" style="text-transform:uppercase; font-size:0.75rem; color:var(--text-muted);">Stock por Categoría</div>

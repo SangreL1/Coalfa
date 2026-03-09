@@ -246,6 +246,7 @@
 
             .topbar {
                 padding: 0 1rem;
+                justify-content: flex-start;
             }
 
             .hamburger {
@@ -254,6 +255,31 @@
 
             .topbar-breadcrumb {
                 display: none;
+            }
+
+            .page-content {
+                padding: 1rem !important;
+            }
+
+            .page-title {
+                font-size: 1.25rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .kpi-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        /* GLOBALS MODALS RESPONSIVE */
+        @media (max-width: 768px) {
+            .modal-box {
+                width: 95% !important;
+                padding: 1.5rem !important;
+            }
+            .form-grid-2 {
+                grid-template-columns: 1fr !important;
             }
         }
 
@@ -382,13 +408,16 @@
 
         /* TABLE */
         .table-wrap {
+            width: 100%;
             overflow-x: auto;
             border-radius: var(--radius);
+            -webkit-overflow-scrolling: touch;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 600px; /* Ensures tables don't squish too much on mobile */
         }
 
         thead th {
@@ -735,7 +764,8 @@
             const overlay = document.getElementById('sidebarOverlay');
 
             if (hamburger) {
-                hamburger.addEventListener('click', function() {
+                hamburger.addEventListener('click', function(e) {
+                    e.stopPropagation();
                     sidebar.classList.toggle('show');
                     overlay.classList.toggle('show');
                 });
@@ -747,6 +777,22 @@
                     overlay.classList.remove('show');
                 });
             }
+            
+            // Close sidebar on swipe left
+            let touchstartX = 0;
+            let touchendX = 0;
+            
+            document.addEventListener('touchstart', e => {
+                touchstartX = e.changedTouches[0].screenX;
+            });
+
+            document.addEventListener('touchend', e => {
+                touchendX = e.changedTouches[0].screenX;
+                if (touchendX < touchstartX - 50 && sidebar.classList.contains('show')) {
+                    sidebar.classList.remove('show');
+                    overlay.classList.remove('show');
+                }
+            });
         });
     </script>
     {% block extra_js %}{% endblock %}

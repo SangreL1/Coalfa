@@ -21,6 +21,12 @@
     align-items: center;
     background: rgba(255,255,255,0.02);
     border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+@media (max-width: 600px) {
+    .search-strip input { width: 100% !important; }
 }
 
 .product-row:hover td {

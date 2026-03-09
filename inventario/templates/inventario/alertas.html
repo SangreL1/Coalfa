@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Alertas de Vencimiento — Coalfa{% endblock %}
+{% block topbar_title %}Alertas de Vencimiento{% endblock %}
+{% block nav_alertas %}active{% endblock %}
+
+{% block content %}
+
+<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
+    <div>
+        <div class="page-title">Alertas de Vencimiento</div>
+        <p class="page-subtitle" style="margin-bottom:0;">Control de fechas críticas en lotes activos</p>
+    </div>
+    <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost">← Dashboard</a>
+</div>
+
+<!-- Vencidos -->
+<div style="margin-bottom:1.75rem;">
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+        <div style="width:10px;height:10px;background:#f87171;border-radius:50%;flex-shrink:0;"></div>
+        <h2 style="font-size:1rem;font-weight:700;">Lotes Vencidos</h2>
+        <span class="badge badge-licencia">{{ vencidos.count }}</span>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Vencimiento</th>
+                        <th>Días vencido</th>
+                        <th>Ubicación</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lote in vencidos %}
+                    <tr>
+                        <td style="font-family:monospace;font-weight:700;font-size:0.82rem;">{{ lote.numero_lote }}</td>
+                        <td style="font-weight:500;">{{ lote.producto.nombre }}</td>
+                        <td>{{ lote.cantidad }} {{ lote.producto.get_unidad_medida_display }}</td>
+                        <td style="color:#f87171;font-weight:700;">{{ lote.fecha_vencimiento|date:"d/m/Y" }}</td>
+                        <td>
+                            <span class="badge badge-licencia">{{ lote.dias_restantes|stringformat:"d"|slice:"1:" }} días</span>
+                        </td>
+                        <td><span class="badge badge-{{ lote.ubicacion_actual|lower }}">{{ lote.get_ubicacion_actual_display }}</span></td>
+                        <td><a href="{% url 'inventario_detalle_lote' lote.pk %}" class="btn btn-ghost btn-sm">Ver →</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align:center;padding:2.5rem;color:var(--text-muted);">✅ No hay lotes vencidos.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Por vencer -->
+<div>
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+        <div style="width:10px;height:10px;background:#fbbf24;border-radius:50%;flex-shrink:0;"></div>
+        <h2 style="font-size:1rem;font-weight:700;">Por Vencer (próximos 7 días)</h2>
+        <span class="badge badge-vacaciones">{{ por_vencer.count }}</span>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Vencimiento</th>
+                        <th>Días restantes</th>
+                        <th>Ubicación</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lote in por_vencer %}
+                    <tr>
+                        <td style="font-family:monospace;font-weight:700;font-size:0.82rem;">{{ lote.numero_lote }}</td>
+                        <td style="font-weight:500;">{{ lote.producto.nombre }}</td>
+                        <td>{{ lote.cantidad }} {{ lote.producto.get_unidad_medida_display }}</td>
+                        <td style="color:#fbbf24;font-weight:700;">{{ lote.fecha_vencimiento|date:"d/m/Y" }}</td>
+                        <td>
+                            <span class="badge badge-vacaciones">{{ lote.dias_restantes }} día{{ lote.dias_restantes|pluralize:"s" }}</span>
+                        </td>
+                        <td><span class="badge badge-{{ lote.ubicacion_actual|lower }}">{{ lote.get_ubicacion_actual_display }}</span></td>
+                        <td><a href="{% url 'inventario_detalle_lote' lote.pk %}" class="btn btn-ghost btn-sm">Ver →</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align:center;padding:2.5rem;color:var(--text-muted);">✅ No hay lotes por vencer en los próximos 7 días.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

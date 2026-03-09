@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar Servicio — {{ lote.numero_lote }}{% endblock %}
+{% block topbar_title %}Registro de Servicio{% endblock %}
+{% block nav_inventario %}active{% endblock %}
+
+{% block extra_css %}
+.form-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+.form-section-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 1.25rem;
+}
+.field-wrap { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+.field-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+.lote-stat {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.875rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+.lote-stat-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.lote-stat-value { font-size: 1.1rem; font-weight: 700; }
+{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;margin:0 auto;">
+
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
+        <div>
+            <div class="page-title">Registrar Servicio</div>
+            <p class="page-subtitle" style="margin-bottom:0;">Salida a línea o consumo del lote</p>
+        </div>
+        <a href="{% url 'inventario_detalle_lote' lote.pk %}" class="btn btn-ghost">← Volver</a>
+    </div>
+
+    <!-- Info del lote -->
+    <div class="form-section" style="margin-bottom:1.25rem;">
+        <div class="form-section-label">📦 Lote a Servir</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:1rem;">
+            <div class="lote-stat">
+                <div class="lote-stat-label">Código</div>
+                <div class="lote-stat-value" style="font-family:monospace;font-size:0.9rem;">{{ lote.numero_lote }}</div>
+            </div>
+            <div class="lote-stat">
+                <div class="lote-stat-label">Disponible</div>
+                <div class="lote-stat-value">{{ lote.cantidad }} <span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);">{{ lote.producto.get_unidad_medida_display }}</span></div>
+            </div>
+            <div class="lote-stat">
+                <div class="lote-stat-label">Vencimiento</div>
+                <div class="lote-stat-value" style="font-size:0.9rem;color:#f87171;">{{ lote.fecha_vencimiento|date:"d/m/Y" }}</div>
+            </div>
+        </div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--text-muted);">{{ lote.producto.nombre }}</div>
+        <div style="margin-top:0.35rem;"><span class="badge badge-{{ lote.ubicacion_actual|lower }}">{{ lote.get_ubicacion_actual_display }}</span></div>
+    </div>
+
+    <!-- Formulario -->
+    <form method="post" id="form_servicio">
+        {% csrf_token %}
+        <div class="form-section">
+            <div class="form-section-label">📋 Datos del Servicio</div>
+            <div class="field-wrap">
+                <label class="field-label">Cantidad a Servir *</label>
+                <input type="number" name="cantidad_servida" step="0.01" min="0.01"
+                       max="{{ lote.cantidad }}" class="form-control"
+                       placeholder="Ej: 5.5" required id="id_cant_serv">
+            </div>
+            <div class="field-wrap">
+                <label class="field-label">Observaciones</label>
+                <textarea name="observaciones" class="form-control" rows="2" id="id_obs_serv"
+                          placeholder="Notas del servicio, destino, comensales..."></textarea>
+            </div>
+            <label style="display:flex;align-items:center;gap:0.625rem;cursor:pointer;margin-top:0.25rem;">
+                <input type="checkbox" name="marcar_consumido" value="1" id="id_consumido"
+                       style="accent-color:var(--accent);width:16px;height:16px;">
+                <span style="font-size:0.82rem;color:var(--text-muted);">Marcar lote como <strong style="color:var(--text);">Consumido</strong> al registrar</span>
+            </label>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:0.75rem;">
+            <a href="{% url 'inventario_detalle_lote' lote.pk %}" class="btn btn-ghost">Cancelar</a>
+            <button type="submit" class="btn btn-primary" id="btn_serv">🍽️ Registrar Servicio</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

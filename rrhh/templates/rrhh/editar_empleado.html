@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar {{ empleado.nombre }} — RRHH{% endblock %}
+{% block topbar_title %}Editar Empleado{% endblock %}
+{% block nav_empleados %}active{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+    <a href="{% url 'rrhh_detalle_empleado' empleado.pk %}" style="color:var(--text-muted); text-decoration:none; font-size:0.875rem; display:inline-flex; align-items:center; gap:0.25rem;">
+        ← Volver a la ficha
+    </a>
+</div>
+
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <div style="margin-bottom: 2rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem;">Editar Informacion de Empleado</h2>
+        <p style="color: var(--text-muted); font-size: 0.875rem;">Actualiza los datos personales y laborales de {{ empleado.nombre }} {{ empleado.apellido }}.</p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+            <div class="form-group"><label class="form-label">Nombre</label>{{ form.nombre }}</div>
+            <div class="form-group"><label class="form-label">Apellido</label>{{ form.apellido }}</div>
+            <div class="form-group"><label class="form-label">RUT</label>{{ form.rut }}</div>
+            <div class="form-group"><label class="form-label">F. Nacimiento</label>{{ form.fecha_nacimiento }}</div>
+            <div class="form-group"><label class="form-label">Nacionalidad</label>{{ form.nacionalidad }}</div>
+            <div class="form-group"><label class="form-label">Estado Civil</label>{{ form.estado_civil }}</div>
+            <div class="form-group"><label class="form-label">Dirección</label>{{ form.direccion }}</div>
+            <div class="form-group"><label class="form-label">Email</label>{{ form.email }}</div>
+            <div class="form-group"><label class="form-label">Teléfono</label>{{ form.telefono }}</div>
+            
+            <div class="form-group"><label class="form-label">Cargo</label>{{ form.cargo }}</div>
+            <div class="form-group"><label class="form-label">Área</label>{{ form.area }}</div>
+            <div class="form-group"><label class="form-label">Estado</label>{{ form.estado }}</div>
+            <div class="form-group"><label class="form-label">F. Ingreso</label>{{ form.fecha_ingreso }}</div>
+            <div class="form-group"><label class="form-label">F. Contrato</label>{{ form.fecha_contrato }}</div>
+            <div class="form-group"><label class="form-label">Turno</label>{{ form.turno }}</div>
+            <div class="form-group"><label class="form-label">Horario</label>{{ form.horario }}</div>
+            
+            <div class="form-group"><label class="form-label">1° Anexo</label>{{ form.anexo_1 }}</div>
+            <div class="form-group"><label class="form-label">2° Anexo</label>{{ form.anexo_2 }}</div>
+            <div class="form-group"><label class="form-label">Emergencia (Nombre)</label>{{ form.emergencia_nombre }}</div>
+            <div class="form-group"><label class="form-label">Emergencia (Teléfono)</label>{{ form.emergencia_telefono }}</div>
+            
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Observaciones</label>
+                {{ form.observaciones }}
+            </div>
+            
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Foto de Perfil</label>
+                {{ form.foto }}
+                {% if empleado.foto %}
+                <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">
+                    Archivo actual: <a href="{{ empleado.foto.url }}" target="_blank" style="color: var(--accent);">{{ empleado.foto.name }}</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; gap: 1rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <button type="submit" class="btn btn-primary">💾 Guardar Cambios</button>
+            <a href="{% url 'rrhh_detalle_empleado' empleado.pk %}" class="btn btn-ghost">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

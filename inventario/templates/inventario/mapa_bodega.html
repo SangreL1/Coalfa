@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% load inventario_filters %}
+
+{% block title %}Mapa de Bodega — San Lucas{% endblock %}
+{% block topbar_title %}Mapa Visual de Inventario{% endblock %}
+{% block nav_inventario %}active{% endblock %}
+
+{% block extra_css %}
+.warehouse-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.sector-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.sector-card:hover {
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-4px);
+}
+
+.sector-card.alert {
+    border-color: var(--danger);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+}
+
+.sector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+}
+
+.sector-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.temp-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.temp-badge.ok { background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.2); }
+.temp-badge.warn { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+.item-list {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.item-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.item-row:last-child { border: none; }
+
+.fefo-alert {
+    animation: pulse-red 2s infinite;
+    color: var(--danger);
+    font-weight: 700;
+}
+
+@keyframes pulse-red {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.quick-action-btn {
+    width: 100%;
+    margin-top: 1rem;
+    font-size: 0.8rem;
+    padding: 0.6rem;
+}
+
+.modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+}
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <p style="color: var(--text-muted); font-size: 0.875rem;">Monitoreo en tiempo real de áreas de almacenamiento y cadena de frío.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <button onclick="openTempModal()" class="btn btn-primary btn-sm">🌡️ Registrar Temperatura</button>
+        <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-ghost btn-sm">➕ Nueva Recepción</a>
+    </div>
+</div>
+
+<h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 1.25rem; color: var(--accent);">❄️ CÁMARAS DE FRÍO</h2>
+<div class="warehouse-grid">
+    {% for cam_key, temp_reg in temperaturas.items %}
+    <div class="sector-card {% if temp_reg and temp_reg.temperatura > 5 %}alert{% endif %}">
+        <div class="sector-header">
+            <span class="sector-title">🧊 {{ cam_key|replace:"CAMARA_,Cámara " }}</span>
+            {% if temp_reg %}
+                <span class="temp-badge {% if temp_reg.temperatura <= 5 %}ok{% else %}warn{% endif %}">
+                    {{ temp_reg.temperatura }}°C
+                </span>
+            {% else %}
+                <span class="temp-badge" style="background: rgba(100,116,139,0.1); color: var(--text-muted);">Sin datos</span>
+            {% endif %}
+        </div>
+        
+        <div class="item-list">
+            {% with sector=sectores|get_item:cam_key %}
+                {% for lote in sector.lotes|slice:":4" %}
+                    <div class="item-row">
+                        <span>{{ lote.producto.nombre|truncatechars:20 }}</span>
+                        <span class="{% if lote.dias_restantes <= 3 %}fefo-alert{% endif %}">
+                            {{ lote.cantidad }} {{ lote.producto.get_unidad_medida_display }}
+                        </span>
+                    </div>
+                {% empty %}
+                    <p style="text-align: center; padding: 1rem; opacity: 0.5;">Cámara vacía</p>
+                {% endfor %}
+                {% if sector.count > 4 %}
+                    <div style="text-align: center; margin-top: 0.5rem;">
+                        <a href="{% url 'inventario_lista_lotes' %}?ubicacion={{ cam_key }}&estado=ACTIVO" style="font-size: 0.7rem; color: var(--accent); text-decoration: none;">Ver {{ sector.count|add:"-4" }} más...</a>
+                    </div>
+                {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 1.25rem; color: var(--accent);">📦 ALMACENAMIENTO SECO Y COCINAS</h2>
+<div class="warehouse-grid">
+    {% for key, sector in sectores.items %}
+        {% if not key|startswith:"CAMARA_" %}
+        <div class="sector-card {% if sector.alerta %}alert{% endif %}">
+            <div class="sector-header">
+                <span class="sector-title">
+                    {% if key == 'BODEGA' %}📚{% elif 'COCINA' in key %}🍳{% elif key == 'REPOSTERIA' %}🧁{% else %}📍{% endif %}
+                    {{ sector.label }}
+                </span>
+                <span style="font-size: 0.7rem; color: var(--text-muted);">{{ sector.count }} lotes</span>
+            </div>
+            
+            <div class="item-list">
+                {% for lote in sector.lotes|slice:":4" %}
+                    <div class="item-row">
+                        <span>{{ lote.producto.nombre|truncatechars:20 }}</span>
+                        <span class="{% if lote.dias_restantes <= 3 %}fefo-alert{% endif %}">
+                            {{ lote.cantidad }} {{ lote.producto.get_unidad_medida_display }}
+                        </span>
+                    </div>
+                {% empty %}
+                    <p style="text-align: center; padding: 1rem; opacity: 0.5;">Área vacía</p>
+                {% endfor %}
+                {% if sector.count > 4 %}
+                    <div style="text-align: center; margin-top: 0.5rem;">
+                        <a href="{% url 'inventario_lista_lotes' %}?ubicacion={{ key }}&estado=ACTIVO" style="font-size: 0.7rem; color: var(--accent); text-decoration: none;">Ver {{ sector.count|add:"-4" }} más...</a>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <a href="{% url 'inventario_lista_lotes' %}?ubicacion={{ key }}&estado=ACTIVO" class="btn btn-ghost btn-sm quick-action-btn">Gestionar Área</a>
+        </div>
+        {% endif %}
+    {% endfor %}
+</div>
+
+<!-- Modal Registro Temperatura -->
+<div id="tempModal" class="modal">
+    <div class="card" style="width: 100%; max-width: 400px;">
+        <h3 style="font-weight: 800; margin-bottom: 1.5rem;">🌡️ Registro de Temperatura</h3>
+        <form action="{% url 'inventario_registrar_temperatura' %}" method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label">Cámara</label>
+                <select name="camara" class="form-control" required>
+                    {% for key, label in camara_choices %}
+                    <option value="{{ key }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Temperatura (°C)</label>
+                <input type="number" name="temperatura" step="0.1" class="form-control" placeholder="Ej: -18.5" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Observaciones</label>
+                <textarea name="observaciones" class="form-control" rows="2"></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="submit" class="btn btn-primary">Guardar Registro</button>
+                <button type="button" onclick="closeTempModal()" class="btn btn-ghost">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openTempModal() {
+        document.getElementById('tempModal').style.display = 'flex';
+    }
+    function closeTempModal() {
+        document.getElementById('tempModal').style.display = 'none';
+    }
+    // Cerrar modal al hacer click fuera
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('tempModal')) {
+            closeTempModal();
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block title %}Control de Lotes — Bodega Empresarial{% endblock %}
+{% block topbar_title %}Gestión de Trazabilidad{% endblock %}
+{% block nav_lotes %}active{% endblock %}
+
+{% block extra_css %}
+.glass-panel {
+    background: var(--glass);
+    backdrop-filter: blur(12px);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 1.5rem;
+}
+
+.search-field {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem 0.75rem 2.8rem;
+    color: var(--text);
+    font-size: 0.88rem;
+    width: 100%;
+    transition: all 0.2s;
+}
+
+.search-field:focus {
+    border-color: var(--accent);
+    background: rgba(255,255,255,0.06);
+    outline: none;
+    box-shadow: 0 0 15px var(--accent-glow);
+}
+
+.filter-chip {
+    padding: 0.5rem 1rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-chip.active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.lote-card:hover td { background: rgba(255,255,255,0.015); }
+
+@keyframes pulse-red-bg {
+    0% { background-color: rgba(239, 68, 68, 0.05); }
+    50% { background-color: rgba(239, 68, 68, 0.15); }
+    100% { background-color: rgba(239, 68, 68, 0.05); }
+}
+
+.critical-fefo {
+    animation: pulse-red-bg 2s infinite;
+    border-left: 4px solid var(--danger) !important;
+}
+{% endblock %}
+
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:2rem; gap:1.5rem; flex-wrap:wrap;">
+    <div>
+        <h1 class="page-title">Explorador de Lotes</h1>
+        <p class="page-subtitle" style="margin-bottom:0;">Seguimiento detallado de ingresos, salidas y ubicaciones</p>
+    </div>
+    <div style="display:flex; gap:0.75rem;">
+        <a href="{% url 'exportar_inventario_csv' %}?q={{ q }}&ubicacion={{ ubicacion }}&estado={{ estado }}" class="btn btn-ghost">📊 CSV</a>
+        <a href="{% url 'exportar_inventario_excel' %}?q={{ q }}&ubicacion={{ ubicacion }}&estado={{ estado }}" class="btn btn-ghost" style="border-color:var(--success); color:var(--success);">📗 Descargar Excel</a>
+        <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-primary">📦 Registrar Ingreso</a>
+    </div>
+</div>
+
+<div class="glass-panel">
+    <form method="get" id="filterForm" style="display:grid; grid-template-columns: 1fr auto auto auto; gap:1rem; align-items:center;">
+        <div style="position:relative;">
+            <input type="text" name="q" class="search-field" placeholder="Buscar por código, producto o guía..." value="{{ q }}">
+            <span style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); opacity:0.5;">🔍</span>
+        </div>
+        
+        <select name="ubicacion" class="form-control" style="width:180px; font-size:0.85rem;" onchange="this.form.submit()">
+            <option value="">Todas las Áreas</option>
+            {% for key, label in ubicaciones %}
+            <option value="{{ key }}" {% if ubicacion == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+
+        <select name="estado" class="form-control" style="width:160px; font-size:0.85rem;" onchange="this.form.submit()">
+            <option value="">Todos los Estados</option>
+            {% for key, label in estados %}
+            <option value="{{ key }}" {% if estado == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="btn btn-primary" style="padding:0.75rem 1.25rem;">Buscar</button>
+    </form>
+</div>
+
+<div class="glass-panel" style="padding:0; overflow:hidden;">
+    <table class="table-enterprise" style="border-spacing: 0;">
+        <thead>
+            <tr style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; background:rgba(0,0,0,0.15);">
+                <th style="padding:1.25rem 1.5rem; text-align:left;">Lote</th>
+                <th>Producto</th>
+                <th>Cantidad Actual</th>
+                <th>Ubicación</th>
+                <th>Vencimiento</th>
+                <th style="text-align:right; padding-right:1.5rem;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lote in lotes %}
+            <tr class="lote-card {% if lote.dias_restantes <= 3 %}critical-fefo{% endif %}">
+                <td style="padding:1.25rem 1.5rem;">
+                    <div style="font-family:monospace; font-weight:800; color:var(--accent); font-size:1rem;">{{ lote.numero_lote }}</div>
+                    <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;"># Prov: {{ lote.numero_lote_proveedor|default:"N/A" }}</div>
+                </td>
+                <td>
+                    <div style="font-weight:700;">{{ lote.producto.nombre }}</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted);">{{ lote.proveedor.nombre|default:"Sin proveedor" }}</div>
+                </td>
+                <td>
+                    <div style="font-weight:800; font-size:1rem;">{{ lote.cantidad }}</div>
+                    <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase;">{{ lote.producto.get_unidad_medida_display }}</div>
+                </td>
+                <td>
+                    <span class="badge badge-{{ lote.ubicacion_actual|lower }}" style="font-size:0.65rem;">
+                        {{ lote.get_ubicacion_actual_display }}
+                    </span>
+                    {% if lote.ubicacion_detalle %}
+                    <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;">{{ lote.ubicacion_detalle }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if lote.fecha_vencimiento < hoy %}
+                    <div style="color:var(--danger); font-weight:800;">VENCIDO</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted);">{{ lote.fecha_vencimiento|date:"d/m/Y" }}</div>
+                    {% elif lote.dias_restantes <= 7 %}
+                    <div style="color:var(--warning); font-weight:800;">PRÓXIMO</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted);">{{ lote.fecha_vencimiento|date:"d/m/Y" }}</div>
+                    {% else %}
+                    <div style="font-weight:600;">{{ lote.fecha_vencimiento|date:"d/m/Y" }}</div>
+                    <div style="font-size:0.7rem; color:var(--success);">Saludable</div>
+                    {% endif %}
+                </td>
+                <td style="text-align:right; padding-right:1.5rem;">
+                    <a href="{% url 'inventario_detalle_lote' lote.pk %}" class="btn btn-ghost btn-sm">Abrir Detalle →</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align:center; padding:5rem; color:var(--text-muted);">
+                    <div style="font-size:4rem; margin-bottom:1rem; opacity:0.3;">📦</div>
+                    <p>No se encontraron lotes que coincidan con los criterios.</p>
+                    {% if q or ubicacion or estado %}
+                    <a href="{% url 'inventario_lista_lotes' %}" style="color:var(--accent); font-weight:600; text-decoration:none;">Limpiar Filtros</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

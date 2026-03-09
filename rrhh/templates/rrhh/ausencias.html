@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+
+{% block title %}Vacaciones y Licencias — RRHH{% endblock %}
+{% block topbar_title %}Gestión de Ausencias{% endblock %}
+{% block nav_ausencias %}active{% endblock %}
+
+{% block extra_css %}
+/* Modal */
+.modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+    background: var(--coal-mid); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 2.5rem;
+    width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+    box-shadow: var(--shadow); position: relative;
+    animation: modalIn 0.25s ease;
+}
+@keyframes modalIn {
+    from { opacity:0; transform: translateY(-20px) scale(0.97); }
+    to   { opacity:1; transform: none; }
+}
+.modal-close {
+    position:absolute; top:1rem; right:1rem;
+    background:none; border:none; color:var(--text-muted);
+    font-size:1.5rem; cursor:pointer; transition: color 0.2s;
+}
+.modal-close:hover { color: var(--danger); }
+.form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+@media (max-width:600px) { .form-grid-2 { grid-template-columns:1fr; } }
+
+/* Alerta informativa */
+.info-banner {
+    display: flex; align-items: center; gap: 0.75rem;
+    background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.4);
+    border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem;
+    font-size: 0.875rem; color: var(--warning);
+}
+.info-banner svg { flex-shrink: 0; }
+
+/* Secciones de tabla */
+.section-label {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.2px; color: var(--text-muted);
+    padding: 0.75rem 1.25rem; background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+}
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+    <div>
+        <h1 class="page-title">Vacaciones y Licencias</h1>
+        <p class="page-subtitle" style="margin-bottom:0;">Ausencias vigentes y programadas del personal</p>
+    </div>
+    <button onclick="openModal('modalAusencia')" class="btn btn-primary">+ Registrar Ausencia</button>
+</div>
+
+{% if emp_en_licencia > 0 or emp_en_vacaciones > 0 %}
+<div class="info-banner">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <div>
+        <strong>Atención:</strong>
+        Hay
+        {% if emp_en_licencia > 0 %}<strong>{{ emp_en_licencia }} empleado{{ emp_en_licencia|pluralize:"s" }} con estado Licencia</strong>{% endif %}
+        {% if emp_en_licencia > 0 and emp_en_vacaciones > 0 %} y {% endif %}
+        {% if emp_en_vacaciones > 0 %}<strong>{{ emp_en_vacaciones }} en Vacaciones</strong>{% endif %}
+        en el sistema. Si aún no tienen un período registrado, usa el botón <em>"Registrar Ausencia"</em> para añadirlo.
+    </div>
+</div>
+{% endif %}
+
+<div class="card" style="padding:0;">
+    {% if ausencias %}
+    <div class="section-label">📋 Ausencias Activas y Programadas</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Empleado</th>
+                    <th>Estado Empleado</th>
+                    <th>Tipo Ausencia</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Días</th>
+                    <th>Estado</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in ausencias %}
+                <tr>
+                    <td style="font-weight:600;">{{ a.empleado.apellido }}, {{ a.empleado.nombre }}</td>
+                    <td>
+                        <span class="badge badge-{{ a.empleado.estado|lower }}">
+                            {{ a.empleado.get_estado_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge {% if a.tipo == 'VACACIONES' %}badge-vacaciones{% else %}badge-licencia{% endif %}">
+                            {{ a.get_tipo_display }}
+                        </span>
+                    </td>
+                    <td>{{ a.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td>{{ a.fecha_fin|date:"d/m/Y" }}</td>
+                    <td style="color:var(--text-muted);">
+                        {% with dias=a.fecha_fin|timeuntil:a.fecha_inicio %}
+                        {{ a.fecha_inicio|timesince:a.fecha_fin }}
+                        {% endwith %}
+                    </td>
+                    <td>
+                        {% if a.fecha_inicio <= hoy and a.fecha_fin >= hoy %}
+                            <span class="badge badge-activo">En curso</span>
+                        {% else %}
+                            <span class="badge badge-vacaciones">Programada</span>
+                        {% endif %}
+                    </td>
+                    <td style="color:var(--text-muted);font-size:0.8rem;">{{ a.descripcion|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:3rem;color:var(--text-muted);">
+        <div style="font-size:2.5rem;margin-bottom:1rem;">📭</div>
+        <div style="font-weight:600;margin-bottom:0.5rem;">No hay ausencias activas o programadas.</div>
+        <div style="font-size:0.85rem;">Usa el botón <strong>"Registrar Ausencia"</strong> para agregar una.</div>
+    </div>
+    {% endif %}
+</div>
+
+{% if ausencias_historial %}
+<div class="card" style="padding:0; margin-top:1.5rem;">
+    <div class="section-label">🗂 Historial del Mes Actual</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Empleado</th>
+                    <th>Tipo</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in ausencias_historial %}
+                <tr>
+                    <td style="font-weight:600;">{{ a.empleado.apellido }}, {{ a.empleado.nombre }}</td>
+                    <td>
+                        <span class="badge {% if a.tipo == 'VACACIONES' %}badge-vacaciones{% else %}badge-licencia{% endif %}">
+                            {{ a.get_tipo_display }}
+                        </span>
+                    </td>
+                    <td>{{ a.fecha_inicio|date:"d/m/Y" }}</td>
+                    <td>{{ a.fecha_fin|date:"d/m/Y" }}</td>
+                    <td style="color:var(--text-muted);font-size:0.8rem;">{{ a.descripcion|default:"—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ===================== MODAL: Registrar Ausencia ===================== -->
+<div class="modal-overlay {% if show_modal %}open{% endif %}" id="modalAusencia">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal('modalAusencia')">×</button>
+        <h2 style="font-size:1.4rem; font-weight:800; margin-bottom:0.4rem;">Registrar Ausencia</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:2rem;">Registra vacaciones, licencias médicas u otras ausencias del personal.</p>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            {% if ausencia_form.errors %}
+            <div style="background:rgba(248,113,113,0.1); border:1px solid var(--danger); border-radius:10px; padding:1rem; margin-bottom:1.5rem;">
+                {% for field in ausencia_form %}{% for error in field.errors %}
+                <div style="color:var(--danger); font-size:0.8rem;">⚠ {{ field.label }}: {{ error }}</div>
+                {% endfor %}{% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="form-group" style="margin-bottom:1rem;">
+                <label class="form-label">Empleado *</label>
+                {{ ausencia_form.empleado }}
+                <small style="color:var(--text-muted);font-size:0.72rem;display:block;margin-top:3px;">
+                    Incluye empleados activos, en licencia y en vacaciones.
+                </small>
+            </div>
+
+            <div class="form-group" style="margin-bottom:1rem;">
+                <label class="form-label">Tipo de Ausencia *</label>
+                {{ ausencia_form.tipo }}
+            </div>
+
+            <div class="form-grid-2" style="margin-bottom:1rem;">
+                <div class="form-group">
+                    <label class="form-label">Fecha de Inicio *</label>
+                    {{ ausencia_form.fecha_inicio }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Fecha de Término *</label>
+                    {{ ausencia_form.fecha_fin }}
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:1.5rem;">
+                <label class="form-label">Notas / Observaciones</label>
+                {{ ausencia_form.descripcion }}
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:2rem;">
+                <button type="button" onclick="closeModal('modalAusencia')" class="btn btn-ghost">Cancelar</button>
+                <button type="submit" name="registrar_ausencia" value="1" class="btn btn-primary" style="padding:0.75rem 2rem;">
+                    Confirmar Ausencia
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openModal(id) {
+        document.getElementById(id).classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) closeModal(this.id);
+        });
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
+    });
+</script>
+{% endblock %}

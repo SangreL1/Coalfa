@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}RRHH — Coalfa{% endblock %}
+{% block topbar_title %}Recursos Humanos{% endblock %}
+{% block nav_rrhh %}active{% endblock %}
+
+{% block extra_css %}
+.absence-row { display: flex; align-items: center; gap: 1rem; padding: 0.875rem 0; border-bottom: 1px solid
+var(--border); }
+.absence-dates { font-size: 0.75rem; color: var(--text-muted); }
+{% endblock %}
+
+{% block content %}
+<div class="page-title">Recursos Humanos</div>
+<p class="page-subtitle">Resumen general del personal de Coalfa</p>
+
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-label">Total Personal</div>
+        <div class="kpi-value">{{ total }}</div>
+        <div class="kpi-icon">👥</div>
+    </div>
+    <div class="kpi-card" style="--accent:#22c55e;">
+        <div class="kpi-label">Activos</div>
+        <div class="kpi-value">{{ activos }}</div>
+        <div class="kpi-icon">✅</div>
+    </div>
+    <div class="kpi-card" style="--accent:#eab308;">
+        <div class="kpi-label">En Vacaciones</div>
+        <div class="kpi-value">{{ vacaciones }}</div>
+        <div class="kpi-icon">🏖️</div>
+    </div>
+    <div class="kpi-card" style="--accent:#ef4444;">
+        <div class="kpi-label">Con Licencia</div>
+        <div class="kpi-value">{{ licencia }}</div>
+        <div class="kpi-icon">🏥</div>
+    </div>
+    <div class="kpi-card" style="--accent:#64748b;">
+        <div class="kpi-label">Finiquitados</div>
+        <div class="kpi-value">{{ finiquitados }}</div>
+        <div class="kpi-icon">📁</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Ausencias Activas</span>
+            <a href="{% url 'rrhh_ausencias' %}" class="btn btn-ghost btn-sm">Ver todas</a>
+        </div>
+        {% for a in ausencias_activas %}
+        <div class="absence-row">
+            <div style="flex:1;">
+                <div style="font-weight:600;font-size:0.875rem;">{{ a.empleado.nombre }} {{ a.empleado.apellido }}</div>
+                <div class="absence-dates">{{ a.get_tipo_display }} &mdash; hasta el {{ a.fecha_fin|date:"d/m/Y" }}
+                </div>
+            </div>
+            <span class="badge {% if a.tipo == 'VACACIONES' %}badge-vacaciones{% else %}badge-licencia{% endif %}">
+                {{ a.get_tipo_display }}
+            </span>
+        </div>
+        {% empty %}
+        <p style="color:var(--text-muted);font-size:0.875rem;padding-top:1rem;">No hay ausencias activas actualmente.
+        </p>
+        {% endfor %}
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Accesos Rápidos</span>
+        </div>
+        <a href="{% url 'rrhh_lista_empleados' %}" class="btn btn-primary"
+            style="display:flex;justify-content:space-between;margin-bottom:0.75rem;">
+            Ver listado de empleados <span>→</span>
+        </a>
+        <a href="{% url 'rrhh_ausencias' %}" class="btn btn-ghost"
+            style="display:flex;justify-content:space-between;margin-bottom:0.75rem;">
+            Vacaciones y licencias <span>→</span>
+        </a>
+        <a href="/admin/rrhh/empleado/add/" class="btn btn-ghost" style="display:flex;justify-content:space-between;">
+            Registrar nuevo empleado <span>+</span>
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar Transformación{% endblock %}
+{% block topbar_title %}Transformación de Lotes{% endblock %}
+{% block nav_inventario %}active{% endblock %}
+
+{% block extra_css %}
+.form-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+.form-section-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin-bottom: 1.25rem;
+}
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+.field-wrap { display: flex; flex-direction: column; gap: 0.4rem; }
+.field-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+.field-hint { font-size: 0.7rem; color: var(--text-muted); opacity: 0.7; margin-top: 0.15rem; }
+.form-control option { background: #1e293b; color: var(--text); }
+
+/* Selector de insumos */
+.insumos-search-wrap { position: relative; margin-bottom: 0.75rem; }
+.insumos-search-wrap input { padding-left: 2.25rem; width: 100%; }
+.insumos-search-icon { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.insumos-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.02);
+}
+.insumo-row {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.insumo-row:last-child { border-bottom: none; }
+.insumo-row:hover { background: rgba(255,255,255,0.04); }
+.insumo-row input[type=checkbox] {
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+.insumo-code { font-family: monospace; font-size: 0.8rem; font-weight: 700; min-width: 145px; color: var(--text); }
+.insumo-prod { font-size: 0.82rem; color: var(--text-muted); flex: 1; }
+.insumo-ub { font-size: 0.7rem; }
+.insumo-counter { font-size: 0.78rem; color: var(--accent); margin-top: 0.6rem; font-weight: 600; }
+.sugerido-highlight {
+    background: rgba(249, 115, 22, 0.05) !important;
+}
+.sugerido-highlight:hover {
+    background: rgba(249, 115, 22, 0.1) !important;
+}
+{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;margin:0 auto;">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
+        <div>
+            <div class="page-title">Registrar Transformación</div>
+            <p class="page-subtitle" style="margin-bottom:0;">Combina insumos para crear un nuevo lote procesado</p>
+        </div>
+        <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost">← Cancelar</a>
+    </div>
+
+    <form method="post" id="form_transf">
+        {% csrf_token %}
+
+        <!-- Selección de insumos -->
+        <div class="form-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <div class="form-section-label" style="margin-bottom:0;">📦 Lotes Insumo (Materia Prima)</div>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="seleccionarSugeridos()" 
+                        style="color:var(--accent); border-color:var(--accent); font-size:0.7rem;">
+                    💡 Seleccionar Sugeridos
+                </button>
+            </div>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;">
+                Seleccioná los lotes que entran en esta transformación. Quedarán como <strong style="color:var(--text);">lotes de origen</strong> del producto resultante.
+            </p>
+            <div class="insumos-search-wrap">
+                <span class="insumos-search-icon">🔍</span>
+                <input type="text" id="buscar_insumo" class="form-control" placeholder="Buscar por código o producto...">
+            </div>
+            <div class="insumos-list" id="lista_insumos">
+                {% for lote in lotes_activos %}
+                <label class="insumo-row {% if lote.pk in id_sugeridos %}sugerido-highlight{% endif %}" id="insumo_{{ lote.pk }}">
+                    <input type="checkbox" name="lotes_padres" value="{{ lote.pk }}" 
+                           class="chk-insumo {% if lote.pk in id_sugeridos %}chk-sugerido{% endif %}" 
+                           onchange="actualizarContador()">
+                    <span class="insumo-code">{{ lote.numero_lote }}</span>
+                    <span class="insumo-prod">
+                        {{ lote.producto.nombre }} — {{ lote.cantidad }} {{ lote.producto.get_unidad_medida_display }}
+                        {% if lote.pk in id_sugeridos %}
+                        <span class="badge" style="background:rgba(249,115,22,0.15); color:var(--accent); font-size:0.6rem; margin-left:0.5rem;">SUGERIDO</span>
+                        {% endif %}
+                    </span>
+                    <span class="insumo-ub badge badge-{{ lote.ubicacion_actual|lower }}">{{ lote.get_ubicacion_actual_display }}</span>
+                </label>
+                {% empty %}
+                <div style="padding:2rem;text-align:center;color:var(--text-muted);">No hay lotes activos.</div>
+                {% endfor %}
+            </div>
+            <div class="insumo-counter" id="insumo_counter">0 lotes seleccionados</div>
+        </div>
+
+        <!-- Producto resultante -->
+        <div class="form-section">
+            <div class="form-section-label">✨ Lote Resultante</div>
+            <div class="form-grid-2" style="margin-bottom:1rem;">
+                <div class="field-wrap">
+                    <label class="field-label">Producto resultante *</label>
+                    <select name="producto" class="form-control" required id="id_prod_res">
+                        <option value="">— Seleccionar —</option>
+                        {% for p in productos %}
+                        <option value="{{ p.pk }}">{{ p.nombre }} ({{ p.get_unidad_medida_display }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">Proceso aplicado *</label>
+                    <select name="proceso" class="form-control" required id="id_proceso">
+                        {% for key, label in procesos %}
+                        <option value="{{ key }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-grid-3">
+                <div class="field-wrap">
+                    <label class="field-label">Cantidad resultante *</label>
+                    <input type="number" name="cantidad" step="0.01" min="0.01" class="form-control" placeholder="Ej: 15" required id="id_cant_res">
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">Nueva vida útil *</label>
+                    <input type="date" name="fecha_vencimiento" class="form-control" required id="id_venc_res">
+                </div>
+                <div class="field-wrap">
+                    <label class="field-label">Ubicación destino *</label>
+                    <select name="ubicacion_destino" class="form-control" required id="id_ub_destino">
+                        {% for key, label in ubicaciones %}
+                        {% if key != "BODEGA" %}
+                        <option value="{{ key }}" {% if key == "COCINA_FRIA" %}selected{% endif %}>{{ label }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="field-wrap" style="margin-top:1rem;">
+                <label class="field-label">Observaciones</label>
+                <textarea name="observaciones" class="form-control" rows="2" id="id_obs_res"
+                    placeholder="Temp. cocción, tiempo de proceso, notas del chef..."></textarea>
+            </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:0.75rem;">
+            <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost">Cancelar</a>
+            <button type="submit" class="btn btn-primary" id="btn_transformar">🔄 Crear Lote Resultado</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('buscar_insumo').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.insumo-row').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+function actualizarContador() {
+    const n = document.querySelectorAll('.chk-insumo:checked').length;
+    document.getElementById('insumo_counter').textContent =
+        n + ' lote' + (n !== 1 ? 's' : '') + ' seleccionado' + (n !== 1 ? 's' : '');
+}
+
+function seleccionarSugeridos() {
+    document.querySelectorAll('.chk-sugerido').forEach(chk => {
+        chk.checked = true;
+    });
+    actualizarContador();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard — Coalfa{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
+{% block nav_home %}active{% endblock %}
+
+{% block extra_css %}
+.dash-wrap {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+    align-items: start;
+}
+/* To-Do */
+.todo-wrap { display: flex; flex-direction: column; gap: 0; }
+.todo-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 0.875rem; margin-bottom: 0.875rem;
+    border-bottom: 1px solid var(--border);
+}
+.todo-title { font-size: 1rem; font-weight: 700; }
+.todo-badge {
+    background: var(--accent); color: white;
+    font-size: 0.68rem; font-weight: 700;
+    border-radius: 9999px; padding: 0.1rem 0.55rem;
+}
+.todo-input-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.todo-input-row input {
+    flex: 1; background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.625rem 0.875rem; color: var(--text);
+    font-size: 0.84rem; outline: none; font-family: inherit;
+    transition: border-color 0.2s;
+}
+.todo-input-row input:focus { border-color: var(--accent); background: rgba(249,115,22,0.05); }
+.todo-input-row input::placeholder { color: var(--text-muted); }
+.todo-add-btn {
+    background: var(--accent); color: white; border: none;
+    border-radius: 8px; padding: 0.625rem 1rem;
+    font-size: 1rem; font-weight: 700; cursor: pointer;
+    transition: background 0.2s, transform 0.15s; line-height: 1;
+}
+.todo-add-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.task-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.65rem 0.75rem; border-radius: 8px;
+    margin-bottom: 0.35rem;
+    background: rgba(255,255,255,0);
+    transition: background 0.15s;
+}
+.task-item:hover { background: rgba(255,255,255,0.03); }
+.task-check {
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    background: none; cursor: pointer; flex-shrink: 0;
+    transition: all 0.18s; display: flex; align-items: center;
+    justify-content: center; color: white; font-size: 0.65rem; font-weight: 900;
+}
+.task-check.done { background: #4ade80; border-color: #4ade80; }
+.task-label {
+    flex: 1; font-size: 0.85rem; line-height: 1.4;
+    transition: opacity 0.2s;
+}
+.task-label.done { opacity: 0.35; text-decoration: line-through; }
+.task-del {
+    border: none; background: none; color: transparent;
+    cursor: pointer; font-size: 0.8rem; padding: 0.2rem 0.35rem;
+    border-radius: 4px; transition: all 0.15s;
+}
+.task-item:hover .task-del { color: var(--text-muted); }
+.task-del:hover { background: rgba(248,113,113,0.15); color: #f87171!important; }
+.todo-empty {
+    text-align: center; padding: 1.5rem 1rem;
+    color: var(--text-muted); font-size: 0.82rem;
+}
+{% endblock %}
+
+{% block content %}
+
+<div class="page-title">Bienvenido, {{ user.nombre }}</div>
+<p class="page-subtitle">{{ user.get_rol_display }} · {{ user.get_full_name }} · Sistema de Gestión Coalfa</p>
+
+<div class="dash-wrap">
+    <!-- Izquierda: KPIs + cards de módulos -->
+    <div>
+        {% if user.rol == 'RRHH' or user.rol == 'ADMIN' %}
+        <div class="kpi-grid" style="margin-bottom:1.5rem;">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Empleados</div>
+                <div class="kpi-value">{{ total_empleados|default:"0" }}</div>
+                <div class="kpi-icon">👥</div>
+            </div>
+            <div class="kpi-card" style="--accent:#eab308;">
+                <div class="kpi-label">En Vacaciones</div>
+                <div class="kpi-value">{{ en_vacaciones|default:"0" }}</div>
+                <div class="kpi-icon">🏖️</div>
+            </div>
+            <div class="kpi-card" style="--accent:#ef4444;">
+                <div class="kpi-label">Con Licencia</div>
+                <div class="kpi-value">{{ con_licencia|default:"0" }}</div>
+                <div class="kpi-icon">🏥</div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' %}
+        <div class="kpi-grid" style="margin-bottom:1.5rem;">
+            <div class="kpi-card">
+                <div class="kpi-label">Lotes en Bodega</div>
+                <div class="kpi-value">{{ lotes_bodega|default:"0" }}</div>
+                <div class="kpi-icon">📦</div>
+            </div>
+            <div class="kpi-card" style="--accent:#ef4444;">
+                <div class="kpi-label">Por Vencer (7d)</div>
+                <div class="kpi-value">{{ lotes_por_vencer|default:"0" }}</div>
+                <div class="kpi-icon">⚠️</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Accesos rápidos -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;">
+            {% if user.rol == 'RRHH' or user.rol == 'ADMIN' %}
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Recursos Humanos</span>
+                    <span>👥</span>
+                </div>
+                <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.25rem;line-height:1.6;">
+                    Nómina, documentación laboral, vacaciones y licencias del personal.
+                </p>
+                <a href="{% url 'rrhh_dashboard' %}" class="btn btn-primary">Ir a RRHH</a>
+            </div>
+            {% endif %}
+
+            {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' %}
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Bodega & Trazabilidad</span>
+                    <span>📦</span>
+                </div>
+                <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.25rem;line-height:1.6;">
+                    Control de stock, trazabilidad HACCP y alertas de vencimiento.
+                </p>
+                <a href="{% url 'inventario_dashboard' %}" class="btn btn-primary">Ir a Bodega</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Derecha: To-Do List -->
+    <div class="card">
+        <div class="todo-header">
+            <span class="todo-title">Mis Tareas</span>
+            {% if tareas_pendientes > 0 %}
+            <span class="todo-badge">{{ tareas_pendientes }}</span>
+            {% endif %}
+        </div>
+
+        <form method="post" action="{% url 'inventario_tarea_agregar' %}">
+            {% csrf_token %}
+            <div class="todo-input-row">
+                <input type="text" name="texto" id="task_input"
+                       placeholder="Nueva tarea..." maxlength="200" required
+                       autocomplete="off">
+                <button type="submit" class="todo-add-btn">+</button>
+            </div>
+        </form>
+
+        <div class="todo-wrap">
+            {% for tarea in tareas %}
+            <div class="task-item">
+                <form method="post" action="{% url 'inventario_tarea_toggle' tarea.pk %}" style="display:contents;">
+                    {% csrf_token %}
+                    <button type="submit" class="task-check {% if tarea.completada %}done{% endif %}">
+                        {% if tarea.completada %}✓{% endif %}
+                    </button>
+                </form>
+                <span class="task-label {% if tarea.completada %}done{% endif %}">{{ tarea.texto }}</span>
+                <form method="post" action="{% url 'inventario_tarea_eliminar' tarea.pk %}" style="display:contents;">
+                    {% csrf_token %}
+                    <button type="submit" class="task-del" title="Eliminar">✕</button>
+                </form>
+            </div>
+            {% empty %}
+            <div class="todo-empty">
+                <div style="font-size:1.5rem;margin-bottom:0.4rem;">✓</div>
+                Todo al día — sin tareas pendientes.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('task_input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') e.target.closest('form').submit();
+});
+</script>
+{% endblock %}

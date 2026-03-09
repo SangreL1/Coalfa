@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block title %}Trazabilidad — {{ lote.numero_lote }}{% endblock %}
+{% block topbar_title %}Árbol de Trazabilidad{% endblock %}
+{% block nav_inventario %}active{% endblock %}
+
+{% block extra_css %}
+/* ── Árbol ── */
+.trace-tree { display: flex; flex-direction: column; gap: 0; }
+.trace-node {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+    background: rgba(255,255,255,0.02);
+    margin-bottom: 0.5rem;
+}
+.trace-node:hover { border-color: var(--accent); background: var(--accent-soft); }
+.trace-node.current {
+    background: rgba(249,115,22,0.08);
+    border-color: var(--accent);
+    border-width: 1.5px;
+}
+.trace-node.child { margin-left: 2.5rem; }
+.trace-node.grandparent { margin-left: 2.5rem; opacity: 0.8; }
+.trace-node-left { flex: 1; }
+.trace-node-code { font-family: monospace; font-size: 0.82rem; font-weight: 700; color: var(--text); margin-bottom: 0.2rem; }
+.trace-node-name { font-size: 0.85rem; color: var(--text-muted); }
+.trace-node-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; display:flex; gap:0.875rem; flex-wrap:wrap; }
+.trace-connector {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0 0.25rem 1.5rem;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+.trace-section-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ── Eventos ── */
+.events-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.5rem; }
+.event-row {
+    display: flex;
+    gap: 0.875rem;
+    padding: 0.875rem 0;
+    border-bottom: 1px solid var(--border);
+}
+.event-row:last-child { border-bottom: none; }
+.event-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 5px; }
+.event-dot.green { background: #4ade80; }
+.event-body { flex: 1; }
+.event-title { font-size: 0.83rem; font-weight: 600; }
+.event-sub { font-size: 0.73rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+/* Datos recepción */
+.reception-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+    gap: 0.875rem;
+}
+.reception-item { display: flex; flex-direction: column; gap: 0.2rem; }
+.reception-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.reception-value { font-size: 0.9rem; font-weight: 600; }
+{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;margin:0 auto;">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
+        <div>
+            <div class="page-title">Árbol de Trazabilidad</div>
+            <p class="page-subtitle" style="margin-bottom:0;">
+                Cadena completa de origen y derivados del lote
+                <span style="font-family:monospace;color:var(--accent);margin-left:0.5rem;">{{ lote.numero_lote }}</span>
+            </p>
+        </div>
+        <a href="{% url 'inventario_detalle_lote' lote.pk %}" class="btn btn-ghost">← Volver al lote</a>
+    </div>
+
+    <!-- Árbol principal -->
+    <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-header">
+            <span class="card-title">Árbol de Trazabilidad</span>
+        </div>
+
+        <!-- PADRES -->
+        {% if arbol_padres %}
+        <div style="margin-bottom:1rem;">
+            <div class="trace-section-label">🌿 Lotes de Origen</div>
+            {% for nodo in arbol_padres %}
+
+                {% if nodo.padres %}
+                {% for abuelo in nodo.padres %}
+                <a href="{% url 'inventario_trazabilidad_lote' abuelo.lote.pk %}" class="trace-node grandparent">
+                    <div class="trace-node-left">
+                        <div class="trace-node-code">{{ abuelo.lote.numero_lote }}</div>
+                        <div class="trace-node-name">{{ abuelo.lote.producto.nombre }}</div>
+                        <div class="trace-node-meta">
+                            <span>{{ abuelo.lote.cantidad }} {{ abuelo.lote.producto.get_unidad_medida_display }}</span>
+                            <span>Vence {{ abuelo.lote.fecha_vencimiento|date:"d/m/Y" }}</span>
+                        </div>
+                    </div>
+                    <span class="badge badge-{{ abuelo.lote.ubicacion_actual|lower }}">{{ abuelo.lote.get_ubicacion_actual_display }}</span>
+                </a>
+                {% endfor %}
+                <div class="trace-connector">└─ derivó en ↓</div>
+                {% endif %}
+
+                <a href="{% url 'inventario_trazabilidad_lote' nodo.lote.pk %}" class="trace-node">
+                    <div class="trace-node-left">
+                        <div class="trace-node-code">{{ nodo.lote.numero_lote }}</div>
+                        <div class="trace-node-name">{{ nodo.lote.producto.nombre }}</div>
+                        <div class="trace-node-meta">
+                            <span>{{ nodo.lote.cantidad }} {{ nodo.lote.producto.get_unidad_medida_display }}</span>
+                            <span>Vence {{ nodo.lote.fecha_vencimiento|date:"d/m/Y" }}</span>
+                            <span>{{ nodo.lote.get_proceso_display }}</span>
+                        </div>
+                    </div>
+                    <span class="badge badge-{{ nodo.lote.ubicacion_actual|lower }}">{{ nodo.lote.get_ubicacion_actual_display }}</span>
+                </a>
+
+            {% endfor %}
+            <div class="trace-connector" style="font-size:0.85rem;padding-left:0.5rem;">└─ procesado para obtener ↓</div>
+        </div>
+        {% endif %}
+
+        <!-- LOTE ACTUAL -->
+        <div style="{% if arbol_padres or lotes_hijos %}margin-bottom:1rem;{% endif %}">
+            {% if not arbol_padres %}<div class="trace-section-label">📦 Este Lote</div>{% endif %}
+            <div class="trace-node current">
+                <div class="trace-node-left">
+                    <div class="trace-node-code" style="font-size:0.95rem;">{{ lote.numero_lote }}</div>
+                    <div class="trace-node-name" style="color:var(--text);font-weight:600;font-size:0.9rem;">{{ lote.producto.nombre }}</div>
+                    <div class="trace-node-meta">
+                        <span>{{ lote.cantidad }} {{ lote.producto.get_unidad_medida_display }}</span>
+                        <span>Vence {{ lote.fecha_vencimiento|date:"d/m/Y" }}</span>
+                        <span>{{ lote.get_proceso_display }}</span>
+                        {% if lote.responsable_registro %}<span>Por: {{ lote.responsable_registro }}</span>{% endif %}
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:0.35rem;align-items:flex-end;">
+                    <span class="badge badge-{{ lote.ubicacion_actual|lower }}">{{ lote.get_ubicacion_actual_display }}</span>
+                    <span class="badge badge-{{ lote.estado|lower }}">{{ lote.get_estado_display }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- HIJOS -->
+        {% if lotes_hijos %}
+        <div style="padding-top:0.5rem;">
+            <div class="trace-connector" style="padding-left:0.5rem;margin-bottom:0.75rem;">└─ se procesó para obtener ↓</div>
+            <div class="trace-section-label">🌱 Lotes Derivados</div>
+            {% for hijo in lotes_hijos %}
+            <a href="{% url 'inventario_trazabilidad_lote' hijo.pk %}" class="trace-node child">
+                <div class="trace-node-left">
+                    <div class="trace-node-code">{{ hijo.numero_lote }}</div>
+                    <div class="trace-node-name">{{ hijo.producto.nombre }}</div>
+                    <div class="trace-node-meta">
+                        <span>{{ hijo.cantidad }} {{ hijo.producto.get_unidad_medida_display }}</span>
+                        <span>Vence {{ hijo.fecha_vencimiento|date:"d/m/Y" }}</span>
+                        <span>{{ hijo.get_proceso_display }}</span>
+                    </div>
+                </div>
+                <span class="badge badge-{{ hijo.ubicacion_actual|lower }}">{{ hijo.get_ubicacion_actual_display }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Eventos -->
+    <div class="events-grid">
+        <div class="card" style="padding:0;overflow:hidden;">
+            <div class="card-header" style="padding:1.25rem 1.5rem;">
+                <span class="card-title">🔄 Movimientos</span>
+                <span style="font-size:0.75rem;color:var(--text-muted);">{{ movimientos.count }}</span>
+            </div>
+            <div style="padding:0 1.5rem 1rem;">
+                {% for mov in movimientos %}
+                <div class="event-row">
+                    <div class="event-dot"></div>
+                    <div class="event-body">
+                        <div class="event-title">
+                            <span class="badge badge-{{ mov.desde|lower }}" style="font-size:0.65rem;">{{ mov.desde }}</span>
+                            → <span class="badge badge-{{ mov.hacia|lower }}" style="font-size:0.65rem;">{{ mov.hacia }}</span>
+                        </div>
+                        <div class="event-sub">
+                            {{ mov.fecha|date:"d/m/Y H:i" }}{% if mov.responsable %} · {{ mov.responsable }}{% endif %}
+                        </div>
+                        {% if mov.observaciones %}<div class="event-sub">{{ mov.observaciones }}</div>{% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <p style="color:var(--text-muted);font-size:0.84rem;padding:1rem 0;">Sin movimientos.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden;">
+            <div class="card-header" style="padding:1.25rem 1.5rem;">
+                <span class="card-title">🍽️ Servicios</span>
+                <span style="font-size:0.75rem;color:var(--text-muted);">{{ servicios.count }}</span>
+            </div>
+            <div style="padding:0 1.5rem 1rem;">
+                {% for serv in servicios %}
+                <div class="event-row">
+                    <div class="event-dot green"></div>
+                    <div class="event-body">
+                        <div class="event-title">{{ serv.cantidad_servida }} {{ lote.producto.get_unidad_medida_display }} servidos</div>
+                        <div class="event-sub">
+                            {{ serv.fecha|date:"d/m/Y H:i" }}{% if serv.responsable %} · {{ serv.responsable }}{% endif %}
+                        </div>
+                        {% if serv.observaciones %}<div class="event-sub">{{ serv.observaciones }}</div>{% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <p style="color:var(--text-muted);font-size:0.84rem;padding:1rem 0;">Sin registros de servicio.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Datos de recepción -->
+    {% if lote.proveedor or lote.numero_lote_proveedor or lote.numero_guia or lote.temperatura_recepcion is not None %}
+    <div class="card" style="margin-top:1.25rem;">
+        <div class="card-header"><span class="card-title">📋 Datos de Recepción HACCP</span></div>
+        <div class="reception-grid">
+            {% if lote.proveedor %}
+            <div class="reception-item">
+                <div class="reception-label">Proveedor</div>
+                <div class="reception-value">{{ lote.proveedor }}</div>
+            </div>
+            {% endif %}
+            {% if lote.numero_lote_proveedor %}
+            <div class="reception-item">
+                <div class="reception-label">Lote Proveedor</div>
+                <div class="reception-value" style="font-family:monospace;">{{ lote.numero_lote_proveedor }}</div>
+            </div>
+            {% endif %}
+            {% if lote.numero_guia %}
+            <div class="reception-item">
+                <div class="reception-label">Guía / Factura</div>
+                <div class="reception-value" style="font-family:monospace;">{{ lote.numero_guia }}</div>
+            </div>
+            {% endif %}
+            {% if lote.temperatura_recepcion is not None %}
+            <div class="reception-item">
+                <div class="reception-label">T° Recepción</div>
+                <div class="reception-value">{{ lote.temperatura_recepcion }}°C</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

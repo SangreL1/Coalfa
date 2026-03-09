@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+
+{% block title %}Recepción de Mercancía — Bodega Empresarial{% endblock %}
+{% block topbar_title %}Recepción de Suministros{% endblock %}
+{% block nav_inventario %}active{% endblock %}
+
+{% block extra_css %}
+.glass-form-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 2.5rem;
+    box-shadow: var(--shadow);
+}
+
+.form-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.section-number {
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.enterprise-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.form-label {
+    color: var(--text);
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+}
+
+.ac-wrap { position: relative; }
+.ac-list {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0; right: 0;
+    background: var(--coal-mid);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    display: none;
+}
+.ac-item {
+    padding: 0.8rem 1.25rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: all 0.2s;
+}
+.ac-item:hover { background: var(--accent-soft); color: var(--accent); }
+
+@media (max-width: 768px) {
+    .enterprise-grid { grid-template-columns: 1fr; }
+}
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto;">
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+        <div>
+            <h1 class="page-title">Nueva Recepción</h1>
+            <p class="page-subtitle" style="margin-bottom:0;">Ingresa los detalles del lote y el producto</p>
+        </div>
+        <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost">← Volver al Dashboard</a>
+    </div>
+
+    <form method="POST" autocomplete="off" class="glass-form-card">
+        {% csrf_token %}
+
+        <!-- Sección 1: Producto -->
+        <div class="form-section-header">
+            <div class="section-number">1</div>
+            <h2 style="font-size:1.1rem; font-weight:700;">Identificación de Mercancía</h2>
+        </div>
+
+        <div class="enterprise-grid">
+            <div class="form-group">
+                <label class="form-label">Nombre del Producto *</label>
+                <div class="ac-wrap">
+                    <input type="text" id="producto_nombre" name="producto_nombre" class="form-control" placeholder="Ej: Salmón Fresco" required>
+                    <div id="ac_producto" class="ac-list"></div>
+                </div>
+                <small style="color:var(--text-muted); font-size:0.7rem; margin-top:0.4rem; display:block;">Si es nuevo, se creará automáticamente.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Categoría *</label>
+                <select name="categoria" class="form-control" required>
+                    {% for key, label in categorias %}
+                    <option value="{{ key }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Proveedor</label>
+                <div class="ac-wrap">
+                    <input type="text" id="proveedor_nombre" name="proveedor_nombre" class="form-control" placeholder="Ej: Distribuidora del Sur">
+                    <div id="ac_proveedor" class="ac-list"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Unidad de Medida</label>
+                <select name="unidad_medida" class="form-control">
+                    {% for key, label in unidades %}
+                    <option value="{{ key }}" {% if key == "KG" %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <small style="color:var(--text-muted); font-size:0.7rem;">Solo aplica si el producto es nuevo.</small>
+            </div>
+        </div>
+
+        <!-- Sección 2: Datos del Lote -->
+        <div class="form-section-header">
+            <div class="section-number">2</div>
+            <h2 style="font-size:1.1rem; font-weight:700;">Detalles del Lote</h2>
+        </div>
+
+        <div class="enterprise-grid">
+            <div class="form-group">
+                <label class="form-label">Cantidad Recibida *</label>
+                <input type="number" name="cantidad" step="0.01" class="form-control" placeholder="0.00" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Precio Unitario ($) *</label>
+                <input type="number" name="precio_unitario" step="0.01" class="form-control" placeholder="Valor de costo por unidad" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Fecha de Recepción</label>
+                <input type="date" name="fecha_recepcion" class="form-control" value="{{ hoy }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Fecha de Vencimiento *</label>
+                <input type="date" name="fecha_vencimiento" class="form-control" required>
+            </div>
+        </div>
+
+        <div class="enterprise-grid">
+            <div class="form-group">
+                <label class="form-label">Lote del Proveedor</label>
+                <input type="text" name="numero_lote_proveedor" class="form-control" placeholder="Ej: LOT-2024-X">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Nº Guía / Factura</label>
+                <input type="text" name="numero_guia" class="form-control" placeholder="Ej: FAC-12345">
+            </div>
+        </div>
+
+        <!-- Sección 3: Almacenamiento -->
+        <div class="form-section-header">
+            <div class="section-number">3</div>
+            <h2 style="font-size:1.1rem; font-weight:700;">Ubicación y Control</h2>
+        </div>
+
+        <div class="enterprise-grid">
+            <div class="form-group">
+                <label class="form-label">Área de Almacenamiento *</label>
+                <select name="ubicacion_actual" id="ubicacion_select" class="form-control" required onchange="toggleOtroUbicacion(this)">
+                    {% for key, label in ubicaciones %}
+                    <option value="{{ key }}" {% if key == "BODEGA" %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" id="otro_ubicacion_wrap" style="display:none;">
+                <label class="form-label">Especificar Ubicación *</label>
+                <input type="text" name="ubicacion_detalle" id="otro_ubicacion_input" class="form-control" placeholder="Ej: Almacén externo, Cámara especial...">
+                <small style="color:var(--text-muted);font-size:0.72rem;margin-top:3px;display:block;">Describe el lugar donde se almacenará el producto.</small>
+            </div>
+
+            <div class="form-group" id="detalle_normal_wrap">
+                <label class="form-label">Detalle Ubicación (Opcional)</label>
+                <input type="text" name="ubicacion_detalle" id="detalle_normal_input" class="form-control" placeholder="Ej: Pasillo 3, Estante B">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Temperatura de Recepción (°C)</label>
+                <input type="number" name="temperatura_recepcion" step="0.1" class="form-control" placeholder="0.0">
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top:1.5rem;">
+            <label class="form-label">Observaciones Adicionales</label>
+            <textarea name="observaciones" class="form-control" rows="3" placeholder="Descripción del estado del empaque, transporte, etc..."></textarea>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:3rem;">
+            <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost" style="padding:1rem 2rem;">Cancelar</a>
+            <button type="submit" class="btn btn-primary" style="padding:1rem 3rem; font-size:1rem; box-shadow: 0 10px 20px var(--accent-glow);">
+                Confirmar Recepción
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const PRODUCTOS = [{% for p in productos %}"{{ p.nombre }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+    const PROVEEDORES = [{% for p in proveedores %}"{{ p.nombre }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+
+    function setupAC(inputId, listId, data) {
+        const input = document.getElementById(inputId);
+        const list  = document.getElementById(listId);
+
+        input.addEventListener('input', function() {
+            const q = this.value.trim().toLowerCase();
+            list.innerHTML = '';
+            if (!q) { list.style.display = 'none'; return; }
+
+            const matches = data.filter(v => v.toLowerCase().includes(q));
+            
+            matches.slice(0, 8).forEach(v => {
+                const item = document.createElement('div');
+                item.className = 'ac-item';
+                item.textContent = v;
+                item.addEventListener('mousedown', e => {
+                    e.preventDefault();
+                    input.value = v;
+                    list.style.display = 'none';
+                });
+                list.appendChild(item);
+            });
+
+            list.style.display = list.children.length ? 'block' : 'none';
+        });
+
+        input.addEventListener('blur', () => setTimeout(() => { list.style.display = 'none'; }, 200));
+    }
+
+    setupAC('producto_nombre', 'ac_producto', PRODUCTOS);
+    setupAC('proveedor_nombre', 'ac_proveedor', PROVEEDORES);
+
+    // Lógica para campo "Otro" en ubicación
+    function toggleOtroUbicacion(sel) {
+        const isOtro = sel.value === 'OTRO';
+        const otroWrap = document.getElementById('otro_ubicacion_wrap');
+        const normalWrap = document.getElementById('detalle_normal_wrap');
+        const otroInput = document.getElementById('otro_ubicacion_input');
+        const normalInput = document.getElementById('detalle_normal_input');
+
+        if (isOtro) {
+            otroWrap.style.display = 'block';
+            normalWrap.style.display = 'none';
+            otroInput.required = true;
+            normalInput.disabled = true;
+            normalInput.value = '';
+        } else {
+            otroWrap.style.display = 'none';
+            normalWrap.style.display = 'block';
+            otroInput.required = false;
+            normalInput.disabled = false;
+        }
+    }
+    // Ejecutar al cargar por si hay valor preseleccionado
+    toggleOtroUbicacion(document.getElementById('ubicacion_select'));
+</script>
+{% endblock %}

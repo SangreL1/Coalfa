@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block title %}Personal — RRHH{% endblock %}
+{% block topbar_title %}Nómina de Personal{% endblock %}
+{% block nav_empleados %}active{% endblock %}
+
+{% block extra_css %}
+.filter-bar { display:flex; gap:0.75rem; margin-bottom:1.5rem; flex-wrap:wrap; align-items:center; }
+.search-input { flex:1; min-width:200px; }
+
+/* Modal */
+.modal-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(6px);
+    align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+    background: var(--coal-mid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2.5rem;
+    width: 100%; max-width: 600px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: var(--shadow);
+    position: relative;
+    animation: modalIn 0.25s ease;
+}
+@keyframes modalIn {
+    from { opacity:0; transform: translateY(-20px) scale(0.97); }
+    to   { opacity:1; transform: none; }
+}
+.modal-close {
+    position:absolute; top:1rem; right:1rem;
+    background:none; border:none; color:var(--text-muted);
+    font-size:1.5rem; cursor:pointer; transition: color 0.2s;
+}
+.modal-close:hover { color: var(--danger); }
+.form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+@media (max-width:600px) { .form-grid-2 { grid-template-columns:1fr; } }
+{% endblock %}
+
+{% block content %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+    <div>
+        <h1 class="page-title">Nómina de Personal</h1>
+        <p class="page-subtitle" style="margin-bottom:0;">{{ empleados.count }} empleado{{ empleados.count|pluralize:"s" }} encontrado{{ empleados.count|pluralize:"s" }}</p>
+    </div>
+    <!-- Trigger the inline modal -->
+    <div style="display:flex; gap:0.75rem; align-items:center;">
+        <a href="{% url 'rrhh_exportar_excel' %}" class="btn btn-ghost" style="border-color:var(--success); color:var(--success);">📗 Descargar Planilla</a>
+        <button onclick="openModal('modalNuevoEmpleado')" class="btn btn-primary">+ Nuevo Empleado</button>
+    </div>
+</div>
+
+<!-- Filtros -->
+<form method="get" class="card" style="padding:1.25rem;margin-bottom:1.5rem;">
+    <div class="filter-bar">
+        <input type="text" name="q" value="{{ q }}" placeholder="Buscar por nombre, apellido o RUT..."
+            class="form-control search-input">
+        <select name="estado" class="form-control" style="width:auto;">
+            <option value="">Todos los estados</option>
+            {% for val, label in estados %}<option value="{{ val }}" {% if estado == val %}selected{% endif %}>{{ label }}
+            </option>{% endfor %}
+        </select>
+        <select name="area" class="form-control" style="width:auto;">
+            <option value="">Todas las áreas</option>
+            {% for val, label in areas %}<option value="{{ val }}" {% if area == val %}selected{% endif %}>{{ label }}
+            </option>{% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="{% url 'rrhh_lista_empleados' %}" class="btn btn-ghost">Limpiar</a>
+    </div>
+</form>
+
+<div class="card" style="padding:0;">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Empleado</th>
+                    <th>RUT</th>
+                    <th>Cargo</th>
+                    <th>Área</th>
+                    <th>Ingreso</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in empleados %}
+                <tr>
+                    <td>
+                        <div style="font-weight:600;">{{ emp.apellido }}, {{ emp.nombre }}</div>
+                        {% if emp.email %}<div style="font-size:0.75rem;color:var(--text-muted);">{{ emp.email }}</div>
+                        {% endif %}
+                    </td>
+                    <td style="font-family:monospace;font-size:0.85rem;">{{ emp.rut }}</td>
+                    <td>{{ emp.cargo }}</td>
+                    <td>{{ emp.get_area_display }}</td>
+                    <td style="font-size:0.8rem;color:var(--text-muted);">{{ emp.fecha_ingreso|date:"d/m/Y" }}</td>
+                    <td>
+                        <span class="badge badge-{{ emp.estado|lower }}">
+                            {{ emp.get_estado_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'rrhh_detalle_empleado' emp.pk %}" class="btn btn-ghost btn-sm">Ver ficha</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align:center;padding:3rem;color:var(--text-muted);">
+                        No se encontraron empleados con los filtros aplicados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ===================== MODAL: Nuevo Empleado ===================== -->
+<div class="modal-overlay {% if show_modal %}open{% endif %}" id="modalNuevoEmpleado">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal('modalNuevoEmpleado')">×</button>
+        <h2 style="font-size:1.4rem; font-weight:800; margin-bottom:0.4rem;">Nuevo Empleado</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:2rem;">Completa los datos para registrar al trabajador en el sistema.</p>
+
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            {% if nuevo_form.errors %}
+            <div style="background:rgba(248,113,113,0.1); border:1px solid var(--danger); border-radius:10px; padding:1rem; margin-bottom:1.5rem;">
+                {% for field in nuevo_form %}{% for error in field.errors %}
+                <div style="color:var(--danger); font-size:0.8rem;">⚠ {{ field.label }}: {{ error }}</div>
+                {% endfor %}{% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label">Nombre *</label>
+                    {{ nuevo_form.nombre }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Apellido *</label>
+                    {{ nuevo_form.apellido }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">RUT *</label>
+                    {{ nuevo_form.rut }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cargo *</label>
+                    {{ nuevo_form.cargo }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Área *</label>
+                    {{ nuevo_form.area }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Fecha de Ingreso *</label>
+                    {{ nuevo_form.fecha_ingreso }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    {{ nuevo_form.email }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Teléfono</label>
+                    {{ nuevo_form.telefono }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Estado</label>
+                    {{ nuevo_form.estado }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Foto (opcional)</label>
+                    {{ nuevo_form.foto }}
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:2rem;">
+                <button type="button" onclick="closeModal('modalNuevoEmpleado')" class="btn btn-ghost">Cancelar</button>
+                <button type="submit" name="crear_empleado" value="1" class="btn btn-primary" style="padding:0.75rem 2rem;">
+                    Registrar Empleado
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openModal(id) {
+        document.getElementById(id).classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    // Close on outside click
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) closeModal(this.id);
+        });
+    });
+    // Escape key
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
+    });
+</script>
+{% endblock %}

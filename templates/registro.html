@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitar Acceso — Coalfa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+        html,body{height:100%;font-family:'Inter',sans-serif;background:#0f172a;color:#f8fafc;}
+        .bg{position:fixed;inset:0;z-index:0;background:linear-gradient(135deg,#0f172a 0%,#1a2744 50%,#0f172a 100%);}
+        .bg-orb{position:absolute;border-radius:50%;filter:blur(80px);animation:float 8s ease-in-out infinite alternate;}
+        .orb1{width:500px;height:500px;background:rgba(249,115,22,0.15);top:-100px;right:-100px;}
+        .orb2{width:400px;height:400px;background:rgba(99,102,241,0.1);bottom:-100px;left:-100px;animation-delay:-4s;}
+        @keyframes float{from{transform:translate(0,0) scale(1);}to{transform:translate(40px,20px) scale(1.05);}}
+        .split{position:relative;z-index:1;display:flex;height:100vh;}
+        .brand-panel{flex:1;display:flex;flex-direction:column;justify-content:center;padding:5rem;border-right:1px solid rgba(255,255,255,0.06);}
+        .brand-logo{font-size:3.5rem;font-weight:800;color:#f97316;letter-spacing:-2px;line-height:1;}
+        .brand-tagline{font-size:1.1rem;font-weight:400;color:#94a3b8;margin-top:1rem;line-height:1.7;max-width:380px;}
+        .brand-note{margin-top:2.5rem;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2);border-radius:12px;padding:1.25rem 1.5rem;}
+        .brand-note-title{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f97316;margin-bottom:0.5rem;}
+        .brand-note p{font-size:0.85rem;color:#94a3b8;line-height:1.6;}
+        .form-panel{width:520px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:2rem;background:rgba(15,23,42,0.7);backdrop-filter:blur(20px);}
+        .form-card{width:100%;max-width:420px;}
+        .form-title{font-size:1.5rem;font-weight:800;margin-bottom:0.25rem;}
+        .form-sub{font-size:0.875rem;color:#94a3b8;margin-bottom:2rem;}
+        .form-row{display:grid;grid-template-columns:1fr 1fr;gap:0.875rem;}
+        .form-group{margin-bottom:1.1rem;}
+        .form-label{display:block;font-size:0.72rem;font-weight:600;color:#94a3b8;margin-bottom:0.45rem;text-transform:uppercase;letter-spacing:0.5px;}
+        .form-input{width:100%;padding:0.8rem 1rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#f8fafc;font-size:0.875rem;font-family:'Inter',sans-serif;transition:border-color 0.2s,background 0.2s;}
+        .form-input:focus{outline:none;border-color:#f97316;background:rgba(249,115,22,0.05);}
+        .form-input::placeholder{color:#475569;}
+        .btn-submit{width:100%;padding:0.9rem;background:#f97316;color:white;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;margin-top:0.25rem;transition:all 0.2s;font-family:'Inter',sans-serif;}
+        .btn-submit:hover{background:#ea6c0a;box-shadow:0 8px 24px rgba(249,115,22,0.35);transform:translateY(-1px);}
+        .error-alert{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:0.75rem 1rem;color:#fca5a5;font-size:0.8rem;margin-bottom:1.25rem;}
+        .back-link{display:block;text-align:center;margin-top:1.5rem;font-size:0.8rem;color:#475569;text-decoration:none;}
+        .back-link:hover{color:#94a3b8;}
+        .hint{font-size:0.68rem;color:#475569;margin-top:0.35rem;}
+    </style>
+</head>
+<body>
+    <div class="bg">
+        <div class="bg-orb orb1"></div>
+        <div class="bg-orb orb2"></div>
+    </div>
+
+    <div class="split">
+        <div class="brand-panel">
+            <div class="brand-logo">COALFA</div>
+            <p class="brand-tagline">Sistema de Gestión Integral para Empresas de Alimentación.</p>
+            <div class="brand-note">
+                <div class="brand-note-title">¿Cómo funciona?</div>
+                <p>Completa el formulario con tus datos. Tu solicitud quedará pendiente de revisión por un administrador, quien te asignará el rol correspondiente y activará tu cuenta.</p>
+            </div>
+        </div>
+
+        <div class="form-panel">
+            <div class="form-card">
+                <h1 class="form-title">Solicitar Acceso</h1>
+                <p class="form-sub">Completa tus datos para enviar la solicitud</p>
+
+                {% if error %}
+                <div class="error-alert">{{ error }}</div>
+                {% endif %}
+
+                <form method="post" action="{% url 'registro' %}">
+                    {% csrf_token %}
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="id_nombre">Nombre</label>
+                            <input type="text" id="id_nombre" name="nombre" class="form-input"
+                                   placeholder="Juan" required maxlength="60" value="{{ request.POST.nombre }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="id_apellido">Apellido</label>
+                            <input type="text" id="id_apellido" name="apellido" class="form-input"
+                                   placeholder="Pérez" required maxlength="60" value="{{ request.POST.apellido }}">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="id_rut">RUT</label>
+                        <input type="text" id="id_rut" name="rut" class="form-input"
+                               placeholder="12345678-9" required maxlength="12" value="{{ request.POST.rut }}">
+                        <p class="hint">Formato: sin puntos, con guión (12345678-9)</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="id_password">Contraseña</label>
+                        <input type="password" id="id_password" name="password" class="form-input"
+                               placeholder="Mínimo 6 caracteres" required minlength="6">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="id_password2">Confirmar Contraseña</label>
+                        <input type="password" id="id_password2" name="password2" class="form-input"
+                               placeholder="Repite la contraseña" required>
+                    </div>
+
+                    <button type="submit" class="btn-submit">Enviar Solicitud</button>
+                </form>
+
+                <a href="{% url 'login' %}" class="back-link">← Ya tengo cuenta, iniciar sesión</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

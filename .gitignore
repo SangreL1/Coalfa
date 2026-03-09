@@ -1,0 +1,23 @@
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+static_files/
+CARPETAS TRABAJADORES/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Virtualenv
+venv/
+.venv/
+env/
+.env/
+Pipfile
+Pipfile.lock

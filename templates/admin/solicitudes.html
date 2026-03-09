@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Solicitudes de Acceso — Admin{% endblock %}
+{% block topbar_title %}Solicitudes de Acceso{% endblock %}
+
+{% block extra_css %}
+.sol-table-wrap { overflow: hidden; }
+.rol-select {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.35rem 0.625rem;
+    color: var(--text);
+    font-size: 0.78rem;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+}
+.rol-select:focus { border-color: var(--accent); }
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-muted);
+}
+.empty-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+{% endblock %}
+
+{% block content %}
+
+<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;">
+    <div>
+        <div class="page-title">Solicitudes de Acceso</div>
+        <p class="page-subtitle" style="margin-bottom:0;">Usuarios que esperan aprobación y asignación de rol</p>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn btn-ghost">← Dashboard</a>
+</div>
+
+{% if messages %}
+{% for msg in messages %}
+<div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);border-radius:8px;padding:0.75rem 1.25rem;margin-bottom:1.25rem;color:#4ade80;font-size:0.85rem;">
+    {{ msg }}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if pendientes %}
+<div class="card" style="padding:0;overflow:hidden;">
+    <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">Pendientes</span>
+        <span style="font-size:0.8rem;font-weight:700;color:var(--accent);">{{ pendientes.count }} solicitud{{ pendientes.count|pluralize:"es" }}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>RUT</th>
+                    <th>Fecha solicitud</th>
+                    <th>Asignar Rol</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for usuario in pendientes %}
+                <tr>
+                    <td>
+                        <div style="font-weight:600;">{{ usuario.get_full_name }}</div>
+                    </td>
+                    <td>
+                        <span style="font-family:monospace;font-size:0.8rem;font-weight:600;">{{ usuario.rut }}</span>
+                    </td>
+                    <td style="color:var(--text-muted);font-size:0.8rem;">
+                        {{ usuario.date_joined|date:"d/m/Y H:i" }}
+                    </td>
+                    <td>
+                        <!-- Formulario de aprobación con rol inline -->
+                        <form method="post" action="{% url 'admin_aprobar' usuario.pk %}"
+                              style="display:flex;gap:0.5rem;align-items:center;" id="form_ap_{{ usuario.pk }}">
+                            {% csrf_token %}
+                            <select name="rol" class="rol-select">
+                                {% for key, label in rol_choices %}
+                                {% if key != 'ADMIN' %}
+                                <option value="{{ key }}">{{ label }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </td>
+                    <td>
+                        <div style="display:flex;gap:0.5rem;">
+                            <button type="submit" form="form_ap_{{ usuario.pk }}" class="btn btn-primary btn-sm">
+                                Aprobar
+                            </button>
+                            <form method="post" action="{% url 'admin_rechazar' usuario.pk %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-sm"
+                                        onclick="return confirm('¿Rechazar y eliminar la solicitud de {{ usuario.get_full_name }}?')">
+                                    Rechazar
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<div class="card empty-state">
+    <div class="empty-icon">✅</div>
+    <p style="font-size:0.9rem;font-weight:600;margin-bottom:0.5rem;">Sin solicitudes pendientes</p>
+    <p style="font-size:0.82rem;">No hay usuarios esperando aprobación en este momento.</p>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}Catálogo de Productos — Bodega Empresarial{% endblock %}
+{% block topbar_title %}Gestión de Suministros{% endblock %}
+{% block nav_inventario %}active{% endblock %}
+
+{% block extra_css %}
+.glass-table-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.search-strip {
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+}
+
+.product-row:hover td {
+    background: rgba(249, 115, 22, 0.05);
+}
+
+.health-bar-container {
+    width: 120px;
+}
+
+.health-bar-track {
+    height: 8px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 5px;
+}
+
+.health-bar-fill {
+    height: 100%;
+    transition: width 1s ease-out;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+}
+{% endblock %}
+
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:2.5rem; gap:1.5rem; flex-wrap:wrap;">
+    <div>
+        <h1 class="page-title">Catálogo Maestro</h1>
+        <p class="page-subtitle" style="margin-bottom:0;">Supervisión de niveles críticos y especificaciones técnicas</p>
+    </div>
+    <div style="display:flex; gap:0.75rem;">
+        <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost">← Volver al Centro de Control</a>
+        <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-primary">+ Nuevo Producto</a>
+    </div>
+</div>
+
+<div class="glass-table-card">
+    <div class="search-strip">
+        <div style="position:relative;">
+            <input type="text" id="productSearch" placeholder="Filtrar por nombre o categoría..." 
+                   class="form-control" style="width:320px; padding-left:2.5rem; font-size:0.85rem;">
+            <span style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); opacity:0.5;">🔍</span>
+        </div>
+        <div style="display:flex; gap:1.5rem; font-size:0.75rem; color:var(--text-muted);">
+            <div style="display:flex; align-items:center;"><span class="status-dot" style="background:var(--success);"></span> Óptimo</div>
+            <div style="display:flex; align-items:center;"><span class="status-dot" style="background:var(--warning);"></span> Bajo</div>
+            <div style="display:flex; align-items:center;"><span class="status-dot" style="background:var(--danger);"></span> Crítico</div>
+        </div>
+    </div>
+
+    <table class="table-enterprise" style="border-spacing: 0;">
+        <thead>
+            <tr style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; background:rgba(0,0,0,0.1);">
+                <th style="padding:1.25rem 1.5rem; text-align:left;">Identificación</th>
+                <th>Categoría</th>
+                <th>Stock Total</th>
+                <th>Salud de Stock</th>
+                <th style="text-align:right; padding-right:1.5rem;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="productTableBody">
+            {% for item in data %}
+            <tr class="product-row" data-search="{{ item.producto.nombre|lower }} {{ item.producto.get_categoria_display|lower }}">
+                <td style="padding:1.25rem 1.5rem;">
+                    <div style="font-weight:700; font-size:0.95rem;">{{ item.producto.nombre }}</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">
+                        {% if item.producto.temperatura_min is not None %}
+                        🌡️ {{ item.producto.temperatura_min }}°C a {{ item.producto.temperatura_max }}°C
+                        {% else %}
+                        Temp. Ambiente
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <span class="badge" style="background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-muted);">
+                        {{ item.producto.get_categoria_display }}
+                    </span>
+                </td>
+                <td>
+                    <div style="font-weight:800; font-size:1.1rem;">
+                        {{ item.stock_total|floatformat:1 }} 
+                        <span style="font-weight:400; font-size:0.75rem; color:var(--text-muted);">{{ item.producto.get_unidad_medida_display }}</span>
+                    </div>
+                    <div style="font-size:0.65rem; color:var(--text-muted);">{{ item.lotes_activos }} lotes activos</div>
+                </td>
+                <td>
+                    <div class="health-bar-container">
+                        <div style="display:flex; justify-content:space-between; font-size:0.65rem; font-weight:700;">
+                            <span>{{ item.salud_real|floatformat:0 }}%</span>
+                            {% if item.salud_real < 50 %}
+                            <span style="color:var(--danger);">Reposición</span>
+                            {% endif %}
+                        </div>
+                        <div class="health-bar-track">
+                            <div class="health-bar-fill" style="width:{{ item.salud }}%; 
+                                background:{% if item.salud_real < 40 %}var(--danger){% elif item.salud_real < 100 %}var(--warning){% else %}var(--success){% endif %};
+                                box-shadow: 0 0 10px {% if item.salud_real < 40 %}rgba(248,113,113,0.3){% elif item.salud_real < 100 %}rgba(251,191,36,0.3){% else %}rgba(52,211,153,0.3){% endif %};">
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td style="text-align:right; padding-right:1.5rem;">
+                    <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                        <a href="{% url 'inventario_lista_lotes' %}?q={{ item.producto.nombre }}" class="btn btn-ghost btn-sm" title="Ver Historial">🎞️</a>
+                        <a href="{% url 'inventario_eliminar_producto' item.producto.pk %}" 
+                           class="btn btn-danger btn-sm {% if item.lotes_activos > 0 %}disabled{% endif %}"
+                           {% if item.lotes_activos > 0 %}style="opacity:0.2; pointer-events:none;"{% endif %}>
+                           Eliminar
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="text-align:center; padding:4rem; color:var(--text-muted);">
+                    <div style="font-size:3rem; margin-bottom:1rem;">📂</div>
+                    No se han registrado productos en el catálogo maestro.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    document.getElementById('productSearch').addEventListener('input', function(e) {
+        const q = e.target.value.toLowerCase();
+        document.querySelectorAll('#productTableBody tr').forEach(row => {
+            const text = row.getAttribute('data-search');
+            row.style.display = text.includes(q) ? '' : 'none';
+        });
+    });
+</script>
+
+{% endblock %}

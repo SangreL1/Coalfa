@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingreso al Sistema — Coalfa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+        }
+
+        /* Animated background */
+        .bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: linear-gradient(135deg, #0f172a 0%, #1a2744 50%, #0f172a 100%);
+        }
+
+        .bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            animation: float 8s ease-in-out infinite alternate;
+        }
+
+        .orb1 {
+            width: 500px;
+            height: 500px;
+            background: rgba(249, 115, 22, 0.15);
+            top: -100px;
+            right: -100px;
+            animation-delay: 0s;
+        }
+
+        .orb2 {
+            width: 400px;
+            height: 400px;
+            background: rgba(99, 102, 241, 0.1);
+            bottom: -100px;
+            left: -100px;
+            animation-delay: -4s;
+        }
+
+        @keyframes float {
+            from {
+                transform: translate(0, 0) scale(1);
+            }
+
+            to {
+                transform: translate(40px, 20px) scale(1.05);
+            }
+        }
+
+        /* Layout */
+        .split {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Left panel branding */
+        .brand-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 5rem;
+            border-right: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .brand-logo {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: #f97316;
+            letter-spacing: -2px;
+            line-height: 1;
+        }
+
+        .brand-tagline {
+            font-size: 1.25rem;
+            font-weight: 400;
+            color: #94a3b8;
+            margin-top: 1rem;
+            line-height: 1.6;
+            max-width: 380px;
+        }
+
+        .brand-features {
+            margin-top: 3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .feature-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #f97316;
+            flex-shrink: 0;
+        }
+
+        .feature-text {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        /* Right panel login form */
+        .login-panel {
+            width: 480px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(20px);
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 380px;
+        }
+
+        .login-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+
+        .login-sub {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-bottom: 2.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #f8fafc;
+            font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #f97316;
+            background: rgba(249, 115, 22, 0.05);
+        }
+
+        .form-input::placeholder {
+            color: #475569;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 0.9rem;
+            background: #f97316;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-submit:hover {
+            background: #ea6c0a;
+            box-shadow: 0 8px 24px rgba(249, 115, 22, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        .error-alert {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: #fca5a5;
+            font-size: 0.8rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .version {
+            margin-top: 2rem;
+            font-size: 0.7rem;
+            color: #334155;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg">
+        <div class="bg-orb orb1"></div>
+        <div class="bg-orb orb2"></div>
+    </div>
+
+    <div class="split">
+        <!-- Branding panel -->
+        <div class="brand-panel">
+            <div class="brand-logo">COALFA</div>
+            <p class="brand-tagline">Sistema de Gestión Integral para Empresas de Alimentación.</p>
+            <div class="brand-features">
+                <div class="feature-item">
+                    <div class="feature-dot"></div>
+                    <span class="feature-text">Gestión de Recursos Humanos y nómina de personal</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-dot"></div>
+                    <span class="feature-text">Trazabilidad de alimentos desde bodega hasta línea de servicio</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-dot"></div>
+                    <span class="feature-text">Control de lotes, fechas de vencimiento y proveedores</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-dot"></div>
+                    <span class="feature-text">Acceso seguro por roles: RRHH y Operacional</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login panel -->
+        <div class="login-panel">
+            <div class="login-card">
+                <h1 class="login-title">Bienvenido</h1>
+                <p class="login-sub">Ingresa con tu RUT y contraseña asignados</p>
+
+                {% for message in messages %}
+                <div class="error-alert">{{ message }}</div>
+                {% endfor %}
+
+                <form method="post" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label class="form-label" for="id_rut">RUT</label>
+                        {{ form.rut }}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="id_password">Contraseña</label>
+                        {{ form.password }}
+                    </div>
+                    <button type="submit" class="btn-submit">Ingresar al Sistema</button>
+                    <p style="text-align:center;margin-top:1.25rem;font-size:0.8rem;color:#475569;">
+                        ¿No tienes cuenta?
+                        <a href="{% url 'registro' %}" style="color:#f97316;text-decoration:none;font-weight:600;">Solicitar acceso</a>
+                    </p>
+                </form>
+                <p class="version">Coalfa v1.0 &mdash; Acceso restringido</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

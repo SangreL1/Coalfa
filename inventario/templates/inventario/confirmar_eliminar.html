@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirmar Eliminación — Coalfa{% endblock %}
+{% block topbar_title %}Confirmar Acción{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;margin:0 auto;padding-top:2rem;">
+
+    <div class="card" style="text-align:center;padding:2.5rem;">
+        <!-- Icono -->
+        <div style="font-size:3rem;margin-bottom:1rem;">
+            {% if bloqueado %}🔒{% else %}⚠️{% endif %}
+        </div>
+
+        <h2 style="font-size:1.25rem;font-weight:800;margin-bottom:0.5rem;">
+            {% if bloqueado %}No se puede eliminar{% else %}¿Eliminar {{ tipo }}?{% endif %}
+        </h2>
+
+        <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem;">
+            {% if bloqueado %}
+            {{ advertencia }}
+            {% else %}
+            Estás por eliminar <strong style="color:var(--text);">{{ nombre }}</strong>.
+            Esta acción {% if tipo == "lote" %}también eliminará todos sus movimientos y servicios asociados{% else %}no se puede deshacer{% endif %}.
+            {% endif %}
+        </p>
+
+        {% if advertencia and not bloqueado %}
+        <div class="alert alert-warning" style="text-align:left;margin-bottom:1.5rem;">
+            ⚠️ {{ advertencia }}
+        </div>
+        {% endif %}
+
+        {% if bloqueado %}
+        <a href="{% url 'inventario_lista_productos' %}" class="btn btn-primary" style="width:100%;">
+            Volver a Productos
+        </a>
+        {% else %}
+        <form method="post">
+            {% csrf_token %}
+            {% if tipo == "lote" %}
+            <div style="display:flex;gap:0.75rem;flex-direction:column;">
+                <button type="submit" name="accion" value="descartar" class="btn btn-ghost" style="width:100%;">
+                    Marcar como Descartado (recomendado)
+                </button>
+                <button type="submit" name="accion" value="eliminar" class="btn btn-danger" style="width:100%;justify-content:center;">
+                    Eliminar permanentemente
+                </button>
+            </div>
+            {% else %}
+            <div style="display:flex;gap:0.75rem;">
+                <a href="{% url 'inventario_lista_productos' %}" class="btn btn-ghost" style="flex:1;justify-content:center;">Cancelar</a>
+                <button type="submit" class="btn btn-danger" style="flex:1;justify-content:center;" id="btn_confirmar_eliminar">
+                    Sí, eliminar
+                </button>
+            </div>
+            {% endif %}
+        </form>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

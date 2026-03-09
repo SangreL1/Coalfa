@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Coalfa{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Carga no bloqueante: el navegador pinta el texto de inmediato con la fuente del sistema -->
+    <link rel="preload" as="style"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+          rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    </noscript>
+    <style>
+        :root {
+            --coal-mid: #10192d;
+            --coal-light: #1e293b;
+            --accent: #f97316;
+            --accent-hover: #ea6c0a;
+            --accent-glow: rgba(249, 115, 22, 0.4);
+            --accent-soft: rgba(249, 115, 22, 0.08);
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --card: rgba(16, 25, 45, 0.7);
+            --glass: rgba(30, 41, 59, 0.5);
+            --sidebar-w: 260px;
+            --radius: 16px;
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            
+            /* Enterprise V2 Palette */
+            --info: #38bdf8;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --indigo: #818cf8;
+        }
+
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            /* Fallback seguro: texto visible de inmediato; Inter reemplaza con font-display:swap */
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: var(--text);
+        }
+
+        /* ======= SIDEBAR ======= */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-w);
+            height: 100vh;
+            background: var(--coal-mid);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-brand {
+            padding: 1.75rem 1.5rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-brand .logo-text {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--accent);
+            letter-spacing: -0.5px;
+        }
+
+        .sidebar-brand .logo-sub {
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 1.5rem 0.75rem;
+            overflow-y: auto;
+        }
+
+        .nav-section-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            padding: 0 0.75rem;
+            margin: 1.25rem 0 0.5rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.7rem 0.75rem;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin-bottom: 2px;
+        }
+
+        .nav-item:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .nav-item .icon {
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            padding: 1rem 0.75rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.875rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .user-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .user-role {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .btn-logout {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 0.75rem;
+            color: #f87171;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background 0.2s;
+            width: 100%;
+            border: none;
+            background: none;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+
+        .btn-logout:hover {
+            background: rgba(248, 113, 113, 0.1);
+        }
+
+        /* ======= MAIN CONTENT ======= */
+        .main-wrapper {
+            margin-left: var(--sidebar-w);
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f172a 0%, #1a2744 100%);
+        }
+
+        .topbar {
+            height: 64px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 2rem;
+            gap: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .topbar-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .topbar-breadcrumb {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        .page-content {
+            padding: 2rem;
+        }
+
+        /* ======= COMPONENTS ======= */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent);
+        }
+
+        .kpi-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1;
+        }
+
+        .kpi-icon {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2.5rem;
+            opacity: 0.08;
+        }
+
+        /* TABLE */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: var(--radius);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        tbody tr {
+            transition: background 0.15s;
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        tbody td {
+            padding: 1rem;
+            font-size: 0.875rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        /* BADGE */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.65rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-activo {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+
+        .badge-vacaciones {
+            background: rgba(234, 179, 8, 0.15);
+            color: #fbbf24;
+        }
+
+        .badge-licencia {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+        }
+
+        .badge-finiquitado {
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+        }
+
+        .badge-bodega {
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+        }
+
+        .badge-cocina_fria {
+            background: rgba(6, 182, 212, 0.15);
+            color: #67e8f9;
+        }
+
+        .badge-cocina_caliente {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        .badge-reposteria {
+            background: rgba(236, 72, 153, 0.15);
+            color: #f9a8d4;
+        }
+
+        .badge-linea {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+        }
+
+        /* BUTTON */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.6rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover {
+            color: var(--text);
+            border-color: var(--text-muted);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-sm {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        /* ALERTS */
+        .alert {
+            padding: 0.875rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+
+        .alert-warning {
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.2);
+            color: #fde68a;
+        }
+
+        .alert-success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: #86efac;
+        }
+
+        .alert-info {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+        }
+
+        /* FORM */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            background: var(--coal-light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: var(--text);
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: #1a2236;
+        }
+
+        .form-control::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Improvement for date/time/file inputs to ensure they look consistent */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+
+        /* ── Select: fuerza tema oscuro en toda la app ── */
+        select {
+            color-scheme: dark;
+            background: var(--coal-light);
+            color: var(--text);
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2394a3b8' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.85rem center;
+            padding-right: 2rem;
+        }
+
+        select option:checked {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        /* SECTION TITLE */
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+
+        .page-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        {% block extra_css %}{% endblock %}
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-brand">
+            <div class="logo-text">COALFA</div>
+            <div class="logo-sub">Gestión Empresarial</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">General</div>
+            <a href="{% url 'dashboard' %}" class="nav-item {% block nav_home %}{% endblock %}">
+                <span class="icon">🏠</span> Dashboard
+            </a>
+
+            {% if user.rol == 'RRHH' or user.rol == 'ADMIN' %}
+            <div class="nav-section-label">Recursos Humanos</div>
+            <a href="{% url 'rrhh_dashboard' %}" class="nav-item {% block nav_rrhh %}{% endblock %}">
+                <span class="icon">👥</span> Nómina de Personal
+            </a>
+            <a href="{% url 'rrhh_lista_empleados' %}" class="nav-item {% block nav_empleados %}{% endblock %}">
+                <span class="icon">📋</span> Lista de Empleados
+            </a>
+            <a href="{% url 'rrhh_ausencias' %}" class="nav-item {% block nav_ausencias %}{% endblock %}">
+                <span class="icon">🗓️</span> Vacaciones y Licencias
+            </a>
+            {% endif %}
+
+            {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' %}
+            <div class="nav-section-label">Operaciones</div>
+            <a href="{% url 'inventario_dashboard' %}" class="nav-item {% block nav_inventario %}{% endblock %}">
+                <span class="icon">📦</span> Bodega y Trazabilidad
+            </a>
+            <a href="{% url 'inventario_lista_lotes' %}" class="nav-item {% block nav_lotes %}{% endblock %}">
+                <span class="icon">🏷️</span> Control de Lotes
+            </a>
+            <a href="{% url 'inventario_alertas' %}" class="nav-item {% block nav_alertas %}{% endblock %}">
+                <span class="icon">⚠️</span> Alertas de Vencimiento
+            </a>
+            <a href="{% url 'inventario_lista_productos' %}" class="nav-item {% block nav_productos %}{% endblock %}">
+                <span class="icon">📋</span> Gestión de Productos
+            </a>
+            {% endif %}
+
+            {% if user.rol == 'ADMIN' %}
+            <div class="nav-section-label">Administración</div>
+            <a href="{% url 'admin_solicitudes' %}" class="nav-item" style="display:flex;align-items:center;justify-content:space-between;">
+                <span><span class="icon">👤</span> Solicitudes de Acceso</span>
+                {% if solicitudes_count and solicitudes_count > 0 %}
+                <span style="background:var(--accent);color:white;border-radius:9999px;font-size:0.62rem;font-weight:700;padding:0.1rem 0.45rem;flex-shrink:0;">{{ solicitudes_count }}</span>
+                {% endif %}
+            </a>
+            <a href="/admin/" class="nav-item">
+                <span class="icon">⚙️</span> Panel de Administración
+            </a>
+            {% endif %}
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">{{ user.nombre|first }}{{ user.apellido|first }}</div>
+                <div>
+                    <div class="user-name">{{ user.get_full_name }}</div>
+                    <div class="user-role">{{ user.get_rol_display }}</div>
+                </div>
+            </div>
+            <a href="{% url 'logout' %}" class="btn-logout">
+                <span>🚪</span> Cerrar sesión
+            </a>
+        </div>
+    </div>
+
+    <div class="main-wrapper">
+        <div class="topbar">
+            <div class="topbar-title">{% block topbar_title %}Dashboard{% endblock %}</div>
+            <div class="topbar-breadcrumb">{{ user.get_full_name }} · {{ user.get_rol_display }}</div>
+        </div>
+
+        <div class="page-content">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
+            {% endfor %}
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

@@ -5,9 +5,20 @@
 {% block nav_rrhh %}active{% endblock %}
 
 {% block extra_css %}
-.absence-row { display: flex; align-items: center; gap: 1rem; padding: 0.875rem 0; border-bottom: 1px solid
-var(--border); }
+.absence-row { display: flex; align-items: center; gap: 1rem; padding: 0.875rem 0; border-bottom: 1px solid var(--border); }
 .absence-dates { font-size: 0.75rem; color: var(--text-muted); }
+
+@media (max-width: 992px) {
+    .rrhh-layout { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 768px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+@media (max-width: 480px) {
+    .kpi-grid { grid-template-columns: 1fr !important; }
+}
 {% endblock %}
 
 {% block content %}
@@ -42,7 +53,7 @@ var(--border); }
     </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+<div class="rrhh-layout" style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
     <div class="card">
         <div class="card-header">
             <span class="card-title">Ausencias Activas</span>

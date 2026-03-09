@@ -71,15 +71,27 @@
         <h1 class="page-title">Explorador de Lotes</h1>
         <p class="page-subtitle" style="margin-bottom:0;">Seguimiento detallado de ingresos, salidas y ubicaciones</p>
     </div>
-    <div style="display:flex; gap:0.75rem;">
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
         <a href="{% url 'exportar_inventario_csv' %}?q={{ q }}&ubicacion={{ ubicacion }}&estado={{ estado }}" class="btn btn-ghost">📊 CSV</a>
         <a href="{% url 'exportar_inventario_excel' %}?q={{ q }}&ubicacion={{ ubicacion }}&estado={{ estado }}" class="btn btn-ghost" style="border-color:var(--success); color:var(--success);">📗 Descargar Excel</a>
         <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-primary">📦 Registrar Ingreso</a>
     </div>
 </div>
 
+<style>
+    .filter-grid {
+        display:grid; grid-template-columns: 1fr auto auto auto; gap:1rem; align-items:center;
+    }
+    @media (max-width: 992px) {
+        .filter-grid { grid-template-columns: 1fr 1fr; }
+        .filter-grid select, .filter-grid button { width: 100% !important; }
+    }
+    @media (max-width: 480px) {
+        .filter-grid { grid-template-columns: 1fr; }
+    }
+</style>
 <div class="glass-panel">
-    <form method="get" id="filterForm" style="display:grid; grid-template-columns: 1fr auto auto auto; gap:1rem; align-items:center;">
+    <form method="get" id="filterForm" class="filter-grid">
         <div style="position:relative;">
             <input type="text" name="q" class="search-field" placeholder="Buscar por código, producto o guía..." value="{{ q }}">
             <span style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); opacity:0.5;">🔍</span>
@@ -91,14 +103,14 @@
             <option value="{{ key }}" {% if ubicacion == key %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
-
+ 
         <select name="estado" class="form-control" style="width:160px; font-size:0.85rem;" onchange="this.form.submit()">
             <option value="">Todos los Estados</option>
             {% for key, label in estados %}
             <option value="{{ key }}" {% if estado == key %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
         </select>
-
+ 
         <button type="submit" class="btn btn-primary" style="padding:0.75rem 1.25rem;">Buscar</button>
     </form>
 </div>

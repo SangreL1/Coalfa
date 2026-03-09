@@ -83,7 +83,7 @@ def dashboard_inventario(request):
         }
 
     # Tareas
-    tareas = TareaBodega.objects.all()
+    tareas = TareaBodega.objects.filter(usuario=request.user)
 
     context = {
         "valor_total": valor_total,
@@ -604,6 +604,7 @@ def tarea_agregar(request):
             TareaBodega.objects.create(
                 texto=texto,
                 creado_por=request.user.get_full_name() or str(request.user),
+                usuario=request.user,
             )
     return redirect("inventario_dashboard")
 
@@ -611,7 +612,7 @@ def tarea_agregar(request):
 @operacional_required
 def tarea_toggle(request, pk):
     if request.method == "POST":
-        tarea = get_object_or_404(TareaBodega, pk=pk)
+        tarea = get_object_or_404(TareaBodega, pk=pk, usuario=request.user)
         tarea.completada = not tarea.completada
         tarea.save()
     return redirect("inventario_dashboard")
@@ -622,7 +623,7 @@ def tarea_toggle(request, pk):
 @operacional_required
 def tarea_eliminar(request, pk):
     if request.method == "POST":
-        tarea = get_object_or_404(TareaBodega, pk=pk)
+        tarea = get_object_or_404(TareaBodega, pk=pk, usuario=request.user)
         tarea.delete()
     return redirect("inventario_dashboard")
 

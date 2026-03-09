@@ -223,6 +223,7 @@ class TareaBodega(models.Model):
     completada = models.BooleanField(default=False)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     creado_por = models.CharField(max_length=100, blank=True)
+    usuario = models.ForeignKey("coalfa.Usuario", on_delete=models.CASCADE, related_name="tareas_bodega", null=True, blank=True)
 
     def __str__(self):
         return self.texto

@@ -62,8 +62,8 @@ def dashboard(request):
             "lotes_por_vencer": lotes_por_vencer,
         })
 
-    # Tareas (visibles para todos los roles)
-    tareas = TareaBodega.objects.all()
+    # Tareas (visibles para todos los roles, pero solo las propias)
+    tareas = TareaBodega.objects.filter(usuario=request.user)
     context.update({
         "tareas": tareas,
         "tareas_pendientes": tareas.filter(completada=False).count(),

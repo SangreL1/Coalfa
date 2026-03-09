@@ -15,8 +15,9 @@ text-decoration:none; border-bottom:2px solid transparent; margin-bottom:-1px; }
 .doc-label { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--accent); font-weight:700;
 margin-bottom:0.5rem; }
 .info-row { display:flex; justify-content:space-between; padding:0.75rem 0; border-bottom:1px solid var(--border);
-font-size:0.875rem; }
-.info-label { color:var(--text-muted); font-weight:500; }
+font-size:0.875rem; gap: 1rem; }
+.info-label { color:var(--text-muted); font-weight:500; flex-shrink: 0; }
+.info-row span:not(.info-label) { text-align: right; word-break: break-word; }
 {% endblock %}
 
 {% block content %}
@@ -60,7 +61,7 @@ font-size:0.875rem; }
 
 <!-- Tab: Información -->
 <div id="tab-info" class="panel active">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
         <div class="card">
             <h3 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; color: var(--accent);">👤 DATOS PERSONALES</h3>
             <div class="info-row"><span class="info-label">Nombre</span><span>{{ empleado.nombre }} {{ empleado.apellido }}</span></div>

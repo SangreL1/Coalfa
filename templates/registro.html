@@ -14,7 +14,7 @@
         .orb1{width:500px;height:500px;background:rgba(249,115,22,0.15);top:-100px;right:-100px;}
         .orb2{width:400px;height:400px;background:rgba(99,102,241,0.1);bottom:-100px;left:-100px;animation-delay:-4s;}
         @keyframes float{from{transform:translate(0,0) scale(1);}to{transform:translate(40px,20px) scale(1.05);}}
-        .split{position:relative;z-index:1;display:flex;height:100vh;}
+        .split{position:relative;z-index:1;display:flex;min-height:100vh;}
         .brand-panel{flex:1;display:flex;flex-direction:column;justify-content:center;padding:5rem;border-right:1px solid rgba(255,255,255,0.06);}
         .brand-logo{font-size:3.5rem;font-weight:800;color:#f97316;letter-spacing:-2px;line-height:1;}
         .brand-tagline{font-size:1.1rem;font-weight:400;color:#94a3b8;margin-top:1rem;line-height:1.7;max-width:380px;}
@@ -22,6 +22,17 @@
         .brand-note-title{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#f97316;margin-bottom:0.5rem;}
         .brand-note p{font-size:0.85rem;color:#94a3b8;line-height:1.6;}
         .form-panel{width:520px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:2rem;background:rgba(15,23,42,0.7);backdrop-filter:blur(20px);}
+        
+        /* RESPONSIVE */
+        @media (max-width: 992px) {
+            .split { flex-direction: column; height: auto; }
+            .brand-panel { padding: 3rem 1.5rem; align-items: center; text-align: center; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
+            .brand-logo { font-size: 2.5rem; }
+            .brand-tagline { font-size: 1rem; }
+            .brand-note { display: none; }
+            .form-panel { width: 100%; padding: 3rem 1.5rem; }
+            .form-row { grid-template-columns: 1fr; gap: 0; }
+        }
         .form-card{width:100%;max-width:420px;}
         .form-title{font-size:1.5rem;font-weight:800;margin-bottom:0.25rem;}
         .form-sub{font-size:0.875rem;color:#94a3b8;margin-bottom:2rem;}

@@ -79,6 +79,14 @@
                        placeholder="Ej: 5.5" required id="id_cant_serv">
             </div>
             <div class="field-wrap">
+                <label class="field-label">Área Solicitante *</label>
+                <select name="area" class="form-control" required id="id_area_serv">
+                    {% for key, label in ubicaciones %}
+                    <option value="{{ key }}" {% if key == 'LINEA' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field-wrap">
                 <label class="field-label">Observaciones</label>
                 <textarea name="observaciones" class="form-control" rows="2" id="id_obs_serv"
                           placeholder="Notas del servicio, destino, comensales..."></textarea>

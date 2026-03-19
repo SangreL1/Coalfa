@@ -163,6 +163,8 @@ class Lote(models.Model):
     def save(self, *args, **kwargs):
         if not self.numero_lote:
             self.numero_lote = _generar_numero_lote(self.producto.nombre)
+        self.numero_lote_proveedor = self.numero_lote_proveedor.strip()
+        self.numero_guia = self.numero_guia.strip()
         super().save(*args, **kwargs)
 
     @property
@@ -204,12 +206,19 @@ class RegistroServicio(models.Model):
     """Registro de salida a línea / consumo final."""
     lote = models.ForeignKey(Lote, on_delete=models.CASCADE, related_name="servicios")
     cantidad_servida = models.FloatField()
+    area = models.CharField(max_length=30, choices=Lote.UBICACION_CHOICES, default="LINEA")
+    costo_total = models.FloatField(default=0, help_text="Costo calculado (cantidad * precio_unitario del lote)")
     responsable = models.CharField(max_length=100, blank=True)
     fecha = models.DateTimeField(auto_now_add=True)
     observaciones = models.TextField(blank=True)
 
+    def save(self, *args, **kwargs):
+        if self.lote and not self.costo_total:
+            self.costo_total = self.cantidad_servida * self.lote.precio_unitario
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"Servicio {self.lote.numero_lote} — {self.fecha:%d/%m/%Y %H:%M}"
+        return f"Servicio {self.lote.numero_lote} — {self.fecha:%d/%m/%Y %H:%M} ({self.area})"
 
     class Meta:
         verbose_name = "Registro de Servicio"
@@ -217,21 +226,6 @@ class RegistroServicio(models.Model):
         ordering = ["-fecha"]
 
 
-class TareaBodega(models.Model):
-    """To-do list del panel de bodega."""
-    texto = models.CharField(max_length=200)
-    completada = models.BooleanField(default=False)
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
-    creado_por = models.CharField(max_length=100, blank=True)
-    usuario = models.ForeignKey("coalfa.Usuario", on_delete=models.CASCADE, related_name="tareas_bodega", null=True, blank=True)
-
-    def __str__(self):
-        return self.texto
-
-    class Meta:
-        verbose_name = "Tarea de Bodega"
-        verbose_name_plural = "Tareas de Bodega"
-        ordering = ["completada", "-fecha_creacion"]
 
 class RegistroTemperaturaCamara(models.Model):
     CAMARA_CHOICES = [

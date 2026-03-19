@@ -661,8 +661,23 @@
             margin-bottom: 2rem;
         }
 
+        /* NProgress Customization */
+        #nprogress .bar {
+            background: var(--accent) !important;
+            height: 3px !important;
+        }
+        #nprogress .peg {
+            box-shadow: 0 0 10px var(--accent), 0 0 5px var(--accent) !important;
+        }
+        #nprogress .spinner-icon {
+            border-top-color: var(--accent) !important;
+            border-left-color: var(--accent) !important;
+        }
+
         {% block extra_css %}{% endblock %}
     </style>
+    <!-- NProgress CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/nprogress@0.2.0/nprogress.css" />
 </head>
 
 <body>
@@ -795,6 +810,47 @@
             });
         });
     </script>
+    
+    <!-- Hotwire Turbo SPA Engine -->
+    <script type="module">
+        import hotwiredTurbo from 'https://cdn.skypack.dev/@hotwired/turbo';
+    </script>
+    
+    <!-- NProgress Loader -->
+    <script src="https://unpkg.com/nprogress@0.2.0/nprogress.js"></script>
+    <script>
+        document.addEventListener("turbo:click", () => NProgress.start());
+        document.addEventListener("turbo:render", () => NProgress.done());
+        document.addEventListener("turbo:load", function() {
+            NProgress.done();
+            // Ignorar turbo para enlaces de descarga
+            document.querySelectorAll('a[href*="exportar"], a[href*="reporte"], a[href*="pdf"], a[href*="csv"]').forEach(link => {
+                link.setAttribute('data-turbo', 'false');
+            });
+        });
+
+        // Feedback al usuario en Formularios
+        document.addEventListener("turbo:submit-start", function(e) {
+            NProgress.start();
+            const btn = e.target.querySelector('button[type="submit"], input[type="submit"]');
+            if(btn && !btn.classList.contains('no-loader')) {
+                btn.dataset.originalText = btn.innerHTML;
+                btn.innerHTML = '⏱️ Cargando...';
+                btn.style.opacity = '0.7';
+                btn.style.pointerEvents = 'none';
+            }
+        });
+        document.addEventListener("turbo:submit-end", function(e) {
+            NProgress.done();
+            const btn = e.target.querySelector('button[type="submit"], input[type="submit"]');
+            if(btn && btn.dataset.originalText) {
+                btn.innerHTML = btn.dataset.originalText;
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+            }
+        });
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 

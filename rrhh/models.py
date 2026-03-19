@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import FileExtensionValidator
 
 
 class Empleado(models.Model):
@@ -44,6 +45,51 @@ class Empleado(models.Model):
     
     foto = models.ImageField(upload_to="empleados/fotos/", blank=True, null=True)
 
+    def save(self, *args, **kwargs):
+        if self.pk:
+            try:
+                old_self = Empleado.objects.get(pk=self.pk)
+                if old_self.estado != self.estado:
+                    import datetime
+                    tipo_ausencia = None
+                    if self.estado == "VACACIONES":
+                        tipo_ausencia = "VACACIONES"
+                    elif self.estado == "LICENCIA":
+                        tipo_ausencia = "LICENCIA_MEDICA"
+                    
+                    if tipo_ausencia:
+                        # Auto-registro de ausencia o re-apertura si se cerró hoy mismo
+                        hoy = datetime.date.today()
+                        ausencias_hoy = PeriodoAusencia.objects.filter(empleado=self, tipo=tipo_ausencia, fecha_inicio=hoy)
+                        if not ausencias_hoy.exists():
+                            # Se crea con una duración tentativa de 7 días
+                            PeriodoAusencia.objects.create(
+                                empleado=self,
+                                tipo=tipo_ausencia,
+                                fecha_inicio=hoy,
+                                fecha_fin=hoy + datetime.timedelta(days=7),
+                                descripcion=f"Registro automático por cambio de estado a {self.get_estado_display()}"
+                            )
+                        else:
+                            # Si existe pero está cerrada (fecha_fin < hoy), la re-abrimos
+                            a = ausencias_hoy.first()
+                            if a.fecha_fin < hoy:
+                                a.fecha_fin = hoy + datetime.timedelta(days=7)
+                                a.descripcion += f" | Re-abierta por cambio de estado a {self.get_estado_display()}"
+                                a.save()
+                    elif self.estado == "ACTIVO" and old_self.estado in ("VACACIONES", "LICENCIA"):
+                        # Si vuelve a estar activo, cerramos el último periodo abierto
+                        import datetime
+                        hoy = datetime.date.today()
+                        ayer = hoy - datetime.timedelta(days=1)
+                        ultimo_periodo = self.ausencias.order_by("-fecha_inicio").first()
+                        if ultimo_periodo and ultimo_periodo.fecha_fin >= hoy:
+                            ultimo_periodo.fecha_fin = ayer
+                            ultimo_periodo.save()
+            except Empleado.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.apellido}, {self.nombre} ({self.rut})"
 
@@ -86,7 +132,10 @@ class Documento(models.Model):
     empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name="documentos")
     tipo = models.CharField(max_length=15, choices=TIPO_CHOICES)
     descripcion = models.CharField(max_length=200, blank=True)
-    archivo = models.FileField(upload_to="documentos_rrhh/")
+    archivo = models.FileField(
+        upload_to="documentos_rrhh/",
+        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'xls', 'xlsx'])]
+    )
     fecha_subida = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

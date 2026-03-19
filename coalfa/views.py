@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .forms import LoginForm
 from rrhh.models import Empleado
-from inventario.models import Lote, TareaBodega
+from inventario.models import Lote
 import datetime
 
 
@@ -36,7 +36,7 @@ def logout_view(request):
 def dashboard(request):
     context = {}
 
-    if request.user.rol in ("RRHH", "ADMIN"):
+    if request.user.rol in ("RRHH", "ADMIN", "GERENTE"):
         total_empleados = Empleado.objects.count()
         en_vacaciones = Empleado.objects.filter(estado="VACACIONES").count()
         con_licencia = Empleado.objects.filter(estado="LICENCIA").count()
@@ -48,7 +48,7 @@ def dashboard(request):
             "finiquitados": finiquitados,
         })
 
-    if request.user.rol in ("OPERACIONAL", "ADMIN"):
+    if request.user.rol in ("OPERACIONAL", "ADMIN", "GERENTE"):
         hoy = datetime.date.today()
         pronto = hoy + datetime.timedelta(days=7)
         lotes_bodega = Lote.objects.filter(ubicacion_actual="BODEGA", estado="ACTIVO").count()
@@ -62,12 +62,6 @@ def dashboard(request):
             "lotes_por_vencer": lotes_por_vencer,
         })
 
-    # Tareas (visibles para todos los roles, pero solo las propias)
-    tareas = TareaBodega.objects.filter(usuario=request.user)
-    context.update({
-        "tareas": tareas,
-        "tareas_pendientes": tareas.filter(completada=False).count(),
-    })
 
     # Badge de solicitudes pendientes para admin
     if request.user.rol == "ADMIN":

@@ -22,8 +22,7 @@ urlpatterns = [
     # Productos
     path("productos/", views.lista_productos, name="inventario_lista_productos"),
     path("productos/<int:pk>/eliminar/", views.eliminar_producto, name="inventario_eliminar_producto"),
-    # Tareas (to-do)
-    path("tareas/agregar/", views.tarea_agregar, name="inventario_tarea_agregar"),
-    path("tareas/<int:pk>/toggle/", views.tarea_toggle, name="inventario_tarea_toggle"),
-    path("tareas/<int:pk>/eliminar/", views.tarea_eliminar, name="inventario_tarea_eliminar"),
+    # Reportes de Consumo
+    path("consumo/", views.resumen_consumo, name="inventario_resumen_consumo"),
+    path("consumo/exportar/", views.exportar_consumo_excel, name="inventario_exportar_consumo_excel"),
 ]

@@ -116,5 +116,77 @@
             </div>
         </div>
     </div>
+    <script>
+        function validarRut(rutString) {
+            let valor = rutString.replace(/\./g, '').replace(/-/g, '').replace(/ /g, '').toUpperCase();
+            if (valor.length < 2) return false;
+
+            let cuerpo = valor.slice(0, -1);
+            let dv = valor.slice(-1);
+
+            if (!/^[0-9]+$/.test(cuerpo)) return false;
+            
+            let suma = 0;
+            let multiplo = 2;
+
+            for (let i = cuerpo.length - 1; i >= 0; i--) {
+                suma = suma + multiplo * parseInt(cuerpo.charAt(i));
+                multiplo = multiplo < 7 ? multiplo + 1 : 2;
+            }
+
+            let dvEsperado = 11 - (suma % 11);
+            dvEsperado = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : dvEsperado.toString();
+
+            return dvEsperado === dv;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const rutInput = document.getElementById('id_rut');
+            
+            if (form && rutInput) {
+                form.addEventListener('submit', function(e) {
+                    if (rutInput.value && !validarRut(rutInput.value)) {
+                        e.preventDefault();
+                        
+                        // Check if an error message already exists, if not, create one
+                        let errorAlert = document.querySelector('.error-alert-js');
+                        if (!errorAlert) {
+                            errorAlert = document.createElement('div');
+                            errorAlert.className = 'error-alert error-alert-js';
+                            
+                            // Insert it before the form
+                            form.parentNode.insertBefore(errorAlert, form);
+                        }
+                        
+                        errorAlert.textContent = "El RUT ingresado no es válido. Por favor, revíselo e intente nuevamente.";
+                        rutInput.focus();
+                        
+                        // Optionally add a red border to the input
+                        rutInput.style.borderColor = "#ef4444";
+                        rutInput.style.background = "rgba(239, 68, 68, 0.05)";
+                    } else if (rutInput.value) {
+                        // Reset styles if valid
+                        rutInput.style.borderColor = "";
+                        rutInput.style.background = "";
+                    }
+                });
+
+                // Real-time formatting as the user types
+                rutInput.addEventListener('input', function(e) {
+                    let valor = this.value.replace(/\./g, '').replace(/-/g, '').toUpperCase();
+                    if (valor.length > 1) {
+                        let cuerpo = valor.slice(0, -1);
+                        let dv = valor.slice(-1);
+                        // Format with dots
+                        cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                        this.value = cuerpo + '-' + dv;
+                    } else {
+                        this.value = valor;
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

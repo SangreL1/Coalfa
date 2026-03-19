@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Sum, Q
 from coalfa.decorators import operacional_required
-from .models import Lote, MovimientoTrazabilidad, Proveedor, Producto, RegistroServicio, TareaBodega, RegistroTemperaturaCamara
+from .models import Lote, MovimientoTrazabilidad, Proveedor, Producto, RegistroServicio, RegistroTemperaturaCamara
 from .forms import LoteForm
 import datetime
 import csv
@@ -42,25 +42,33 @@ def dashboard_inventario(request):
     # Alertas de Stock Crítico (Basado en stock_minimo)
     # Agrupamos por producto para ver el total actual vs mínimo
     productos_criticos = []
-    lista_productos = Producto.objects.filter(lotes__estado="ACTIVO").distinct()
+    lista_productos = Producto.objects.filter(lotes__isnull=False).distinct()
     for p in lista_productos:
         stock_actual = p.lotes.filter(estado="ACTIVO").aggregate(Sum("cantidad"))["cantidad__sum"] or 0
         if stock_actual <= p.stock_minimo:
-            productos_criticos.append({
-                "producto": p,
-                "actual": stock_actual,
-                "minimo": p.stock_minimo,
-                "porcentaje": (stock_actual / p.stock_minimo * 100) if p.stock_minimo > 0 else 0
-            })
+            # Solo consideramos críticos los que tienen un stock mínimo > 0 (para no mostrar todo en 0)
+            # O aquellos que explícitamente llegaron a 0 y su mínimo era 0 pero tienen historial reciente o activo 
+            if p.stock_minimo > 0 or (stock_actual == 0 and p.lotes.filter(estado="CONSUMIDO").exists()):
+                productos_criticos.append({
+                    "producto": p,
+                    "actual": stock_actual,
+                    "minimo": p.stock_minimo,
+                    "porcentaje": (stock_actual / p.stock_minimo * 100) if p.stock_minimo > 0 else 0
+                })
 
     # Distribución por Categoría (para gráfico)
     cat_dist = {}
+    cat_val_dist = {}
     for p in lista_productos:
-        stock = p.lotes.filter(estado="ACTIVO").aggregate(Sum("cantidad"))["cantidad__sum"] or 0
+        lotes_activos_p = p.lotes.filter(estado="ACTIVO")
+        stock = lotes_activos_p.aggregate(Sum("cantidad"))["cantidad__sum"] or 0
+        valor = sum(l.valor_total for l in lotes_activos_p)
         cat = p.get_categoria_display()
         cat_dist[cat] = cat_dist.get(cat, 0) + stock
+        cat_val_dist[cat] = cat_val_dist.get(cat, 0) + valor
     
     cat_data = [{"label": k, "value": round(v, 2)} for k, v in cat_dist.items()]
+    cat_val_data = [{"label": k, "value": round(v, 0)} for k, v in cat_val_dist.items()]
 
     # Alertas de Vencimiento
     alertas_vencimiento = Lote.objects.filter(
@@ -82,9 +90,6 @@ def dashboard_inventario(request):
             "count": lotes_activos.filter(ubicacion_actual=key).count(),
         }
 
-    # Tareas
-    tareas = TareaBodega.objects.filter(usuario=request.user)
-
     context = {
         "valor_total": valor_total,
         "total_activos": total_activos,
@@ -94,10 +99,9 @@ def dashboard_inventario(request):
         "alertas": alertas_vencimiento,
         "movimientos": movimientos,
         "cat_data": cat_data,
+        "cat_val_data": cat_val_data,
         "por_ubicacion": por_ubicacion,
         "max_ubicacion": max((d["count"] for d in por_ubicacion.values()), default=1) or 1,
-        "tareas": tareas,
-        "tareas_pendientes": tareas.filter(completada=False).count(),
         "hoy": hoy,
     }
     return render(request, "inventario/dashboard.html", context)
@@ -302,6 +306,17 @@ def mover_lote(request, lote_id, nueva_ubicacion):
         responsable=request.user.get_full_name() or str(request.user),
         observaciones=obs,
     )
+
+    # Si se mueve a un área de consumo/procesamiento, registrarlo como "Servicio" para seguimiento de costos (Task 1)
+    areas_consumo = ["COCINA_FRIA", "COCINA_CALIENTE", "REPOSTERIA", "LINEA", "OTRO"]
+    if nueva_ubicacion in areas_consumo and desde not in areas_consumo:
+        RegistroServicio.objects.create(
+            lote=lote,
+            cantidad_servida=cantidad_despacho,
+            area=nueva_ubicacion,
+            responsable=request.user.get_full_name() or str(request.user),
+            observaciones=f"Despacho automático: {obs}" if obs else "Despacho automático desde movimiento",
+        )
     lote.cantidad -= cantidad_despacho
     if lote.cantidad <= 0:
         lote.cantidad = 0
@@ -499,17 +514,25 @@ def registrar_servicio(request, pk):
             RegistroServicio.objects.create(
                 lote=lote,
                 cantidad_servida=cantidad,
+                area=p.get("area", "LINEA"),
                 responsable=request.user.get_full_name() or str(request.user),
                 observaciones=p.get("observaciones", ""),
             )
-            if p.get("marcar_consumido"):
+            lote.cantidad -= cantidad
+            if lote.cantidad <= 0:
+                lote.cantidad = 0
                 lote.estado = "CONSUMIDO"
-                lote.save()
+            elif p.get("marcar_consumido"):
+                lote.estado = "CONSUMIDO"
+            lote.save()
             messages.success(request, f"✅ Servicio registrado para lote {lote.numero_lote}.")
             return redirect("inventario_detalle_lote", pk=lote.pk)
         except Exception as e:
             messages.error(request, f"Error: {e}")
-    return render(request, "inventario/servicio_lote.html", {"lote": lote})
+    return render(request, "inventario/servicio_lote.html", {
+        "lote": lote,
+        "ubicaciones": Lote.UBICACION_CHOICES,
+    })
 
 
 # ── Trazabilidad ───────────────────────────────────────────────────────────────
@@ -594,38 +617,6 @@ def eliminar_producto(request, pk):
     })
 
 
-# ── Tareas (To-Do) ─────────────────────────────────────────────────────────────
-
-@operacional_required
-def tarea_agregar(request):
-    if request.method == "POST":
-        texto = request.POST.get("texto", "").strip()
-        if texto:
-            TareaBodega.objects.create(
-                texto=texto,
-                creado_por=request.user.get_full_name() or str(request.user),
-                usuario=request.user,
-            )
-    return redirect("inventario_dashboard")
-
-
-@operacional_required
-def tarea_toggle(request, pk):
-    if request.method == "POST":
-        tarea = get_object_or_404(TareaBodega, pk=pk, usuario=request.user)
-        tarea.completada = not tarea.completada
-        tarea.save()
-    return redirect("inventario_dashboard")
-
-
-
-
-@operacional_required
-def tarea_eliminar(request, pk):
-    if request.method == "POST":
-        tarea = get_object_or_404(TareaBodega, pk=pk, usuario=request.user)
-        tarea.delete()
-    return redirect("inventario_dashboard")
 
 
 @operacional_required
@@ -958,5 +949,80 @@ def exportar_inventario_excel(request):
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     response["Content-Disposition"] = f'attachment; filename="Inventario_{hoy}.xlsx"'
+    wb.save(response)
+    return response
+
+@operacional_required
+def resumen_consumo(request):
+    """Muestra el ranking de áreas que más consumen (Task 4)."""
+    # Ranking de áreas por gasto monetario
+    ranking = RegistroServicio.objects.values('area').annotate(
+        total_gastado=Sum('costo_total'),
+        total_productos=Sum('cantidad_servida')
+    ).order_by('-total_gastado')
+    
+    # Convertir keys de area a labels (human-readable)
+    ubicaciones_dict = dict(Lote.UBICACION_CHOICES)
+    for r in ranking:
+        r['area_label'] = ubicaciones_dict.get(r['area'], r['area'])
+
+    # Últimos 20 registros de consumo
+    ultimos_consumos = RegistroServicio.objects.select_related('lote', 'lote__producto').order_by('-fecha')[:20]
+
+    return render(request, "inventario/resumen_consumo.html", {
+        "ranking": ranking,
+        "ultimos_consumos": ultimos_consumos,
+        "ubicaciones": Lote.UBICACION_CHOICES,
+    })
+
+@operacional_required
+def exportar_consumo_excel(request):
+    """Genera planilla Excel de consumo por área (Task 2)."""
+    desde = request.GET.get("desde")
+    hasta = request.GET.get("hasta")
+    area_filtro = request.GET.get("area")
+
+    consumos = RegistroServicio.objects.select_related('lote', 'lote__producto').all()
+    if desde:
+        consumos = consumos.filter(fecha__date__gte=desde)
+    if hasta:
+        consumos = consumos.filter(fecha__date__lte=hasta)
+    if area_filtro:
+        consumos = consumos.filter(area=area_filtro)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Reporte de Consumo"
+
+    # Estilos básicos
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="F97316", end_color="F97316", fill_type="solid")
+    
+    headers = ["Fecha", "Área", "Producto", "Lote", "Cantidad", "Unidad", "Costo Unit.", "Costo Total", "Responsable"]
+    ws.append(headers)
+    
+    for cell in ws[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+
+    for c in consumos:
+        ws.append([
+            c.fecha.strftime("%d/%m/%Y %H:%M"),
+            c.get_area_display(),
+            c.lote.producto.nombre,
+            c.lote.numero_lote,
+            c.cantidad_servida,
+            c.lote.producto.get_unidad_medida_display(),
+            c.lote.precio_unitario,
+            c.costo_total,
+            c.responsable
+        ])
+
+    # Ajustar ancho de columnas
+    for i in range(1, 10):
+        ws.column_dimensions[get_column_letter(i)].width = 20
+
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="Consumo_Bodega_{datetime.date.today()}.xlsx"'
     wb.save(response)
     return response

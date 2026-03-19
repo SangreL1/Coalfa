@@ -1,4 +1,5 @@
 from django import forms
+from .utils import validar_rut
 
 
 class LoginForm(forms.Form):
@@ -25,3 +26,9 @@ class LoginForm(forms.Form):
             }
         ),
     )
+
+    def clean_rut(self):
+        rut = self.cleaned_data.get("rut", "")
+        if not validar_rut(rut):
+            raise forms.ValidationError("El RUT ingresado no es válido.")
+        return rut

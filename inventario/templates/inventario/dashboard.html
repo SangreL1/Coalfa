@@ -187,6 +187,7 @@
             <div id="quickMenu" class="glass-card" style="display:none; position:absolute; right:0; top:calc(100% + 10px); width:240px; z-index:1000; padding:0.5rem;">
                 <a href="{% url 'inventario_recibir_lote' %}" class="nav-item" style="padding:0.6rem 1rem;">📦 Registrar Stock Existente</a>
                 <a href="{% url 'inventario_transformar_lote' %}" class="nav-item" style="padding:0.6rem 1rem;">🔄 Transformar Lote</a>
+                <a href="{% url 'inventario_resumen_consumo' %}" class="nav-item" style="padding:0.6rem 1rem;">📈 Estadísticas y Consumo</a>
                 <a href="{% url 'exportar_inventario_excel' %}" class="nav-item" style="padding:0.6rem 1rem;">📗 Exportar Inventario (Excel)</a>
                 <a href="{% url 'generar_reporte_pdf' %}" class="nav-item" style="padding:0.6rem 1rem;">📊 Generar Reporte PDF</a>
             </div>
@@ -318,61 +319,7 @@
     <!-- Sidebar Column -->
     <div style="display:flex; flex-direction:column; gap:1.5rem;">
         
-        <!-- Activity Timeline -->
-        <div class="glass-card">
-            <div class="card-header" style="border:none;">
-                <div class="card-title" style="text-transform:uppercase; font-size:0.75rem;">Actividad de Cadena</div>
-            </div>
-            <div class="timeline">
-                {% for mov in movimientos %}
-                <div class="timeline-item">
-                    <div class="timeline-content">
-                        <div style="font-size:0.83rem; font-weight:700;">{{ mov.lote.producto.nombre }}</div>
-                        <div style="font-size:0.72rem; color:var(--text-muted); margin:2px 0;">
-                            {{ mov.get_desde_display }} <span style="color:var(--accent);">→</span> {{ mov.get_hacia_display }}
-                        </div>
-                        <div style="font-size:0.65rem; color:var(--text-muted); display:flex; justify-content:space-between;">
-                            <span>{{ mov.fecha|date:"H:i" }}</span>
-                            <span>{{ mov.responsable|truncatechars:18 }}</span>
-                        </div>
-                    </div>
-                </div>
-                {% empty %}
-                <p style="text-align:center; color:var(--text-muted); font-size:0.8rem;">Esperando actividad...</p>
-                {% endfor %}
-            </div>
-            <a href="{% url 'inventario_lista_lotes' %}" style="display:block; text-align:center; font-size:0.75rem; color:var(--accent); text-decoration:none; margin-top:1rem; font-weight:600;">Ver Trazabilidad Completa →</a>
-        </div>
-
-        <!-- Task Manager -->
-        <div class="glass-card" style="border-color:rgba(129, 140, 248, 0.4);">
-            <div class="card-header">
-                <div class="card-title" style="color:var(--indigo);">Tareas de Personal</div>
-                <span class="badge" style="background:var(--indigo); color:white;">{{ tareas_pendientes }}</span>
-            </div>
-            <form action="{% url 'inventario_tarea_agregar' %}" method="POST" style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-                {% csrf_token %}
-                <input type="text" name="texto" class="form-control" placeholder="Nueva tarea..." style="font-size:0.75rem; padding:0.5rem;">
-                <button type="submit" class="btn btn-primary" style="padding:0.5rem;">+</button>
-            </form>
-            <div style="display:flex; flex-direction:column; gap:0.5rem;">
-                {% for t in tareas %}
-                <div style="display:flex; align-items:center; gap:0.75rem; padding:0.5rem; background:rgba(255,255,255,0.03); border-radius:8px;">
-                    <form action="{% url 'inventario_tarea_toggle' t.pk %}" method="POST">
-                        {% csrf_token %}
-                        <input type="checkbox" onclick="this.form.submit()" {% if t.completada %}checked{% endif %} style="cursor:pointer; accent-color:var(--indigo);">
-                    </form>
-                    <span style="font-size: 0.8rem; {% if t.completada %}text-decoration: line-through; color: var(--text-muted);{% endif %}">
-                        {{ t.texto }}
-                    </span>
-                    <form action="{% url 'inventario_tarea_eliminar' t.pk %}" method="POST" style="margin-left:auto;">
-                        {% csrf_token %}
-                        <button type="submit" style="background:none; border:none; color:rgba(248,113,113,0.4); cursor:pointer; font-size:0.8rem;">✕</button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
+        <!-- Aquí se removió Actividad de Cadena y Tareas de Personal por solicitud -->
 
     </div>
 
@@ -391,22 +338,29 @@
     // --- Charts ---
     document.addEventListener('DOMContentLoaded', function() {
         // Data from view
-        const catLabels = [{% for item in cat_data %}"{{ item.label }}"{% if not forloop.last %},{% endif %}{% endfor %}];
-        const catValues = [{% for item in cat_data %}{{ item.value }}{% if not forloop.last %},{% endif %}{% endfor %}];
+        // Data from view
+        const catLabels = [{% for item in cat_val_data %}"{{ item.label }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+        const catValues = [{% for item in cat_val_data %}{{ item.value }}{% if not forloop.last %},{% endif %}{% endfor %}];
 
         const locLabels = [{% for key, data in por_ubicacion.items %}"{{ data.label }}"{% if not forloop.last %},{% endif %}{% endfor %}];
         const locValues = [{% for key, data in por_ubicacion.items %}{{ data.count }}{% if not forloop.last %},{% endif %}{% endfor %}];
 
-        // Category Chart
+        // Advanced Category Chart (Monetary Value)
         new Chart(document.getElementById('categoryChart'), {
             type: 'doughnut',
             data: {
                 labels: catLabels,
                 datasets: [{
                     data: catValues,
-                    backgroundColor: ['#f97316', '#38bdf8', '#34d399', '#fbbf24', '#818cf8', '#f87171', '#67e8f9', '#a5b4fc'],
-                    borderWidth: 0,
-                    hoverOffset: 15
+                    backgroundColor: [
+                        '#f97316', '#38bdf8', '#34d399', '#fbbf24', 
+                        '#818cf8', '#f87171', '#67e8f9', '#a5b4fc',
+                        '#ec4899', '#8b5cf6', '#10b981'
+                    ],
+                    borderWidth: 2,
+                    borderColor: 'rgba(17, 25, 40, 0.8)',
+                    hoverOffset: 15,
+                    borderRadius: 4
                 }]
             },
             options: {
@@ -415,66 +369,66 @@
                 plugins: {
                     legend: {
                         position: 'right',
-                        labels: { color: '#94a3b8', font: { size: 10, family: 'Inter' }, usePointStyle: true, padding: 15 }
+                        labels: { 
+                            color: '#94a3b8', 
+                            font: { size: 10, family: 'Inter', weight: '600' }, 
+                            usePointStyle: true, 
+                            padding: 12
+                        }
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleFont: { size: 12, weight: 'bold' },
+                        bodyFont: { size: 12 },
+                        padding: 10,
                         callbacks: {
                             label: function(context) {
                                 let label = context.label || '';
                                 if (label) label += ': ';
                                 if (context.parsed !== null) {
-                                    label += new Intl.NumberFormat('de-DE').format(context.parsed);
+                                    label += '$' + new Intl.NumberFormat('de-DE').format(context.parsed);
                                 }
                                 return label;
                             }
                         }
                     }
                 },
-                cutout: '70%'
+                cutout: '65%'
             }
         });
 
-        // Location Chart (Bar)
+        // Location Distribution (Vertical Bar)
         new Chart(document.getElementById('locationChart'), {
             type: 'bar',
             data: {
                 labels: locLabels,
                 datasets: [{
-                    label: 'Lotes',
+                    label: 'Cantidad de Lotes',
                     data: locValues,
-                    backgroundColor: 'rgba(249, 115, 22, 0.4)',
-                    borderColor: '#f97316',
+                    backgroundColor: 'rgba(129, 140, 248, 0.4)',
+                    borderColor: '#818cf8',
                     borderWidth: 2,
-                    borderRadius: 5
+                    borderRadius: 4,
+                    barThickness: 15
                 }]
             },
             options: {
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { 
                     legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) label += ': ';
-                                if (context.parsed.y !== null) {
-                                    label += new Intl.NumberFormat('de-DE').format(context.parsed.y);
-                                }
-                                return label;
-                            }
-                        }
-                    }
+                    tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' }
                 },
                 scales: {
-                    y: { 
+                    x: { 
                         beginAtZero: true, 
                         grid: { color: 'rgba(255,255,255,0.05)' },
                         ticks: { color: '#64748b', font: { size: 10 } }
                     },
-                    x: { 
+                    y: { 
                         grid: { display: false },
-                        ticks: { color: '#64748b', font: { size: 10 } }
+                        ticks: { color: '#cbd5e1', font: { size: 10, weight: '600' } }
                     }
                 }
             }

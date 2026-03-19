@@ -39,6 +39,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         ("ADMIN", "Administrador"),
         ("RRHH", "Recursos Humanos"),
         ("OPERACIONAL", "Operacional"),
+        ("GERENTE", "Gerente"),
     ]
 
     rut = models.CharField(max_length=12, unique=True, verbose_name="RUT")

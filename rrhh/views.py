@@ -68,7 +68,7 @@ def lista_empleados(request):
         "empleados": empleados, "estado": estado, "area": area, "q": q,
         "estados": Empleado.ESTADO_CHOICES, "areas": Empleado.AREA_CHOICES,
         "nuevo_form": nuevo_form,
-        "show_modal": request.method == "POST" and "crear_empleado" in request.POST,
+        "show_modal": (request.method == "POST" and "crear_empleado" in request.POST) or (request.GET.get("nuevo") == "1"),
     }
     return render(request, "rrhh/lista_empleados.html", context)
 

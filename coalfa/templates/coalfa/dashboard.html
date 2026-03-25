@@ -5,97 +5,241 @@
 {% block nav_home %}active{% endblock %}
 
 {% block extra_css %}
-.dash-wrap {
+.dash-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
-    align-items: start;
 }
-
-@media (max-width: 1100px) {
-    .dash-wrap {
-        grid-template-columns: 1fr;
-    }
+.chart-container {
+    height: 300px;
+    position: relative;
+    margin-top: 1rem;
+}
+.quick-action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-top: 2rem;
+}
+.card-hover:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent);
+    box-shadow: 0 12px 24px -10px rgba(0,0,0,0.5);
+}
+.card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@media (max-width: 992px) {
+    .dash-grid { grid-template-columns: 1fr; }
 }
 {% endblock %}
 
 {% block content %}
 
-<div class="page-title">Bienvenido, {{ user.nombre }}</div>
-<p class="page-subtitle">{{ user.get_rol_display }} · {{ user.get_full_name }} · Sistema de Gestión Coalfa</p>
+<div style="margin-bottom: 2rem;">
+    <h1 class="page-title">Hola, {{ user.nombre }} 👋</h1>
+    <p class="page-subtitle" style="margin-bottom:0;">{{ user.get_rol_display }} · {{ user.get_full_name }} · San Lucas Enterprise System</p>
+</div>
 
-<div class="dash-wrap">
-    <!-- Panel Central: KPIs + cards de módulos -->
-    <div>
-        {% if user.rol == 'RRHH' or user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
-        <div class="kpi-grid" style="margin-bottom:1.5rem;">
-            <div class="kpi-card">
-                <div class="kpi-label">Total Empleados</div>
-                <div class="kpi-value">{{ total_empleados|default:"0" }}</div>
-                <div class="kpi-icon">👥</div>
+<div class="dash-grid">
+    <!-- Panel RRHH -->
+    {% if total_empleados %}
+    <div class="card card-hover">
+        <div class="card-header">
+            <span class="card-title">Distribución de Personal</span>
+            <span>👥</span>
+        </div>
+        <div class="kpi-grid" style="margin-bottom:1rem; grid-template-columns: repeat(2, 1fr);">
+            <div style="background:var(--accent-soft); padding:1rem; border-radius:12px;">
+                <div class="kpi-label" style="font-size:0.65rem;">Total Personal</div>
+                <div class="kpi-value" style="font-size:1.5rem;">{{ total_empleados }}</div>
             </div>
-            <div class="kpi-card" style="--accent:#eab308;">
-                <div class="kpi-label">En Vacaciones</div>
-                <div class="kpi-value">{{ en_vacaciones|default:"0" }}</div>
-                <div class="kpi-icon">🏖️</div>
-            </div>
-            <div class="kpi-card" style="--accent:#ef4444;">
-                <div class="kpi-label">Con Licencia</div>
-                <div class="kpi-value">{{ con_licencia|default:"0" }}</div>
-                <div class="kpi-icon">🏥</div>
+            <div style="background:rgba(52, 211, 153, 0.08); padding:1rem; border-radius:12px;">
+                <div class="kpi-label" style="font-size:0.65rem; color:#34d399;">Activos</div>
+                <div class="kpi-value" style="font-size:1.5rem; color:#34d399;">{{ activos }}</div>
             </div>
         </div>
-        {% endif %}
-
-        {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
-        <div class="kpi-grid" style="margin-bottom:1.5rem;">
-            <div class="kpi-card">
-                <div class="kpi-label">Lotes en Bodega</div>
-                <div class="kpi-value">{{ lotes_bodega|default:"0" }}</div>
-                <div class="kpi-icon">📦</div>
-            </div>
-            <div class="kpi-card" style="--accent:#ef4444;">
-                <div class="kpi-label">Por Vencer (7d)</div>
-                <div class="kpi-value">{{ lotes_por_vencer|default:"0" }}</div>
-                <div class="kpi-icon">⚠️</div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Accesos rápidos -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem;">
-            {% if user.rol == 'RRHH' or user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Recursos Humanos</span>
-                    <span>👥</span>
-                </div>
-                <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.25rem;line-height:1.6;">
-                    Nómina, documentación laboral, vacaciones y licencias del personal.
-                </p>
-                <div style="display:flex;gap:0.5rem;">
-                    <a href="{% url 'rrhh_dashboard' %}" class="btn btn-primary">Ir a RRHH</a>
-                    <a href="{% url 'rrhh_lista_empleados' %}?nuevo=1" class="btn btn-ghost" title="Registrar nuevo">+</a>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Bodega & Trazabilidad</span>
-                    <span>📦</span>
-                </div>
-                <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.25rem;line-height:1.6;">
-                    Control de stock, trazabilidad HACCP y alertas de vencimiento.
-                </p>
-                <div style="display:flex;gap:0.5rem;">
-                    <a href="{% url 'inventario_dashboard' %}" class="btn btn-primary">Ir a Bodega</a>
-                    <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-ghost" title="Recibir nuevo lote">+</a>
-                </div>
-            </div>
-            {% endif %}
+        <div class="chart-container">
+            <canvas id="employeeChart"></canvas>
         </div>
     </div>
+    {% endif %}
+
+    <!-- Panel Inventario -->
+    {% if lotes_bodega is not None %}
+    <div class="card card-hover">
+        <div class="card-header">
+            <span class="card-title">Estado de Inventario</span>
+            <span>📦</span>
+        </div>
+        <div class="kpi-grid" style="margin-bottom:1rem; grid-template-columns: repeat(2, 1fr);">
+            <div style="background:var(--accent-soft); padding:1rem; border-radius:12px;">
+                <div class="kpi-label" style="font-size:0.65rem;">En Bodega</div>
+                <div class="kpi-value" style="font-size:1.5rem;">{{ lotes_bodega }}</div>
+            </div>
+            <div style="background:rgba(248, 113, 113, 0.08); padding:1rem; border-radius:12px;">
+                <div class="kpi-label" style="font-size:0.65rem; color:#f87171;">Por Vencer</div>
+                <div class="kpi-value" style="font-size:1.5rem; color:#f87171;">{{ lotes_por_vencer }}</div>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
 </div>
+
+<!-- Eventos Recientes -->
+<h2 style="font-size:1.1rem; font-weight:700; margin-top:3rem; margin-bottom:1rem;">Eventos Recientes</h2>
+<div class="dash-grid">
+    <div class="card card-hover">
+        <div class="card-header">
+            <span class="card-title">RRHH: Últimas Ausencias</span>
+        </div>
+        {% for a in recent_ausencias %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem 0; border-bottom:1px solid var(--border);">
+            <div>
+                <div style="font-weight:600; font-size:0.875rem;">{{ a.empleado.nombre }} {{ a.empleado.apellido }}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">{{ a.get_tipo_display }} &mdash; {{ a.fecha_inicio|date:"d/m/Y" }}</div>
+            </div>
+            <span class="badge {% if a.tipo == 'VACACIONES' %}badge-vacaciones{% else %}badge-licencia{% endif %}" style="font-size:0.6rem;">
+                {{ a.get_tipo_display }}
+            </span>
+        </div>
+        {% empty %}
+        <p style="color:var(--text-muted); font-size:0.8rem; padding:1rem 0;">No hay ausencias registradas.</p>
+        {% endfor %}
+    </div>
+
+    <div class="card card-hover">
+        <div class="card-header">
+            <span class="card-title">Inventario: Últimos Movimientos</span>
+        </div>
+        {% for m in recent_movimientos %}
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem 0; border-bottom:1px solid var(--border);">
+            <div>
+                <div style="font-weight:600; font-size:0.875rem;">{{ m.lote.producto.nombre }}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">{{ m.desde }} ➝ {{ m.hacia }}</div>
+            </div>
+            <span style="font-size:0.75rem; color:var(--text-muted); font-family:monospace;">{{ m.fecha|date:"H:i" }}</span>
+        </div>
+        {% empty %}
+        <p style="color:var(--text-muted); font-size:0.8rem; padding:1rem 0;">No se registran movimientos recientes.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Accesos rápidos -->
+<h2 style="font-size:1.1rem; font-weight:700; margin-top:3rem; margin-bottom:1rem;">Módulos del Sistema</h2>
+<div class="quick-action-grid">
+    {% if user.rol == 'RRHH' or user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
+    <div class="card card-hover">
+        <div class="card-header">
+            <span class="card-title">Recursos Humanos</span>
+            <span style="font-size:1.2rem;">📂</span>
+        </div>
+        <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem;line-height:1.6;">
+            Administra la nómina, carga de documentos contractuales y control de ausencias.
+        </p>
+        <div style="display:flex;gap:0.5rem;">
+            <a href="{% url 'rrhh_dashboard' %}" class="btn btn-primary">Ir a RRHH</a>
+            <a href="{% url 'rrhh_lista_empleados' %}?nuevo=1" class="btn btn-ghost" title="Registrar nuevo">+</a>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
+    <div class="card card-hover">
+        <div class="card-header">
+            <span class="card-title">Logística & Bodega</span>
+            <span style="font-size:1.2rem;">🚛</span>
+        </div>
+        <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem;line-height:1.6;">
+            Gestión de lotes, trazabilidad alimentaria, temperaturas y alertas críticas.
+        </p>
+        <div style="display:flex;gap:0.5rem;">
+            <a href="{% url 'inventario_dashboard' %}" class="btn btn-primary">Ir a Bodega</a>
+            <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-ghost" title="Recibir nuevo lote">+</a>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if user.rol == 'ADMIN' %}
+    <div class="card card-hover" style="border-color:var(--indigo);">
+        <div class="card-header">
+            <span class="card-title">Administración</span>
+            <span style="font-size:1.2rem;">⚙️</span>
+        </div>
+        <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem;line-height:1.6;">
+            Gestión de accesos de usuarios, roles de sistema y configuración global.
+        </p>
+        <div style="display:flex;gap:0.5rem;">
+            <a href="{% url 'admin_solicitudes' %}" class="btn btn-ghost" style="border-color:var(--indigo); color:var(--indigo);">Solicitudes</a>
+            <a href="/admin/" class="btn btn-ghost">Panel Django</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Chart Global Configuration
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        
+        {% if total_empleados %}
+        const ctxEmp = document.getElementById('employeeChart').getContext('2d');
+        new Chart(ctxEmp, {
+            type: 'doughnut',
+            data: {
+                labels: ['Activos', 'Vacaciones', 'Licencia', 'Finiquitado'],
+                datasets: [{
+                    data: [{{ activos }}, {{ en_vacaciones }}, {{ con_licencia }}, {{ finiquitados }}],
+                    backgroundColor: ['#34d399', '#fbbf24', '#f87171', '#64748b'],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }
+                },
+                cutout: '70%'
+            }
+        });
+        {% endif %}
+
+        {% if cat_dist %}
+        const ctxCat = document.getElementById('categoryChart').getContext('2d');
+        new Chart(ctxCat, {
+            type: 'bar',
+            data: {
+                labels: [{% for c in cat_dist %}'{{ c.producto__categoria|title }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                datasets: [{
+                    label: 'Cantidad de Lotes',
+                    data: [{% for c in cat_dist %}{{ c.count }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    backgroundColor: '#f97316',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+        {% endif %}
+    });
+</script>
 {% endblock %}

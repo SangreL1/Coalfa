@@ -6,6 +6,7 @@ from .forms import LoginForm
 from rrhh.models import Empleado
 from inventario.models import Lote
 import datetime
+from .utils import validar_rut
 
 
 def login_view(request):
@@ -38,11 +39,14 @@ def dashboard(request):
 
     if request.user.rol in ("RRHH", "ADMIN", "GERENTE"):
         total_empleados = Empleado.objects.count()
+        activos = Empleado.objects.filter(estado="ACTIVO").count()
         en_vacaciones = Empleado.objects.filter(estado="VACACIONES").count()
         con_licencia = Empleado.objects.filter(estado="LICENCIA").count()
         finiquitados = Empleado.objects.filter(estado="FINIQUITADO").count()
+        
         context.update({
             "total_empleados": total_empleados,
+            "activos": activos,
             "en_vacaciones": en_vacaciones,
             "con_licencia": con_licencia,
             "finiquitados": finiquitados,
@@ -51,15 +55,30 @@ def dashboard(request):
     if request.user.rol in ("OPERACIONAL", "ADMIN", "GERENTE"):
         hoy = datetime.date.today()
         pronto = hoy + datetime.timedelta(days=7)
-        lotes_bodega = Lote.objects.filter(ubicacion_actual="BODEGA", estado="ACTIVO").count()
-        lotes_por_vencer = Lote.objects.filter(
+        lotes_activos = Lote.objects.filter(estado="ACTIVO")
+        lotes_bodega = lotes_activos.filter(ubicacion_actual="BODEGA").count()
+        lotes_por_vencer = lotes_activos.filter(
             fecha_vencimiento__lte=pronto,
-            fecha_vencimiento__gte=hoy,
-            estado="ACTIVO"
+            fecha_vencimiento__gte=hoy
         ).count()
+        
+        # Data for categories distribution
+        from django.db.models import Count
+        cat_dist = list(Lote.objects.filter(estado="ACTIVO").values("producto__categoria").annotate(count=Count("id")).order_by("-count"))
+        
+        # Recent activities
+        from rrhh.models import PeriodoAusencia
+        from inventario.models import MovimientoTrazabilidad
+        
+        recent_ausencias = PeriodoAusencia.objects.order_by("-id")[:5]
+        recent_movimientos = MovimientoTrazabilidad.objects.order_by("-fecha")[:5]
+        
         context.update({
             "lotes_bodega": lotes_bodega,
             "lotes_por_vencer": lotes_por_vencer,
+            "cat_dist": cat_dist,
+            "recent_ausencias": recent_ausencias,
+            "recent_movimientos": recent_movimientos,
         })
 
 
@@ -93,6 +112,8 @@ def registro_view(request):
             error = "Las contraseñas no coinciden."
         elif len(password) < 6:
             error = "La contraseña debe tener al menos 6 caracteres."
+        elif not validar_rut(rut):
+            error = "El RUT ingresado no es válido."
         elif Usuario.objects.filter(rut=rut).exists():
             error = "Ya existe una cuenta con ese RUT."
         else:

@@ -1,31 +1,30 @@
 import re
+from django.core.exceptions import ValidationError
 
 def validar_rut(rut: str) -> bool:
-    """ Valida matemáticamente un RUT chileno. """
-    rut = rut.upper().replace("-", "").replace(".", "").replace(" ", "")
+    """
+    Valida matemáticamente un RUT chileno.
+    Acepta formatos:
+    - 12.345.678-9
+    - 12345678-9
+    - 123456789
+    """
+    if not rut:
+        return False
+        
+    # Limpiar el RUT de puntos, guiones y espacios
+    rut = str(rut).upper().replace(".", "").replace("-", "").replace(" ", "")
     
-    if not rut or len(rut) < 2:
+    if not re.match(r"^\d{7,8}[0-9K]$", rut):
         return False
         
     rut_cuerpo = rut[:-1]
     dv_ingresado = rut[-1]
     
-    if not rut_cuerpo.isdigit():
-        return False
-        
-    if dv_ingresado not in "0123456789K":
-        return False
-        
-    try:
-        rut_cuerpo = int(rut_cuerpo)
-    except ValueError:
-        return False
-
     multiplo = 2
     suma = 0
-    while rut_cuerpo > 0:
-        suma += (rut_cuerpo % 10) * multiplo
-        rut_cuerpo //= 10
+    for d in reversed(rut_cuerpo):
+        suma += int(d) * multiplo
         multiplo += 1
         if multiplo == 8:
             multiplo = 2
@@ -41,3 +40,8 @@ def validar_rut(rut: str) -> bool:
         dv_calculado = str(dv_esperado)
         
     return dv_calculado == dv_ingresado
+
+def rut_validator(value):
+    """Validator function for Django models/forms."""
+    if not validar_rut(value):
+        raise ValidationError("El RUT ingresado no es válido.")

@@ -31,10 +31,11 @@ class PreventCachingMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         
-        # Add headers to prevent caching for all responses
-        # Or you could restrict this to only authenticated users if preferred:
-        # if request.user.is_authenticated:
-        if response:
+        # Solo aplicamos la prevención de caché radical a las respuestas HTML (páginas).
+        # Esto permite que el navegador use caché para imágenes (.jpg, .png), CSS y JS,
+        # lo cual mejora drásticamente el tiempo de carga percibido al cambiar de página.
+        content_type = response.get('Content-Type', '')
+        if 'text/html' in content_type:
             response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response['Pragma'] = 'no-cache'
             response['Expires'] = 'Sat, 01 Jan 2000 00:00:00 GMT'

@@ -152,7 +152,7 @@ class Lote(models.Model):
         max_length=100, blank=True, help_text="Ej: Pasillo 2, Estante B"
     )
     estado = models.CharField(
-        max_length=12, choices=ESTADO_CHOICES, default="ACTIVO"
+        max_length=12, choices=ESTADO_CHOICES, default="ACTIVO", db_index=True
     )
     responsable_registro = models.CharField(
         max_length=100, blank=True, verbose_name="Responsable de registro"

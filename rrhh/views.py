@@ -141,9 +141,9 @@ def eliminar_documento(request, pk):
 def lista_ausencias(request):
     hoy = datetime.date.today()
     # Mostrar todas las ausencias activas (pendientes y en curso)
-    ausencias = PeriodoAusencia.objects.filter(fecha_fin__gte=hoy).order_by("fecha_fin")
+    ausencias = PeriodoAusencia.objects.select_related("empleado").filter(fecha_fin__gte=hoy).order_by("fecha_fin")
     # También mostrar ausencias históricas del mes actual
-    ausencias_historial = PeriodoAusencia.objects.filter(
+    ausencias_historial = PeriodoAusencia.objects.select_related("empleado").filter(
         fecha_fin__lt=hoy,
         fecha_inicio__year=hoy.year,
         fecha_inicio__month=hoy.month

@@ -33,36 +33,51 @@ def dashboard_inventario(request):
     hoy = datetime.date.today()
     pronto = hoy + datetime.timedelta(days=7)
     
+    # Caching para mejorar performance
+    from django.core.cache import cache
+    cache_key = "dashboard_inv_kpis"
+    context = cache.get(cache_key)
+    if context:
+        return render(request, "inventario/dashboard.html", context)
+    
     lotes_activos = Lote.objects.filter(estado="ACTIVO").select_related("producto", "proveedor")
     
     # KPIs de la empresa
     total_activos = lotes_activos.count()
     valor_total = sum(l.valor_total for l in lotes_activos)
     
-    # Alertas de Stock Crítico (Basado en stock_minimo)
-    # Agrupamos por producto para ver el total actual vs mínimo
-    productos_criticos = []
-    lista_productos = Producto.objects.filter(lotes__isnull=False).distinct()
-    for p in lista_productos:
-        stock_actual = p.lotes.filter(estado="ACTIVO").aggregate(Sum("cantidad"))["cantidad__sum"] or 0
-        if stock_actual <= p.stock_minimo:
-            # Solo consideramos críticos los que tienen un stock mínimo > 0 (para no mostrar todo en 0)
-            # O aquellos que explícitamente llegaron a 0 y su mínimo era 0 pero tienen historial reciente o activo 
-            if p.stock_minimo > 0 or (stock_actual == 0 and p.lotes.filter(estado="CONSUMIDO").exists()):
-                productos_criticos.append({
-                    "producto": p,
-                    "actual": stock_actual,
-                    "minimo": p.stock_minimo,
-                    "porcentaje": (stock_actual / p.stock_minimo * 100) if p.stock_minimo > 0 else 0
-                })
+    # Consolidamos las consultas agrupadas para evitar N+1 queries.
+    from django.db.models import Sum, Count, ExpressionWrapper, F, FloatField
+    
+    # ── Alertas de Stock Crítico (Agrupados por Producto en una sola query) ──
+    # Extraemos productos que tienen lotes activos y calculamos su stock actual.
+    # Usamos annotate para calcular el stock total activo por producto directamente en la DB.
+    productos_con_stock = Producto.objects.annotate(
+        stock_actual=Sum('lotes__cantidad', filter=Q(lotes__estado='ACTIVO')),
+        valor_total_p=Sum(ExpressionWrapper(F('lotes__cantidad') * F('lotes__precio_unitario'), output_field=FloatField()), filter=Q(lotes__estado='ACTIVO'))
+    ).filter(lotes__isnull=False).distinct()
 
-    # Distribución por Categoría (para gráfico)
+    productos_criticos = []
     cat_dist = {}
     cat_val_dist = {}
-    for p in lista_productos:
-        lotes_activos_p = p.lotes.filter(estado="ACTIVO")
-        stock = lotes_activos_p.aggregate(Sum("cantidad"))["cantidad__sum"] or 0
-        valor = sum(l.valor_total for l in lotes_activos_p)
+
+    for p in productos_con_stock:
+        # Stock actual ya viene anotado. Si es None lo tratamos como 0.
+        stock = p.stock_actual or 0
+        valor = p.valor_total_p or 0
+        
+        # Lógica de Críticos
+        if stock <= p.stock_minimo:
+            if p.stock_minimo > 0 or (stock == 0 and p.lotes.filter(estado="CONSUMIDO").exists()):
+                porcentaje = (stock / p.stock_minimo * 100) if p.stock_minimo > 0 else 0
+                productos_criticos.append({
+                    "producto": p,
+                    "actual": stock,
+                    "minimo": p.stock_minimo,
+                    "porcentaje": porcentaje
+                })
+        
+        # Distribución por Categoría (esto es eficiente hacerlo en memoria si no son miles)
         cat = p.get_categoria_display()
         cat_dist[cat] = cat_dist.get(cat, 0) + stock
         cat_val_dist[cat] = cat_val_dist.get(cat, 0) + valor
@@ -82,12 +97,16 @@ def dashboard_inventario(request):
         "lote", "lote__producto"
     ).order_by("-fecha")[:12]
 
-    # Kanban por ubicación
+    # Kanban por ubicación optimizado (una sola query con Count)
+    from django.db.models import Count
+    conteos_por_area = lotes_activos.values("ubicacion_actual").annotate(count=Count("id"))
+    counts_map = {row["ubicacion_actual"]: row["count"] for row in conteos_por_area}
+    
     por_ubicacion = {}
     for key, label in Lote.UBICACION_CHOICES:
         por_ubicacion[key] = {
             "label": label,
-            "count": lotes_activos.filter(ubicacion_actual=key).count(),
+            "count": counts_map.get(key, 0),
         }
 
     context = {
@@ -96,7 +115,7 @@ def dashboard_inventario(request):
         "productos_criticos": sorted(productos_criticos, key=lambda x: x["porcentaje"])[:5],
         "criticos_count": len(productos_criticos),
         "vencidos_count": vencidos_count,
-        "alertas": alertas_vencimiento,
+        "alertas": alertas_vencimiento.select_related("producto"),
         "movimientos": movimientos,
         "cat_data": cat_data,
         "cat_val_data": cat_val_data,
@@ -104,6 +123,7 @@ def dashboard_inventario(request):
         "max_ubicacion": max((d["count"] for d in por_ubicacion.values()), default=1) or 1,
         "hoy": hoy,
     }
+    cache.set(cache_key, context, 600)  # 10 minutos
     return render(request, "inventario/dashboard.html", context)
 
 
@@ -113,26 +133,23 @@ def mapa_bodega(request):
     hoy = datetime.date.today()
     proximo_vencimiento = hoy + datetime.timedelta(days=7)
     
-    # Obtener lotes por ubicación agrupados para el mapa
-    sectores = {}
-    for key, label in Lote.UBICACION_CHOICES:
-        lotes_area = Lote.objects.filter(ubicacion_actual=key, estado="ACTIVO").select_related("producto")
-        
-        # Detectar alertas en esta área
-        tiene_alerta_vencimiento = lotes_area.filter(fecha_vencimiento__lte=proximo_vencimiento).exists()
-        
-        sectores[key] = {
-            "label": label,
-            "lotes": lotes_area,
-            "count": lotes_area.count(),
-            "alerta": tiene_alerta_vencimiento
-        }
+    # Optimizamos a una sola consulta y agrupamos en memoria
+    # Además pre-cargamos lotes que vencen pronto para detectar alertas una sola vez
+    lotes_todos = Lote.objects.filter(estado="ACTIVO").select_related("producto")
+    lotes_vencen_pronto = list(lotes_todos.filter(fecha_vencimiento__lte=proximo_vencimiento).values_list("ubicacion_actual", flat=True))
+    
+    # Agrupar en memoria para evitar consultas por sector
+    sectores = {key: {"label": label, "lotes": [], "count": 0, "alerta": (key in lotes_vencen_pronto)} 
+                for key, label in Lote.UBICACION_CHOICES}
+                
+    for lote in lotes_todos:
+        if lote.ubicacion_actual in sectores:
+            sectores[lote.ubicacion_actual]["lotes"].append(lote)
+            sectores[lote.ubicacion_actual]["count"] += 1
     
     # Ultimas temperaturas de las 5 cámaras
-    temperaturas = {}
-    for cam_key in ["CAMARA_1", "CAMARA_2", "CAMARA_3", "CAMARA_4", "CAMARA_5"]:
-        ultimo_reg = RegistroTemperaturaCamara.objects.filter(camara=cam_key).first()
-        temperaturas[cam_key] = ultimo_reg
+    temperaturas = {cam_key: RegistroTemperaturaCamara.objects.filter(camara=cam_key).first() 
+                    for cam_key, _ in RegistroTemperaturaCamara.CAMARA_CHOICES}
 
     context = {
         "sectores": sectores,
@@ -557,12 +574,18 @@ def trazabilidad_lote(request, pk):
 
 @operacional_required
 def lista_productos(request):
-    productos = Producto.objects.all().order_by("nombre")
-    # Anotar con conteo de lotes activos y stock total
+    from django.db.models import Sum, Count, Q
+    
+    # Anotamos stock total activo y conteo de lotes en una sola pasada por DB
+    productos = Producto.objects.annotate(
+        stock_total=Sum('lotes__cantidad', filter=Q(lotes__estado='ACTIVO')),
+        cnt_lotes=Count('lotes', filter=Q(lotes__estado='ACTIVO'))
+    ).order_by("nombre")
+    
     data = []
     for p in productos:
-        lotes_activos = p.lotes.filter(estado="ACTIVO")
-        stock_total = lotes_activos.aggregate(total=Sum("cantidad"))["total"] or 0
+        stock_total = p.stock_total or 0
+        lotes_activos_cnt = p.cnt_lotes or 0
         
         # Cálculo de salud de stock
         salud = 100
@@ -573,7 +596,7 @@ def lista_productos(request):
             
         data.append({
             "producto": p,
-            "lotes_activos": lotes_activos.count(),
+            "lotes_activos": lotes_activos_cnt,
             "stock_total": stock_total,
             "salud": min(salud, 100),  # Top at 100% for the bar
             "salud_real": salud,

@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import FileExtensionValidator
+from coalfa.utils import rut_validator
 
 
 class Empleado(models.Model):
@@ -21,12 +22,12 @@ class Empleado(models.Model):
 
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
-    rut = models.CharField(max_length=12, unique=True)
+    rut = models.CharField(max_length=12, unique=True, validators=[rut_validator])
     cargo = models.CharField(max_length=100)
     area = models.CharField(max_length=20, choices=AREA_CHOICES, default="OTRO")
     email = models.EmailField(blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
-    estado = models.CharField(max_length=15, choices=ESTADO_CHOICES, default="ACTIVO")
+    estado = models.CharField(max_length=15, choices=ESTADO_CHOICES, default="ACTIVO", db_index=True)
     fecha_ingreso = models.DateField(null=True, blank=True)
     
     # New fields from spreadsheet

@@ -4,20 +4,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.utils import timezone
 
 
-def validar_rut(rut: str) -> bool:
-    """Validates Chilean RUT format (12345678-9 or 12345678-K)."""
-    rut = rut.upper().replace(".", "").replace(" ", "")
-    if not re.match(r"^\d{7,8}-[\dK]$", rut):
-        return False
-    numero, dv = rut.split("-")
-    suma, mul = 0, 2
-    for d in reversed(numero):
-        suma += int(d) * mul
-        mul = mul + 1 if mul < 7 else 2
-    resto = 11 - (suma % 11)
-    verificador = "K" if resto == 10 else ("0" if resto == 11 else str(resto))
-    return verificador == dv
-
+from .utils import rut_validator
 
 class UsuarioManager(BaseUserManager):
     def create_user(self, rut, password=None, **extra_fields):
@@ -42,7 +29,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         ("GERENTE", "Gerente"),
     ]
 
-    rut = models.CharField(max_length=12, unique=True, verbose_name="RUT")
+    rut = models.CharField(max_length=12, unique=True, verbose_name="RUT", validators=[rut_validator])
     nombre = models.CharField(max_length=60, verbose_name="Nombre")
     apellido = models.CharField(max_length=60, verbose_name="Apellido")
     rol = models.CharField(max_length=15, choices=ROL_CHOICES, default="RRHH", verbose_name="Rol")

@@ -214,7 +214,8 @@ class RegistroServicio(models.Model):
 
     def save(self, *args, **kwargs):
         if self.lote and not self.costo_total:
-            self.costo_total = self.cantidad_servida * self.lote.precio_unitario
+            # Redondeamos a 2 decimales para evitar errores de coma flotante (.00000000005)
+            self.costo_total = round(self.cantidad_servida * self.lote.precio_unitario, 2)
         super().save(*args, **kwargs)
 
     def __str__(self):

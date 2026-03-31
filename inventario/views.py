@@ -1000,10 +1000,22 @@ def resumen_consumo(request):
 
 @operacional_required
 def exportar_consumo_excel(request):
-    """Genera planilla Excel de consumo por área (Task 2)."""
+    """Genera planilla Excel de consumo por área (Task 2) con formato profesional y totales."""
     desde = request.GET.get("desde")
     hasta = request.GET.get("hasta")
     area_filtro = request.GET.get("area")
+    periodo = request.GET.get("periodo")
+
+    hoy = datetime.date.today()
+    
+    # Lógica de períodos rápidos
+    if periodo == "semanal":
+        desde = (hoy - datetime.timedelta(days=7)).isoformat()
+        hasta = hoy.isoformat()
+    elif periodo == "mensual":
+        # Desde el primer día del mes actual
+        desde = hoy.replace(day=1).isoformat()
+        hasta = hoy.isoformat()
 
     consumos = RegistroServicio.objects.select_related('lote', 'lote__producto').all()
     if desde:
@@ -1017,35 +1029,157 @@ def exportar_consumo_excel(request):
     ws = wb.active
     ws.title = "Reporte de Consumo"
 
-    # Estilos básicos
-    header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="F97316", end_color="F97316", fill_type="solid")
-    
-    headers = ["Fecha", "Área", "Producto", "Lote", "Cantidad", "Unidad", "Costo Unit.", "Costo Total", "Responsable"]
-    ws.append(headers)
-    
-    for cell in ws[1]:
-        cell.font = header_font
-        cell.fill = header_fill
+    # ─── Estilos (Consistentes con el resto del sistema) ───
+    color_naranja  = "F97316"
+    color_oscuro   = "0B1120"
+    color_gris     = "64748B"
+    color_verde    = "22C55E"
+    color_fila_a   = "111827"
+    color_fila_b   = "1F2937"
 
+    font_titulo  = Font(name="Calibri", size=16, bold=True, color=color_naranja)
+    font_empresa = Font(name="Calibri", size=10, color=color_gris, italic=True)
+    font_header  = Font(name="Calibri", size=9,  bold=True, color="FFFFFF")
+    font_normal  = Font(name="Calibri", size=9,  color="F1F5F9")
+    font_total   = Font(name="Calibri", size=10, bold=True, color=color_verde)
+    font_muted   = Font(name="Calibri", size=8, color="94A3B8")
+
+    fill_titulo  = PatternFill("solid", fgColor=color_oscuro)
+    fill_header  = PatternFill("solid", fgColor="1E293B")
+    fill_fila_a  = PatternFill("solid", fgColor=color_fila_a)
+    fill_fila_b  = PatternFill("solid", fgColor=color_fila_b)
+    fill_total   = PatternFill("solid", fgColor="0F2027")
+
+    thin = Side(style="thin", color="374151")
+    borde = Border(left=thin, right=thin, top=thin, bottom=thin)
+    borde_total = Border(left=thin, right=thin, top=Side(style="medium", color=color_naranja), bottom=thin)
+
+    center = Alignment(horizontal="center", vertical="center")
+    left   = Alignment(horizontal="left",   vertical="center", wrap_text=True)
+    right  = Alignment(horizontal="right",  vertical="center")
+
+    # ─── Encabezado de Reporte ───
+    ws.merge_cells("A1:I1")
+    ws["A1"] = "CENTRO MÉDICO SAN LUCAS"
+    ws["A1"].font = font_empresa
+    ws["A1"].fill = fill_titulo
+    ws["A1"].alignment = left
+    
+    ws.merge_cells("A2:I2")
+    tit = "REPORTE DE CONSUMO"
+    if periodo: tit += f" ({periodo.upper()})"
+    ws["A2"] = tit
+    ws["A2"].font = font_titulo
+    ws["A2"].fill = fill_titulo
+    ws["A2"].alignment = left
+
+    ws.merge_cells("A3:I3")
+    filtro_info = f"Desde: {desde or 'Inicio'} | Hasta: {hasta or 'Hoy'}"
+    if area_filtro: filtro_info += f" | Área: {area_filtro}"
+    ws["A3"] = f"Generado el {hoy.strftime('%d/%m/%Y')}   |   {filtro_info}"
+    ws["A3"].font = font_muted
+    ws["A3"].fill = fill_titulo
+    ws["A3"].alignment = left
+    
+    ws.row_dimensions[1].height = 18
+    ws.row_dimensions[2].height = 28
+    ws.row_dimensions[3].height = 16
+
+    # ─── Espacio ───
+    for cell in ws["A4:I4"][0]: cell.fill = fill_titulo
+    ws.row_dimensions[4].height = 6
+
+    # ─── Tabla ───
+    headers = ["Fecha", "Área", "Producto", "Código Lote", "Cantidad", "Unidad", "Costo Unit.", "Costo Total", "Responsable"]
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=5, column=col_idx, value=header)
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = center
+        cell.border = borde
+    ws.row_dimensions[5].height = 22
+
+    # Column Widths
+    COL_WIDTHS = [20, 18, 28, 18, 12, 10, 14, 14, 20]
+    for i, w in enumerate(COL_WIDTHS, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    # ─── Datos ───
+    total_cant = 0
+    total_costo = 0
+    row_num = 6
     for c in consumos:
-        ws.append([
-            c.fecha.strftime("%d/%m/%Y %H:%M"),
-            c.get_area_display(),
-            c.lote.producto.nombre,
-            c.lote.numero_lote,
-            c.cantidad_servida,
-            c.lote.producto.get_unidad_medida_display(),
-            c.lote.precio_unitario,
-            c.costo_total,
-            c.responsable
-        ])
+        fill = fill_fila_a if row_num % 2 == 0 else fill_fila_b
+        
+        fila_data = [
+            (c.fecha.strftime("%d/%m/%Y %H:%M"), font_normal, center),
+            (c.get_area_display(),               font_normal, center),
+            (c.lote.producto.nombre,             font_normal, left),
+            (c.lote.numero_lote,                 font_normal, left),
+            (c.cantidad_servida,                 font_normal, right),
+            (c.lote.producto.get_unidad_medida_display(), font_normal, center),
+            (c.lote.precio_unitario,             font_normal, right),
+            (c.costo_total,                      Font(name="Calibri", size=9, bold=True, color=color_verde), right),
+            (c.responsable,                      font_normal, left),
+        ]
+        
+        total_cant += c.cantidad_servida
+        total_costo += c.costo_total
 
-    # Ajustar ancho de columnas
-    for i in range(1, 10):
-        ws.column_dimensions[get_column_letter(i)].width = 20
+        for col_idx, (value, font_, align_) in enumerate(fila_data, start=1):
+            cell = ws.cell(row=row_num, column=col_idx, value=value)
+            cell.font = font_
+            cell.fill = fill
+            cell.alignment = align_
+            cell.border = borde
+            if col_idx in (7, 8): cell.number_format = "$#,##0"
+            elif col_idx == 5:    cell.number_format = "#,##0.00"
+
+        ws.row_dimensions[row_num].height = 18
+        row_num += 1
+
+    # ─── Fila de Totales (REQUERIMIENTO 1) ───
+    ws.merge_cells(f"A{row_num}:D{row_num}")
+    ws[f"A{row_num}"] = "TOTALES GENERALES"
+    ws[f"A{row_num}"].font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+    ws[f"A{row_num}"].fill = fill_total
+    ws[f"A{row_num}"].alignment = right
+    ws[f"A{row_num}"].border = borde_total
+
+    # Cantidad Total
+    ws[f"E{row_num}"] = total_cant
+    ws[f"E{row_num}"].font = font_total
+    ws[f"E{row_num}"].fill = fill_total
+    ws[f"E{row_num}"].alignment = right
+    ws[f"E{row_num}"].border = borde_total
+    ws[f"E{row_num}"].number_format = "#,##0.00"
+
+    # Costo Total
+    ws[f"H{row_num}"] = total_costo
+    ws[f"H{row_num}"].font = font_total
+    ws[f"H{row_num}"].fill = fill_total
+    ws[f"H{row_num}"].alignment = right
+    ws[f"H{row_num}"].border = borde_total
+    ws[f"H{row_num}"].number_format = "$#,##0"
+
+    # Celdas vacías del total para el borde/fondo
+    for col in ["F", "G", "I"]:
+        ws[f"{col}{row_num}"].fill = fill_total
+        ws[f"{col}{row_num}"].border = borde_total
+
+    ws.row_dimensions[row_num].height = 24
+
+    # Freeze and Filter
+    ws.freeze_panes = "A6"
+    ws.auto_filter.ref = f"A5:I{row_num - 1}"
+
+    # General Dark Background for unused top cells
+    for r in ws.iter_rows(min_row=1, max_row=4):
+        for cell in r:
+            if not cell.fill or cell.fill.fgColor.value == "00000000":
+                cell.fill = fill_titulo
 
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = f'attachment; filename="Consumo_Bodega_{datetime.date.today()}.xlsx"'
+    response["Content-Disposition"] = f'attachment; filename="Consumo_Bodega_{hoy}.xlsx"'
     wb.save(response)
     return response

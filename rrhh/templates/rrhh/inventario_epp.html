@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Inventario RRHH — EPP y Ropa{% endblock %}
+{% block topbar_title %}Gestión de Inventario Interno RRHH{% endblock %}
+{% block nav_rrhh %}active{% endblock %}
+
+{% block extra_css %}
+.glass-card {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.stock-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+.item-card {
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+.item-card:hover {
+    border-color: var(--accent);
+    background: rgba(255,255,255,0.06);
+}
+.stock-badge {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--accent);
+}
+.low-stock {
+    color: var(--danger) !important;
+}
+
+.table-premium {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 4px;
+}
+.table-premium td {
+    padding: 1rem;
+    background: rgba(255,255,255,0.02);
+}
+.table-premium tr:hover td {
+    background: rgba(255,255,255,0.04);
+}
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+    <div>
+        <h2 style="font-size: 1.5rem; font-weight: 800;">Control de Ropa y EPP</h2>
+        <p style="color: var(--text-muted);">Administración de stock y entregas a personal.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+         <button class="btn btn-primary" onclick="toggleModal('modalEntrega')">🤝 Registrar Entrega</button>
+         <button class="btn btn-ghost" onclick="toggleModal('modalIngreso')">➕ Cargar Stock</button>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <!-- Stock View -->
+    <div>
+        <div class="glass-card">
+            <h3 style="font-size: 1rem; margin-bottom: 1.5rem; text-transform: uppercase;">Stock Actual de Almacén RRHH</h3>
+            <div class="stock-grid">
+                {% for p in productos %}
+                <div class="item-card">
+                    <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">{{ p.nombre }}{% if p.talla %} - Talla: {{ p.talla }}{% endif %}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.5rem;">
+                        <span class="stock-badge {% if p.stock < 5 %}low-stock{% endif %}">{{ p.stock|floatformat:0 }}</span>
+                        <span style="font-size: 0.8rem; color: var(--success); font-weight: 700;">${{ p.precio_unitario|intcomma }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Section -->
+    <div>
+        <div class="glass-card">
+            <h3 style="font-size: 1rem; margin-bottom: 1.5rem; text-transform: uppercase;">Últimas Entregas</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                {% for e in ultimas_entregas %}
+                <div style="background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: 8px; font-size: 0.85rem;">
+                    <div style="font-weight: 700;">{{ e.empleado.get_full_name }}</div>
+                    <div style="color: var(--text-muted);">{{ e.cantidad|floatformat:0 }} x {{ e.producto.nombre }}{% if e.producto.talla %} (T. {{ e.producto.talla }}){% endif %}</div>
+                    <div style="font-size: 0.7rem; margin-top: 0.25rem; color: var(--accent);">{{ e.fecha|date:"d M Y" }}</div>
+                </div>
+                {% empty %}
+                <p style="color: var(--text-muted); text-align: center;">No hay entregas registradas.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Entrega -->
+<div id="modalEntrega" class="glass-card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; width: 450px; border-color: var(--accent);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0;">Registro de Entrega</h3>
+        <button class="btn btn-ghost" onclick="toggleModal('modalEntrega')">×</button>
+    </div>
+    <form action="{% url 'rrhh_registrar_entrega_epp' %}" method="post">
+        {% csrf_token %}
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div class="form-group">
+                <label class="form-label">Empleado</label>
+                {{ entrega_form.empleado }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Producto EPP</label>
+                {{ entrega_form.producto }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Cantidad Entregada</label>
+                {{ entrega_form.cantidad }}
+            </div>
+            <button type="submit" class="btn btn-primary w-full" style="justify-content: center;">💾 Confirmar Entrega</button>
+        </div>
+    </form>
+</div>
+
+<!-- Modal Ingreso -->
+<div id="modalIngreso" class="glass-card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; width: 500px; border-color: var(--success); max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0;">Ingreso de Mercadería / Nuevo Producto</h3>
+        <button class="btn btn-ghost" onclick="toggleModal('modalIngreso')">×</button>
+    </div>
+    <form action="{% url 'rrhh_registrar_ingreso_epp' %}" method="post" autocomplete="off">
+        {% csrf_token %}
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+
+            <!-- Nombre -->
+            <div class="form-group" style="position:relative;">
+                <label class="form-label">Nombre del Producto *</label>
+                <input type="text" id="ingresoNombre" name="nombre" class="form-control"
+                       placeholder="Ej: BOTÍN CUERO NEGRO, POLERA AZUL REY..."
+                       required autocomplete="off">
+                <div id="acListIngreso" style="
+                    display:none; position:absolute; top:100%; left:0; right:0;
+                    background:var(--coal-mid); border:1px solid var(--accent);
+                    border-radius:10px; max-height:200px; overflow-y:auto;
+                    z-index:3000; box-shadow:0 8px 20px rgba(0,0,0,0.5);
+                "></div>
+                <small style="color:var(--text-muted); font-size:0.7rem;">Si el producto no existe, se creará automáticamente.</small>
+            </div>
+
+            <!-- Talla -->
+            <div class="form-group">
+                <label class="form-label">Talla / Especificación</label>
+                <input type="text" name="talla" class="form-control"
+                       placeholder="Ej: 40, 42, S, M, L, XL, 45x100...">
+                <small style="color:var(--text-muted); font-size:0.7rem;">Obligatorio para calzado, ropa y herramientas con medida.</small>
+            </div>
+
+            <!-- Cantidad -->
+            <div class="form-group">
+                <label class="form-label">Cantidad Recibida *</label>
+                <input type="number" name="cantidad" step="0.01" min="0.01" class="form-control" required>
+            </div>
+
+            <!-- Precio -->
+            <div class="form-group">
+                <label class="form-label">Precio Unitario ($)</label>
+                <input type="number" name="precio_unitario" step="1" class="form-control" placeholder="0">
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full" style="background: var(--success); justify-content: center;">📦 Cargar al Stock</button>
+        </div>
+    </form>
+</div>
+
+<div id="overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000;" onclick="closeAllModals()"></div>
+
+<script>
+    // Nombres existentes de productos EPP para autocomplete
+    const EPP_NOMBRES = [{% for p in productos %}"{{ p.nombre }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+
+    // Autocomplete para el nombre en el modal de ingreso
+    const ingresoInput = document.getElementById('ingresoNombre');
+    const acList = document.getElementById('acListIngreso');
+
+    ingresoInput.addEventListener('input', function() {
+        const q = this.value.trim().toLowerCase();
+        acList.innerHTML = '';
+        if (!q) { acList.style.display = 'none'; return; }
+        const matches = EPP_NOMBRES.filter(n => n.toLowerCase().includes(q));
+        if (!matches.length) { acList.style.display = 'none'; return; }
+        matches.slice(0, 10).forEach(nombre => {
+            const item = document.createElement('div');
+            item.textContent = nombre;
+            item.style.cssText = 'padding:0.7rem 1rem; cursor:pointer; font-size:0.88rem; border-bottom:1px solid rgba(255,255,255,0.05);';
+            item.addEventListener('mousedown', e => {
+                e.preventDefault();
+                ingresoInput.value = nombre;
+                acList.style.display = 'none';
+            });
+            item.addEventListener('mouseover', () => item.style.background = 'rgba(249,115,22,0.15)');
+            item.addEventListener('mouseout',  () => item.style.background = '');
+            acList.appendChild(item);
+        });
+        acList.style.display = 'block';
+    });
+    ingresoInput.addEventListener('blur', () => setTimeout(() => acList.style.display = 'none', 200));
+
+    function toggleModal(id) {
+        const modal = document.getElementById(id);
+        const overlay = document.getElementById('overlay');
+        const show = modal.style.display === 'none';
+        modal.style.display = show ? 'block' : 'none';
+        overlay.style.display = show ? 'block' : 'none';
+    }
+
+    function closeAllModals() {
+        document.getElementById('modalEntrega').style.display = 'none';
+        document.getElementById('modalIngreso').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
+</script>
+{% endblock %}

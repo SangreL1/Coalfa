@@ -1,9 +1,11 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.db import models
+from django.db.models import Sum
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from coalfa.decorators import rrhh_required
-from .models import Empleado, PeriodoAusencia, Documento
-from .forms import EmpleadoForm, DocumentoEditForm
+from .models import Empleado, PeriodoAusencia, Documento, GastoRRHH, ProductoEPP, EntregaEPP
+from .forms import EmpleadoForm, DocumentoEditForm, GastoRRHHForm, EntregaEPPForm
 from django import forms
 import datetime
 import os
@@ -279,3 +281,212 @@ def exportar_nomina_excel(request):
     response["Content-Disposition"] = f'attachment; filename="Nomina_Personal_{hoy}.xlsx"'
     wb.save(response)
     return response
+
+@rrhh_required
+def lista_gastos_rrhh(request):
+    """Muestra y registra gastos de RRHH (Pasajes, EPP, Caja Chica, etc.)."""
+    hoy = datetime.date.today()
+    gastos = GastoRRHH.objects.all().order_by("-fecha")
+    
+    # Filtros
+    mes = request.GET.get("mes")
+    anio = request.GET.get("anio")
+    if not mes or not anio:
+        mes = hoy.month
+        anio = hoy.year
+    
+    gastos = gastos.filter(fecha__month=mes, fecha__year=anio)
+    total_mes = gastos.aggregate(models.Sum('monto'))['monto__sum'] or 0
+    
+    form = GastoRRHHForm()
+    if request.method == "POST":
+        form = GastoRRHHForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "✅ Gasto registrado correctamente.")
+            return redirect("rrhh_gastos")
+
+    return render(request, "rrhh/gastos.html", {
+        "gastos": gastos,
+        "form": form,
+        "total_mes": total_mes,
+        "mes_actual": int(mes),
+        "anio_actual": int(anio),
+        "meses": range(1, 13),
+        "anios": range(hoy.year - 2, hoy.year + 1),
+    })
+
+@rrhh_required
+def exportar_gastos_excel(request):
+    """Exporta el reporte mensual de gastos de RRHH a Excel."""
+    mes = request.GET.get("mes")
+    anio = request.GET.get("anio")
+    
+    if not mes or not anio:
+        hoy = datetime.date.today()
+        mes, anio = hoy.month, hoy.year
+        
+    gastos = GastoRRHH.objects.filter(fecha__month=mes, fecha__year=anio).order_by("fecha")
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Gastos RRHH {mes}-{anio}"
+    
+    # Estilos Premium
+    color_oscuro = "0B1120"
+    color_verde = "10B981"
+    fill_header = PatternFill("solid", fgColor="1E293B")
+    font_header = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+    thin = Side(style="thin", color="374151")
+    borde = Border(left=thin, right=thin, top=thin, bottom=thin)
+    
+    # Encabezados
+    ws.merge_cells("A1:E1")
+    ws["A1"] = f"REPORTE GASTOS RECURSOS HUMANOS - MES {mes}/{anio}"
+    ws["A1"].font = Font(name="Calibri", size=14, bold=True, color="F97316")
+    ws["A1"].fill = PatternFill("solid", fgColor=color_oscuro)
+    
+    headers = ["FECHA", "CATEGORÍA", "DESCRIPCIÓN", "RESPONSABLE", "MONTO"]
+    for col, text in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col, value=text)
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = borde
+        
+    # Datos
+    total = 0
+    for i, g in enumerate(gastos, 4):
+        total += float(g.monto)
+        data = [g.fecha.strftime("%d/%m/%Y"), g.get_categoria_display(), g.descripcion, g.responsable, float(g.monto)]
+        for col, val in enumerate(data, 1):
+            cell = ws.cell(row=i, column=col, value=val)
+            cell.border = borde
+            if col == 5:
+                cell.number_format = '"$"#,##0'
+                cell.alignment = Alignment(horizontal="right")
+                
+    # Fila de Total
+    row_total = len(gastos) + 4
+    ws.merge_cells(f"A{row_total}:D{row_total}")
+    ws[f"A{row_total}"] = "TOTAL GASTOS DEL MES"
+    ws[f"A{row_total}"].font = Font(bold=True)
+    ws[f"A{row_total}"].alignment = Alignment(horizontal="right")
+    
+    ws[f"E{row_total}"] = total
+    ws[f"E{row_total}"].font = Font(bold=True, color=color_verde)
+    ws[f"E{row_total}"].number_format = '"$"#,##0'
+    ws[f"E{row_total}"].border = borde
+    
+    # Ajustar Columnas
+    ws.column_dimensions["A"].width = 15
+    ws.column_dimensions["B"].width = 25
+    ws.column_dimensions["C"].width = 40
+    ws.column_dimensions["D"].width = 25
+    ws.column_dimensions["E"].width = 18
+    
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="Gastos_RRHH_{mes}_{anio}.xlsx"'
+    wb.save(response)
+    return response
+
+@rrhh_required
+def inventario_epp(request):
+    """Muestra el stock actual de artículos de RRHH."""
+    productos = ProductoEPP.objects.all().order_by("nombre")
+    # Últimas 10 entregas
+    ultimas_entregas = EntregaEPP.objects.select_related("empleado", "producto").order_by("-fecha")[:15]
+    
+    entrega_form = EntregaEPPForm()
+    
+    return render(request, "rrhh/inventario_epp.html", {
+        "productos": productos,
+        "ultimas_entregas": ultimas_entregas,
+        "entrega_form": entrega_form,
+        "empleados": Empleado.objects.filter(estado="ACTIVO").order_by("apellido", "nombre"),
+    })
+
+@rrhh_required
+def registrar_ingreso_epp(request):
+    """Añadir stock a un producto de RRHH. Crea el producto si no existe."""
+    if request.method == "POST":
+        nombre = request.POST.get("nombre", "").strip()
+        talla = request.POST.get("talla", "").strip()
+        cantidad_str = request.POST.get("cantidad", "0")
+        precio_str = request.POST.get("precio_unitario", "")
+
+        try:
+            cantidad = float(cantidad_str)
+        except (ValueError, TypeError):
+            cantidad = 0
+
+        if not nombre:
+            messages.error(request, "Debes indicar el nombre del producto.")
+            return redirect("rrhh_inventario_epp")
+
+        if cantidad <= 0:
+            messages.error(request, "La cantidad debe ser mayor a 0.")
+            return redirect("rrhh_inventario_epp")
+
+        # Buscar producto exacto por nombre+talla (case-insensitive) o crear nuevo
+        prod = ProductoEPP.objects.filter(
+            nombre__iexact=nombre, talla__iexact=talla
+        ).first()
+
+        if prod:
+            prod.stock += cantidad
+            if precio_str:
+                try:
+                    prod.precio_unitario = float(precio_str)
+                except (ValueError, TypeError):
+                    pass
+            prod.save()
+            messages.success(request, f"✅ {cantidad} unidades añadidas a {prod}.")
+        else:
+            # Crear nuevo producto EPP
+            precio = 0
+            if precio_str:
+                try:
+                    precio = float(precio_str)
+                except (ValueError, TypeError):
+                    precio = 0
+            prod = ProductoEPP.objects.create(
+                nombre=nombre,
+                talla=talla,
+                stock=cantidad,
+                precio_unitario=precio,
+            )
+            messages.success(request, f"✅ Nuevo producto '{prod}' creado con {cantidad} unidades en stock.")
+
+    return redirect("rrhh_inventario_epp")
+
+@rrhh_required
+def registrar_entrega_epp(request):
+    """Registra la entrega de un implemento a un empleado y descuenta stock."""
+    if request.method == "POST":
+        form = EntregaEPPForm(request.POST)
+        if form.is_valid():
+            entrega = form.save(commit=False)
+            producto = entrega.producto
+            
+            if producto.stock >= entrega.cantidad:
+                producto.stock -= entrega.cantidad
+                producto.save()
+                entrega.save()
+                
+                # También registramos un GastoRRHH automático para que se vea en el Excel de gastos
+                GastoRRHH.objects.create(
+                    categoria="EPP",
+                    fecha=datetime.date.today(),
+                    monto=entrega.costo_total,
+                    descripcion=f"ENTREGA: {entrega.cantidad} {producto.nombre}{' (T. '+producto.talla+')' if producto.talla else ''} a {entrega.empleado.get_full_name()}",
+                    responsable=request.user.get_full_name()
+                )
+                
+                messages.success(request, f"✅ Entrega de {producto.nombre} a {entrega.empleado} registrada correctamente.")
+            else:
+                messages.error(request, f"❌ Error: Stock insuficiente de {producto.nombre}. Disponible: {producto.stock}")
+        else:
+            messages.error(request, "❌ Error en el formulario de entrega.")
+            
+    return redirect("rrhh_inventario_epp")

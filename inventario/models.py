@@ -55,9 +55,12 @@ class Producto(models.Model):
         ("CONGELADOS", "Congelados"),
         ("BEBIDAS", "Bebidas"),
         ("LIMPIEZA", "Aseo y Limpieza"),
+        ("VESTUARIO", "Vestuario / Ropa"),
+        ("EPP", "Elementos de Protección Personal"),
         ("OTRO", "Otros"),
     ]
-    nombre = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=150)
+    talla = models.CharField(max_length=50, blank=True)
     descripcion = models.TextField(blank=True)
     categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES, default="OTRO")
     unidad_medida = models.CharField(max_length=5, choices=UNIDAD_CHOICES, default="KG")
@@ -66,12 +69,15 @@ class Producto(models.Model):
     temperatura_max = models.FloatField(null=True, blank=True, help_text="°C (opcional)")
 
     def __str__(self):
+        if self.talla:
+            return f"{self.nombre} (T: {self.talla})"
         return self.nombre
 
     class Meta:
         verbose_name = "Producto"
         verbose_name_plural = "Productos"
         ordering = ["nombre"]
+        unique_together = ["nombre", "talla"]
 
 
 class Lote(models.Model):
@@ -80,12 +86,9 @@ class Lote(models.Model):
         ("COCINA_FRIA", "Cocina Fría"),
         ("COCINA_CALIENTE", "Cocina Caliente"),
         ("REPOSTERIA", "Repostería"),
+        ("PANADERIA", "Panadería"),
+        ("COLACION", "Colación"),
         ("LINEA", "Línea (Servicio)"),
-        ("CAMARA_1", "Cámara 1"),
-        ("CAMARA_2", "Cámara 2"),
-        ("CAMARA_3", "Cámara 3"),
-        ("CAMARA_4", "Cámara 4"),
-        ("CAMARA_5", "Cámara 5"),
         ("OTRO", "Otro"),
     ]
     ESTADO_CHOICES = [

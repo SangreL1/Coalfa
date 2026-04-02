@@ -192,13 +192,23 @@
             </h3>
             
             {% for key, label in destinos %}
-            <form method="post" action="{% url 'inventario_mover_lote' lote.pk key %}" style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.05);">
+            <form method="post" action="{% url 'inventario_mover_lote' lote.pk key %}" style="margin-bottom:1.5rem; padding-bottom:1.5rem; border-bottom:1px solid rgba(255,255,255,0.05);">
                 {% csrf_token %}
-                <div style="font-size:0.8rem; font-weight:600; margin-bottom:0.75rem; color:var(--text-muted);">HACIA: {{ label }}</div>
-                <div style="display:flex; gap:0.5rem;">
-                    <input type="number" name="cantidad_despacho" step="0.01" max="{{ lote.cantidad }}" required
-                           class="form-control" placeholder="Cant." style="flex:1;">
-                    <button type="submit" class="btn btn-primary" style="padding:0.75rem;">Enviar</button>
+                <div style="font-size:0.8rem; font-weight:600; margin-bottom:0.75rem; color:{% if key == lote.ubicacion_actual %}var(--accent); text-decoration:underline;{% else %}var(--text-muted);{% endif %}">
+                    ENVÍO A: {{ label }} {% if key == lote.ubicacion_actual %}(Área actual){% endif %}
+                </div>
+                
+                <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                    <div style="display:flex; gap:0.5rem;">
+                        <input type="number" name="cantidad_despacho" step="0.01" max="{{ lote.cantidad }}" required
+                               class="form-control" placeholder="Cantidad" style="flex:1; background:rgba(0,0,0,0.2); border-color:var(--border);">
+                        <button type="submit" class="btn btn-primary" style="padding:0.75rem 1.5rem;">Entregar</button>
+                    </div>
+                    
+                    {% if key == 'OTRO' %}
+                    <input type="text" name="observaciones" placeholder="¿A qué sección o área entrega? (Especifique)" 
+                           class="form-control" style="font-size:0.85rem; background:rgba(255,255,255,0.02); border-style:dashed;">
+                    {% endif %}
                 </div>
             </form>
             {% endfor %}

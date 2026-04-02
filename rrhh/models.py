@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import FileExtensionValidator
 from coalfa.utils import rut_validator
+import datetime
 
 
 class Empleado(models.Model):
@@ -146,3 +147,67 @@ class Documento(models.Model):
         verbose_name = "Documento"
         verbose_name_plural = "Documentos"
         ordering = ["-fecha_subida"]
+
+
+class GastoRRHH(models.Model):
+    CATEGORIA_CHOICES = [
+        ("PASAJES", "Pago de Pasajes"),
+        ("EPP", "Artículos EPP"),
+        ("CAJA_CHICA", "Gastos de Caja (Caja Chica)"),
+        ("EVENTO_COFFEE", "Eventos / Coffee Break"),
+        ("OTRO", "Otros Gastos"),
+    ]
+    fecha = models.DateField(default=datetime.date.today)
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    categoria = models.CharField(max_length=20, choices=CATEGORIA_CHOICES)
+    descripcion = models.TextField(blank=True)
+    responsable = models.CharField(max_length=100, blank=True)
+    comprobante = models.FileField(upload_to="gastos_rrhh/", blank=True, null=True)
+    fecha_registro = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.get_categoria_display()} — ${self.monto} ({self.fecha})"
+
+    class Meta:
+        verbose_name = "Gasto RRHH"
+        verbose_name_plural = "Gastos RRHH"
+        ordering = ["-fecha"]
+
+
+class ProductoEPP(models.Model):
+    """Artículos de seguridad y ropa que maneja RRHH."""
+    nombre = models.CharField(max_length=150)
+    talla = models.CharField(max_length=50, blank=True)
+    stock = models.FloatField(default=0)
+    precio_unitario = models.DecimalField(max_digits=12, decimal_places=0, default=0) # Sin decimales por reqs previos
+    
+    def __str__(self):
+        if self.talla:
+            return f"{self.nombre} (Talla: {self.talla}) - Stock: {self.stock}"
+        return f"{self.nombre} (Stock: {self.stock})"
+
+    class Meta:
+        verbose_name = "Producto EPP/Ropa"
+        verbose_name_plural = "Inventario EPP/Ropa"
+        unique_together = ["nombre", "talla"]
+
+
+class EntregaEPP(models.Model):
+    """Registro de entrega de implementos a empleados."""
+    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name="entregas_epp")
+    producto = models.ForeignKey(ProductoEPP, on_delete=models.CASCADE)
+    cantidad = models.FloatField()
+    fecha = models.DateField(auto_now_add=True)
+    costo_total = models.DecimalField(max_digits=12, decimal_places=0, editable=False)
+
+    def save(self, *args, **kwargs):
+        if not self.costo_total:
+            self.costo_total = float(self.producto.precio_unitario) * self.cantidad
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.cantidad} {self.producto.nombre} -> {self.empleado}"
+
+    class Meta:
+        verbose_name = "Entrega de EPP"
+        verbose_name_plural = "Entregas de EPP"

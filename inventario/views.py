@@ -260,7 +260,7 @@ def lista_lotes(request):
 def detalle_lote(request, pk):
     lote = get_object_or_404(Lote, pk=pk)
     movimientos = lote.movimientos.all()
-    destinos_posibles = [u for u in Lote.UBICACION_CHOICES if u[0] != lote.ubicacion_actual]
+    destinos_posibles = Lote.UBICACION_CHOICES
     return render(request, "inventario/detalle_lote.html", {
         "lote": lote,
         "movimientos": movimientos,
@@ -325,14 +325,14 @@ def mover_lote(request, lote_id, nueva_ubicacion):
     )
 
     # Si se mueve a un área de consumo/procesamiento, registrarlo como "Servicio" para seguimiento de costos (Task 1)
-    areas_consumo = ["COCINA_FRIA", "COCINA_CALIENTE", "REPOSTERIA", "LINEA", "OTRO"]
-    if nueva_ubicacion in areas_consumo and desde not in areas_consumo:
+    areas_consumo = ["COCINA_FRIA", "COCINA_CALIENTE", "REPOSTERIA", "PANADERIA", "COLACION", "LINEA", "OTRO"]
+    if nueva_ubicacion in areas_consumo and (desde not in areas_consumo or desde == nueva_ubicacion):
         RegistroServicio.objects.create(
             lote=lote,
             cantidad_servida=cantidad_despacho,
             area=nueva_ubicacion,
             responsable=request.user.get_full_name() or str(request.user),
-            observaciones=f"Despacho automático: {obs}" if obs else "Despacho automático desde movimiento",
+            observaciones=obs if obs else (f"Despacho automático a {nueva_ubicacion}"),
         )
     lote.cantidad -= cantidad_despacho
     if lote.cantidad <= 0:
@@ -407,6 +407,7 @@ def recibir_lote(request):
         try:
             # Producto: buscar por nombre exacto (sin distinguir mayúsculas), o crear
             nombre_prod = p.get("producto_nombre", "").strip()
+            talla_prod = p.get("talla", "").strip()
             unidad = p.get("unidad_medida", "KG")
             categoria = p.get("categoria", "OTRO")
             
@@ -416,7 +417,8 @@ def recibir_lote(request):
 
             producto, creado_prod = Producto.objects.get_or_create(
                 nombre__iexact=nombre_prod,
-                defaults={"nombre": nombre_prod, "unidad_medida": unidad, "categoria": categoria},
+                talla__iexact=talla_prod,
+                defaults={"nombre": nombre_prod, "talla": talla_prod, "unidad_medida": unidad, "categoria": categoria},
             )
             
             # Si el producto ya existía pero es la primera vez que le asignamos categoría

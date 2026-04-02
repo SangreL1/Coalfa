@@ -56,3 +56,28 @@ class AusenciaForm(forms.ModelForm):
             "fecha_fin": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
             "descripcion": forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Observaciones opcionales..."}),
         }
+
+from .models import GastoRRHH, ProductoEPP, EntregaEPP
+
+class GastoRRHHForm(forms.ModelForm):
+    class Meta:
+        model = GastoRRHH
+        fields = ["fecha", "monto", "categoria", "descripcion", "responsable", "comprobante"]
+        widgets = {
+            "fecha": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "monto": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "categoria": forms.Select(attrs={"class": "form-control"}),
+            "descripcion": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+            "responsable": forms.TextInput(attrs={"class": "form-control"}),
+            "comprobante": forms.FileInput(attrs={"class": "form-control"}),
+        }
+
+class EntregaEPPForm(forms.ModelForm):
+    class Meta:
+        model = EntregaEPP
+        fields = ["empleado", "producto", "cantidad"]
+        widgets = {
+            "empleado": forms.Select(attrs={"class": "form-control"}),
+            "producto": forms.Select(attrs={"class": "form-control"}),
+            "cantidad": forms.NumberInput(attrs={"class": "form-control", "min": "0.1"}),
+        }

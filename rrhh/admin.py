@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Empleado, PeriodoAusencia, Documento
+from .models import Empleado, PeriodoAusencia, Documento, GastoRRHH, ProductoEPP, EntregaEPP
 
 
 class AusenciaInline(admin.TabularInline):
@@ -41,3 +41,24 @@ class DocumentoAdmin(admin.ModelAdmin):
     list_display = ("empleado", "tipo", "descripcion", "fecha_subida")
     list_filter = ("tipo", "fecha_subida")
     search_fields = ("empleado__nombre", "empleado__apellido")
+
+
+@admin.register(GastoRRHH)
+class GastoRRHHAdmin(admin.ModelAdmin):
+    list_display = ("fecha", "categoria", "monto", "responsable")
+    list_filter = ("categoria", "fecha")
+    search_fields = ("descripcion", "responsable")
+
+
+@admin.register(ProductoEPP)
+class ProductoEPPAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "talla", "stock", "precio_unitario")
+    list_filter = ("nombre", "talla")
+    search_fields = ("nombre", "talla")
+
+
+@admin.register(EntregaEPP)
+class EntregaEPPAdmin(admin.ModelAdmin):
+    list_display = ("empleado", "producto", "cantidad", "fecha", "costo_total")
+    list_filter = ("fecha", "empleado", "producto")
+    search_fields = ("empleado__nombre", "empleado__apellido", "producto__nombre")

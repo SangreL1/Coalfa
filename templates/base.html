@@ -707,6 +707,12 @@
             <a href="{% url 'rrhh_ausencias' %}" class="nav-item {% block nav_ausencias %}{% endblock %}">
                 <span class="icon">🗓️</span> Vacaciones y Licencias
             </a>
+            <a href="{% url 'rrhh_gastos' %}" class="nav-item {% block nav_rrhh_gastos %}{% endblock %}">
+                <span class="icon">💸</span> Gastos de RRHH
+            </a>
+            <a href="{% url 'rrhh_inventario' %}" class="nav-item {% block nav_rrhh_inventario %}{% endblock %}">
+                <span class="icon">👕</span> Inventario RRHH (EPP)
+            </a>
             {% endif %}
 
             {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' %}

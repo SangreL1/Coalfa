@@ -135,7 +135,7 @@
                     <div style="font-size:0.65rem; color:var(--text-muted); margin-top:2px;"># Prov: {{ lote.numero_lote_proveedor|default:"N/A" }}</div>
                 </td>
                 <td>
-                    <div style="font-weight:700;">{{ lote.producto.nombre }}</div>
+                    <div style="font-weight:700;">{{ lote.producto.nombre }}{% if lote.producto.talla %} ({{ lote.producto.talla }}){% endif %}</div>
                     <div style="font-size:0.7rem; color:var(--text-muted);">{{ lote.proveedor.nombre|default:"Sin proveedor" }}</div>
                 </td>
                 <td>

@@ -1620,3 +1620,38 @@ def confirmar_carga_factura(request):
             return redirect("inventario_gestionar_facturas")
             
     return redirect("inventario_gestionar_facturas")
+
+
+@operacional_required
+def eliminar_factura_pdf(request, filename):
+    """Elimina una factura PDF específica de la carpeta."""
+    path_pdf = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO", filename)
+    if os.path.exists(path_pdf):
+        try:
+            os.remove(path_pdf)
+            messages.success(request, f"Factura '{filename}' eliminada correctamente.")
+        except Exception as e:
+            messages.error(request, f"Error al eliminar la factura: {str(e)}")
+    else:
+        messages.error(request, "El archivo no existe.")
+    return redirect("inventario_gestionar_facturas")
+
+
+@operacional_required
+def eliminar_todas_facturas(request):
+    """Elimina todas las facturas PDF de la carpeta."""
+    path_facturas = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO")
+    if os.path.exists(path_facturas):
+        try:
+            deleted_count = 0
+            for f in os.listdir(path_facturas):
+                if f.lower().endswith(".pdf"):
+                    os.remove(os.path.join(path_facturas, f))
+                    deleted_count += 1
+            messages.success(request, f"Se han eliminado {deleted_count} facturas correctamente.")
+        except Exception as e:
+            messages.error(request, f"Error al limpiar la carpeta: {str(e)}")
+    else:
+        messages.error(request, "La carpeta de facturas no existe.")
+    return redirect("inventario_gestionar_facturas")
+

@@ -30,6 +30,8 @@ urlpatterns = [
     path("facturas/", views.gestionar_facturas, name="inventario_gestionar_facturas"),
     path("facturas/procesar/<str:filename>/", views.procesar_factura_pdf, name="inventario_procesar_factura_pdf"),
     path("facturas/ver/<str:filename>/", views.ver_factura_pdf, name="inventario_ver_factura_pdf"),
+    path("facturas/eliminar/<str:filename>/", views.eliminar_factura_pdf, name="inventario_eliminar_factura_pdf"),
+    path("facturas/eliminar-todas/", views.eliminar_todas_facturas, name="inventario_eliminar_todas_facturas"),
     path("facturas/confirmar/", views.confirmar_carga_factura, name="inventario_confirmar_carga_factura"),
     path("despacho-rapido/", views.despacho_rapido, name="inventario_despacho_rapido"),
 ]

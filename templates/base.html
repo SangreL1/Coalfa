@@ -709,6 +709,21 @@
             .page-content div[style*="display:grid"] {
                 grid-template-columns: 1fr !important;
             }
+            /* Ajustes responsivos para KPIs en celulares */
+            .kpi-card, .kpi-enterprise {
+                padding: 1rem !important;
+            }
+            .kpi-value, .kpi-enterprise .value {
+                font-size: 1.5rem !important;
+            }
+            .kpi-label, .kpi-enterprise .label {
+                font-size: 0.65rem !important;
+            }
+            .kpi-card div[style*="font-size: 1.5rem"],
+            .kpi-card div[style*="font-size:1.5rem"],
+            .kpi-enterprise .icon-bg {
+                font-size: 1.25rem !important;
+            }
         }
 
         {% block extra_css %}{% endblock %}

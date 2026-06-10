@@ -748,7 +748,7 @@
                 <span class="icon">🏠</span> Dashboard
             </a>
 
-            {% if user.rol == 'RRHH' or user.rol == 'ADMIN' %}
+            {% if user.rol == 'RRHH' or user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
             <div class="nav-section-label">Recursos Humanos</div>
             <a href="{% url 'rrhh_dashboard' %}" class="nav-item {% block nav_rrhh %}{% endblock %}">
                 <span class="icon">👥</span> Nómina de Personal
@@ -767,7 +767,7 @@
             </a>
             {% endif %}
 
-            {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' %}
+            {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
             <div class="nav-section-label">Operaciones</div>
             <a href="{% url 'inventario_dashboard' %}" class="nav-item {% block nav_inventario %}{% endblock %}">
                 <span class="icon">📦</span> Bodega y Trazabilidad
@@ -792,8 +792,14 @@
             </a>
             {% endif %}
 
-            {% if user.rol == 'ADMIN' %}
+            {% if user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
             <div class="nav-section-label">Administración</div>
+            <a href="{% url 'admin_usuarios' %}" class="nav-item {% block nav_usuarios %}{% endblock %}">
+                <span class="icon">🧑‍💼</span> Usuarios
+            </a>
+            {% endif %}
+
+            {% if user.rol == 'ADMIN' %}
             <a href="{% url 'admin_solicitudes' %}" class="nav-item" style="display:flex;align-items:center;justify-content:space-between;">
                 <span><span class="icon">👤</span> Solicitudes de Acceso</span>
                 {% if solicitudes_count and solicitudes_count > 0 %}

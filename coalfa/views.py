@@ -133,11 +133,11 @@ def registro_view(request):
 # ── Panel admin: solicitudes ────────────────────────────────────────────────────
 
 def _admin_required(view_func):
-    """Decorador simple para vistas solo-admin."""
+    """Decorador simple para vistas solo-admin y gerente."""
     from functools import wraps
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated or request.user.rol != "ADMIN":
+        if not request.user.is_authenticated or request.user.rol not in ("ADMIN", "GERENTE"):
             return redirect("dashboard")
         return view_func(request, *args, **kwargs)
     return wrapper
@@ -177,3 +177,67 @@ def admin_rechazar(request, pk):
         usuario.delete()
         messages.success(request, f"Solicitud de {nombre} rechazada y eliminada.")
     return redirect("admin_solicitudes")
+
+
+# ── Gestión de Usuarios (Admin + Gerente) ──────────────────────────────────────
+
+@_admin_required
+def admin_usuarios(request):
+    from .models import Usuario
+    usuarios = Usuario.objects.all().order_by("apellido", "nombre")
+    return render(request, "admin/usuarios.html", {"usuarios": usuarios})
+
+
+@_admin_required
+def admin_usuario_editar(request, pk):
+    from .models import Usuario
+    usuario = get_object_or_404(Usuario, pk=pk)
+    rol_choices = Usuario.ROL_CHOICES
+    error = None
+
+    if request.method == "POST":
+        nombre = request.POST.get("nombre", "").strip()
+        apellido = request.POST.get("apellido", "").strip()
+        rol = request.POST.get("rol", usuario.rol)
+        is_active = request.POST.get("is_active") == "1"
+        nueva_password = request.POST.get("nueva_password", "").strip()
+
+        if not nombre or not apellido:
+            error = "El nombre y apellido son obligatorios."
+        elif rol not in dict(rol_choices):
+            error = "Rol inválido."
+        else:
+            usuario.nombre = nombre
+            usuario.apellido = apellido
+            usuario.rol = rol
+            usuario.is_active = is_active
+            if nueva_password:
+                if len(nueva_password) < 6:
+                    error = "La contraseña debe tener al menos 6 caracteres."
+                else:
+                    usuario.set_password(nueva_password)
+            if not error:
+                usuario.save()
+                messages.success(request, f"✅ Usuario {usuario.get_full_name()} actualizado correctamente.")
+                return redirect("admin_usuarios")
+
+    return render(request, "admin/usuario_editar.html", {
+        "usuario": usuario,
+        "rol_choices": rol_choices,
+        "error": error,
+    })
+
+
+@_admin_required
+def admin_usuario_eliminar(request, pk):
+    from .models import Usuario
+    usuario = get_object_or_404(Usuario, pk=pk)
+    # No permitir eliminarse a sí mismo
+    if usuario.pk == request.user.pk:
+        messages.error(request, "❌ No puedes eliminar tu propia cuenta.")
+        return redirect("admin_usuarios")
+    if request.method == "POST":
+        nombre = usuario.get_full_name()
+        usuario.delete()
+        messages.success(request, f"Usuario {nombre} eliminado correctamente.")
+    return redirect("admin_usuarios")

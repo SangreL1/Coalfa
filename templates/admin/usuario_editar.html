@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Usuario — Admin{% endblock %}
+{% block topbar_title %}Editar Usuario{% endblock %}
+
+{% block nav_usuarios %}active{% endblock %}
+
+{% block extra_css %}
+.edit-form-card {
+    max-width: 600px;
+    margin: 0 auto;
+}
+.form-section-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+{% endblock %}
+
+{% block content %}
+<div class="header-section" style="max-width: 600px; margin-left: auto; margin-right: auto;">
+    <div>
+        <div class="page-title">Editar Usuario</div>
+        <p class="page-subtitle" style="margin-bottom:0;">Actualiza la información de perfil, rol y estado de la cuenta</p>
+    </div>
+    <a href="{% url 'admin_usuarios' %}" class="btn btn-ghost">← Volver</a>
+</div>
+
+{% if error %}
+<div class="alert alert-danger" style="max-width: 600px; margin-left: auto; margin-right: auto;">
+    ⚠️ {{ error }}
+</div>
+{% endif %}
+
+<div class="card edit-form-card">
+    <form method="post" action="{% url 'admin_usuario_editar' usuario.pk %}">
+        {% csrf_token %}
+        
+        <div class="form-section-title">Información Básica</div>
+        
+        <div class="form-group">
+            <label class="form-label" for="id_rut">RUT</label>
+            <input type="text" id="id_rut" class="form-control" value="{{ usuario.rut }}" disabled style="opacity: 0.6; cursor: not-allowed; font-family: monospace; font-weight: 600;">
+            <span style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:0.25rem;">El RUT no se puede modificar.</span>
+        </div>
+
+        <div class="form-grid-2" style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
+            <div class="form-group">
+                <label class="form-label" for="id_nombre">Nombre</label>
+                <input type="text" id="id_nombre" name="nombre" class="form-control" value="{{ usuario.nombre }}" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="id_apellido">Apellido</label>
+                <input type="text" id="id_apellido" name="apellido" class="form-control" value="{{ usuario.apellido }}" required>
+            </div>
+        </div>
+
+        <div class="form-section-title" style="margin-top: 1.5rem;">Permisos y Estado</div>
+
+        <div class="form-grid-2" style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem;">
+            <div class="form-group">
+                <label class="form-label" for="id_rol">Rol del Sistema</label>
+                <select id="id_rol" name="rol" class="form-control">
+                    {% for key, label in rol_choices %}
+                    <option value="{{ key }}" {% if usuario.rol == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="id_estado">Estado de la Cuenta</label>
+                <select id="id_estado" name="is_active" class="form-control">
+                    <option value="1" {% if usuario.is_active %}selected{% endif %}>Activo (Permitir acceso)</option>
+                    <option value="0" {% if not usuario.is_active %}selected{% endif %}>Inactivo (Bloquear acceso)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-section-title" style="margin-top: 1.5rem;">Seguridad</div>
+
+        <div class="form-group">
+            <label class="form-label" for="id_nueva_password">Nueva Contraseña (Opcional)</label>
+            <input type="password" id="id_nueva_password" name="nueva_password" class="form-control" placeholder="Dejar en blanco para conservar la actual">
+            <span style="font-size:0.75rem; color:var(--text-muted); display:block; margin-top:0.25rem;">Mínimo 6 caracteres si decides cambiarla.</span>
+        </div>
+
+        <div style="display:flex; gap:1rem; margin-top:2rem; border-top:1px solid var(--border); padding-top:1.5rem;">
+            <button type="submit" class="btn btn-primary" style="flex:1; justify-content:center;">
+                💾 Guardar Cambios
+            </button>
+            <a href="{% url 'admin_usuarios' %}" class="btn btn-ghost" style="flex:1; justify-content:center;">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

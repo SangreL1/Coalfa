@@ -43,7 +43,11 @@
     .kpi-container { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
+    .kpi-container { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+}
+
+@media (max-width: 480px) {
     .kpi-container { grid-template-columns: 1fr; }
 }
 
@@ -75,6 +79,27 @@
     font-weight: 800;
     margin-top: 0.5rem;
     letter-spacing: -1px;
+}
+
+/* Ajuste responsivo del KPI en celulares */
+@media (max-width: 768px) {
+    .kpi-enterprise {
+        padding: 1rem;
+    }
+    .kpi-enterprise .value {
+        font-size: 1.5rem;
+        letter-spacing: -0.5px;
+    }
+    .kpi-enterprise .label {
+        font-size: 0.6rem;
+        letter-spacing: 0.8px;
+    }
+    .kpi-enterprise .icon-bg {
+        font-size: 2.5rem;
+    }
+    .kpi-enterprise .metric-sub {
+        font-size: 0.7rem;
+    }
 }
 
 .kpi-enterprise.accent { border-top: 4px solid var(--accent); }

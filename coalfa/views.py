@@ -133,11 +133,11 @@ def registro_view(request):
 # ── Panel admin: solicitudes ────────────────────────────────────────────────────
 
 def _admin_required(view_func):
-    """Decorador simple para vistas solo-admin y gerente."""
+    """Decorador simple para vistas solo-admin."""
     from functools import wraps
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated or request.user.rol not in ("ADMIN", "GERENTE"):
+        if not request.user.is_authenticated or request.user.rol != "ADMIN":
             return redirect("dashboard")
         return view_func(request, *args, **kwargs)
     return wrapper

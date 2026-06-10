@@ -792,14 +792,11 @@
             </a>
             {% endif %}
 
-            {% if user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
+            {% if user.rol == 'ADMIN' %}
             <div class="nav-section-label">Administración</div>
             <a href="{% url 'admin_usuarios' %}" class="nav-item {% block nav_usuarios %}{% endblock %}">
                 <span class="icon">🧑‍💼</span> Usuarios
             </a>
-            {% endif %}
-
-            {% if user.rol == 'ADMIN' %}
             <a href="{% url 'admin_solicitudes' %}" class="nav-item" style="display:flex;align-items:center;justify-content:space-between;">
                 <span><span class="icon">👤</span> Solicitudes de Acceso</span>
                 {% if solicitudes_count and solicitudes_count > 0 %}

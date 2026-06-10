@@ -212,7 +212,7 @@ class RegistroServicio(models.Model):
     area = models.CharField(max_length=30, choices=Lote.UBICACION_CHOICES, default="LINEA")
     costo_total = models.FloatField(default=0, help_text="Costo calculado (cantidad * precio_unitario del lote)")
     responsable = models.CharField(max_length=100, blank=True)
-    fecha = models.DateTimeField(auto_now_add=True)
+    fecha = models.DateTimeField(default=datetime.datetime.now)
     observaciones = models.TextField(blank=True)
 
     def save(self, *args, **kwargs):

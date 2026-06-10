@@ -316,12 +316,28 @@
 
     </div>
 
-    <!-- Sidebar Column -->
-    <div style="display:flex; flex-direction:column; gap:1.5rem;">
-        
-        <!-- Aquí se removió Actividad de Cadena y Tareas de Personal por solicitud -->
-
-    </div>
+        <!-- Actividad Reciente de Consumo -->
+        <div class="glass-card">
+            <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--success); margin-bottom: 1.5rem;">Consumos Recientes</h3>
+            <div class="timeline">
+                {% for c in consumos_recientes %}
+                <div class="timeline-item">
+                    <div style="font-size: 0.65rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+                        {{ c.fecha|date:"d/m/Y H:i" }} — <span style="color:var(--accent);">{{ c.get_area_display }}</span>
+                    </div>
+                    <div style="font-weight: 700; font-size: 0.85rem;">{{ c.lote.producto.nombre }}</div>
+                    <div style="font-size: 0.8rem; color: var(--success); font-weight: 800;">
+                        -{{ c.cantidad_servida }} <span style="font-weight:400; font-size:0.7rem;">{{ c.lote.producto.get_unidad_medida_display }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">No hay consumos registrados.</p>
+                {% endfor %}
+            </div>
+            <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; text-align: center;">
+                <a href="{% url 'inventario_resumen_consumo' %}" class="btn-link" style="font-size: 0.75rem; color: var(--accent); text-decoration: none;">Ver todos los consumos ➜</a>
+            </div>
+        </div>
 
 </div>
 

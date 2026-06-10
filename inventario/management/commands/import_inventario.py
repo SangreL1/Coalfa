@@ -94,14 +94,25 @@ MAPA_CATEGORIA = {
 def _mapear_categoria(concepto: str) -> str:
     if not concepto:
         return "OTRO"
-    key = concepto.strip().lower()
-    # Busca exacto
-    if key in MAPA_CATEGORIA:
-        return MAPA_CATEGORIA[key]
-    # Busca por prefijo (maneja tildes / encoding)
+    
+    import unicodedata
+    def clean(s):
+        s_norm = "".join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+        return s_norm.strip().lower()
+        
+    key = clean(concepto)
+    
+    # Intenta coincidencia exacta
     for k, v in MAPA_CATEGORIA.items():
-        if key.startswith(k) or k.startswith(key[:10]):
+        if clean(k) == key:
             return v
+            
+    # Intenta coincidencia parcial / prefijo
+    for k, v in MAPA_CATEGORIA.items():
+        k_clean = clean(k)
+        if key.startswith(k_clean) or k_clean.startswith(key[:10]):
+            return v
+            
     return "OTRO"
 
 
@@ -115,6 +126,12 @@ MAPA_UNIDAD = {
     "G": "G",
     "ML": "ML",
     "CAJA": "CAJA",
+    "CC": "ML",
+    "LITRO": "L",
+    "PACK": "UN",
+    "PAQ": "UN",
+    "PAQUETE": "UN",
+    "POTE": "UN",
 }
 
 
@@ -133,7 +150,7 @@ class Command(BaseCommand):
             "..",
             "..",
             "..",
-            "Planilla de invntario 28-02-26.xlsx",
+            "Planilla de inventario 31-05-26.xlsx",
         )
         parser.add_argument(
             "--excel",
@@ -248,7 +265,7 @@ class Command(BaseCommand):
                     cantidad = 0
 
                 try:
-                    precio = float(costo_unit) if costo_unit is not None else 0
+                    precio = round(float(costo_unit) * 1.19, 2) if costo_unit is not None else 0
                 except (ValueError, TypeError):
                     precio = 0
 
@@ -260,7 +277,7 @@ class Command(BaseCommand):
                             estado="ACTIVO",
                         ).exists()
                         if not ya_existe:
-                            numero_lote = f"{sku_raw}-INICIAL" if sku_raw else ""
+                            numero_lote = f"{sku_raw}-INI-{fila_num}" if sku_raw else ""
                             lote = Lote(
                                 producto=producto,
                                 numero_lote=numero_lote,

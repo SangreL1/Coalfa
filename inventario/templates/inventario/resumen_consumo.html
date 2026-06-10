@@ -70,6 +70,11 @@
                 <div class="rank-details">
                     <div style="font-weight: 700;">{{ r.area_label }}</div>
                     <div style="font-size: 0.75rem; color: var(--text-muted);">{{ r.total_productos|floatformat:1 }} unidades / servicios</div>
+                    <div style="margin-top: 0.5rem;">
+                        <a href="{% url 'inventario_exportar_consumo_excel' %}?area={{ r.area }}&periodo=mensual" class="btn-link" style="font-size: 0.7rem; color: var(--indigo); text-decoration: none;">
+                            📥 Descargar Reporte Mensual
+                        </a>
+                    </div>
                 </div>
                 <div class="rank-value">${{ r.total_gastado|floatformat:0|intcomma }}</div>
             </div>
@@ -82,11 +87,37 @@
             <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--indigo);">Reportes de Periodos</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 2rem;">
                 <a href="{% url 'inventario_exportar_consumo_excel' %}?periodo=semanal" class="btn btn-ghost" style="justify-content: center; font-size: 0.75rem;">
-                    ✨ Semanal
+                    ✨ Últimos 7 Días
                 </a>
                 <a href="{% url 'inventario_exportar_consumo_excel' %}?periodo=mensual" class="btn btn-ghost" style="justify-content: center; font-size: 0.75rem;">
-                    📅 Mensual
+                    📅 Mes Actual
                 </a>
+            </div>
+
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--success);">Semanas por Mes</h3>
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Seleccionar Mes</label>
+                <select id="select-mes-semanal" class="form-control">
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6">Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 2rem;" id="contenedor-semanas">
+                <button onclick="descargarSemana(1)" class="btn btn-ghost" style="font-size: 0.7rem; padding: 0.5rem;">Sem. 1</button>
+                <button onclick="descargarSemana(2)" class="btn btn-ghost" style="font-size: 0.7rem; padding: 0.5rem;">Sem. 2</button>
+                <button onclick="descargarSemana(3)" class="btn btn-ghost" style="font-size: 0.7rem; padding: 0.5rem;">Sem. 3</button>
+                <button onclick="descargarSemana(4)" class="btn btn-ghost" style="font-size: 0.7rem; padding: 0.5rem;">Sem. 4</button>
+                <button onclick="descargarSemana(5)" class="btn btn-ghost" style="font-size: 0.7rem; padding: 0.5rem;">Sem. 5</button>
             </div>
 
             <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--accent);">Personalizar Rango</h3>
@@ -114,6 +145,18 @@
             </form>
         </div>
     </div>
+
+    <script>
+        function descargarSemana(numSemana) {
+            const mes = document.getElementById('select-mes-semanal').value;
+            const anio = new Date().getFullYear();
+            const url = "{% url 'inventario_exportar_consumo_excel' %}?semana=" + numSemana + "&mes=" + mes + "&anio=" + anio;
+            window.location.href = url;
+        }
+        
+        // Seleccionar mes actual por defecto
+        document.getElementById('select-mes-semanal').value = new Date().getMonth() + 1;
+    </script>
 
     <!-- Details Column -->
     <div class="glass-card">

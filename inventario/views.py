@@ -2,6 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Sum, Q
+from django.conf import settings
+import os
 from coalfa.decorators import operacional_required
 from .models import Lote, MovimientoTrazabilidad, Proveedor, Producto, RegistroServicio, RegistroTemperaturaCamara
 from .forms import LoteForm
@@ -109,6 +111,9 @@ def dashboard_inventario(request):
             "count": counts_map.get(key, 0),
         }
 
+    # Consumos recientes (para el sidebar)
+    consumos_recientes = RegistroServicio.objects.select_related("lote", "lote__producto").order_by("-fecha")[:10]
+
     context = {
         "valor_total": valor_total,
         "total_activos": total_activos,
@@ -117,6 +122,7 @@ def dashboard_inventario(request):
         "vencidos_count": vencidos_count,
         "alertas": alertas_vencimiento.select_related("producto"),
         "movimientos": movimientos,
+        "consumos_recientes": consumos_recientes,
         "cat_data": cat_data,
         "cat_val_data": cat_val_data,
         "por_ubicacion": por_ubicacion,
@@ -466,6 +472,7 @@ def recibir_lote(request):
         "unidades": unidades,
         "categorias": Producto.CATEGORIA_CHOICES,
         "hoy": datetime.date.today().isoformat(),
+        "guia_sugerida": request.GET.get("guia", ""),
     })
 
 
@@ -994,10 +1001,15 @@ def resumen_consumo(request):
     # Últimos 20 registros de consumo
     ultimos_consumos = RegistroServicio.objects.select_related('lote', 'lote__producto').order_by('-fecha')[:20]
 
+    # Áreas dinámicas para el filtro (todas las que existan en registros)
+    areas_existentes = RegistroServicio.objects.values_list('area', flat=True).distinct()
+    choices_dict = dict(Lote.UBICACION_CHOICES)
+    areas_dropdown = [(a, choices_dict.get(a, a)) for a in areas_existentes if a]
+
     return render(request, "inventario/resumen_consumo.html", {
         "ranking": ranking,
         "ultimos_consumos": ultimos_consumos,
-        "ubicaciones": Lote.UBICACION_CHOICES,
+        "ubicaciones": areas_dropdown,
     })
 
 @operacional_required
@@ -1018,6 +1030,40 @@ def exportar_consumo_excel(request):
         # Desde el primer día del mes actual
         desde = hoy.replace(day=1).isoformat()
         hasta = hoy.isoformat()
+    
+    # REQUERIMIENTO: Semanas por mes
+    semana = request.GET.get("semana")
+    mes = request.GET.get("mes")
+    anio = request.GET.get("anio", hoy.year)
+
+    if semana and mes:
+        try:
+            mes_int = int(mes)
+            sem_int = int(semana)
+            anio_int = int(anio)
+            
+            # Definimos semanas como bloques de 7 días dentro del mes
+            # Semana 1: 1-7, Semana 2: 8-14, Semana 3: 15-21, Semana 4: 22-28, Semana 5: 29-fin
+            dia_inicio = (sem_int - 1) * 7 + 1
+            dia_fin = sem_int * 7
+            
+            import calendar
+            _, ultimo_dia = calendar.monthrange(anio_int, mes_int)
+            
+            if dia_inicio > ultimo_dia:
+                messages.error(request, "La semana seleccionada no existe en este mes.")
+                return redirect("inventario_resumen_consumo")
+            
+            if dia_fin > ultimo_dia: dia_fin = ultimo_dia
+            
+            desde_dt = datetime.date(anio_int, mes_int, dia_inicio)
+            hasta_dt = datetime.date(anio_int, mes_int, dia_fin)
+            
+            desde = desde_dt.isoformat()
+            hasta = hasta_dt.isoformat()
+            periodo = f"Semana {semana} de {calendar.month_name[mes_int].capitalize()}"
+        except Exception as e:
+            print(f"Error calculando semana: {e}")
 
     consumos = RegistroServicio.objects.select_related('lote', 'lote__producto').all()
     if desde:
@@ -1185,3 +1231,367 @@ def exportar_consumo_excel(request):
     response["Content-Disposition"] = f'attachment; filename="Consumo_Bodega_{hoy}.xlsx"'
     wb.save(response)
     return response
+
+# ── Carga Masiva (Excel) ───────────────────────────────────────────────────────
+
+@operacional_required
+def cargar_solicitudes_excel(request):
+    from .forms import CargaExcelForm
+    import openpyxl
+    
+    if request.method == "POST":
+        form = CargaExcelForm(request.POST, request.FILES)
+        if form.is_valid():
+            archivos = request.FILES.getlist("archivo_excel")
+            
+            success_mensajes = []
+            warning_mensajes = []
+            conteo_exitosos = 0
+            conteo_advertencias = 0
+            
+            # Área y Fecha base (si se especifican en el form)
+            area_base = form.cleaned_data["area"]
+            fecha_final = form.cleaned_data["fecha_consumo"]
+
+            try:
+                for archivo in archivos:
+                    # Se fuerza data_only para evitar leer fórmulas
+                    wb = openpyxl.load_workbook(archivo, data_only=True)
+                    
+                    # Iterar por todas las hojas del libro
+                    for hoja in wb.worksheets:
+                        # Saltar hojas vacías o con nombres de sistema
+                        if hoja.max_row < 9:
+                            continue
+                            
+                        # 1. Determinar Área para esta hoja
+                        # Prioridad: 1. Celda F3 del excel, 2. Nombre de la hoja, 3. Selección en form
+                        area_excel = str(hoja["F3"].value or "").strip()
+                        area_nombre_hoja = hoja.title.strip().upper()
+                        
+                        # Mapeo rápido de nombres comunes de hojas a keys del modelo
+                        mapeo_hojas = {
+                            "COCINA FRIA": "COCINA_FRIA", "COCINA CALIENTE": "COCINA_CALIENTE",
+                            "REPOSTERIA": "REPOSTERIA", "PANADERIA": "PANADERIA",
+                            "COLACION": "COLACION", "LINEA": "LINEA", "BODEGA": "BODEGA"
+                        }
+                        
+                        # Si F3 tiene algo, usamos eso, si no, intentamos por nombre de hoja
+                        # Si no coincide con nada, usamos el area_base seleccionada en el form
+                        area_final = area_base
+                        if area_excel and area_excel in dict(Lote.UBICACION_CHOICES):
+                            area_final = area_excel
+                        elif area_nombre_hoja in mapeo_hojas:
+                            area_final = mapeo_hojas[area_nombre_hoja]
+                        
+                        solicitante_val = hoja["B3"].value or hoja["C3"].value or "No especificado"
+                        solicitante = str(solicitante_val).strip()
+
+                        # Iterar desde la fila 9 (donde empiezan los Insumos)
+                        filas = list(hoja.iter_rows(min_row=9, values_only=True))
+                        
+                        for idx, fila in enumerate(filas, start=9):
+                            if len(fila) < 3: continue
+                                
+                            nombre_producto_crudo = fila[0]
+                            salida_diaria_cruda = fila[2] # Cantidad entregada
+                            
+                            if not nombre_producto_crudo or salida_diaria_cruda is None:
+                                continue
+                                
+                            try:
+                                cantidad_solicitada = float(salida_diaria_cruda)
+                            except (ValueError, TypeError):
+                                continue
+                                
+                            if cantidad_solicitada <= 0: continue
+                                
+                            nombre_producto = str(nombre_producto_crudo).strip()
+                            
+                            # Buscar el producto
+                            producto = Producto.objects.filter(nombre__iexact=nombre_producto).first()
+                            if not producto:
+                                producto = Producto.objects.filter(nombre__icontains=nombre_producto).first()
+                                
+                            if not producto:
+                                warning_mensajes.append(f"[{hoja.title}] Fila {idx}: Producto '{nombre_producto}' no encontrado.")
+                                conteo_advertencias += 1
+                                continue
+                            
+                            # Buscar lotes activos (FIFO)
+                            lotes_activos = list(Lote.objects.filter(producto=producto, estado="ACTIVO").order_by("fecha_vencimiento"))
+                            
+                            if not lotes_activos:
+                                warning_mensajes.append(f"[{hoja.title}] Fila {idx}: '{nombre_producto}' sin stock.")
+                                conteo_advertencias += 1
+                                continue
+                                
+                            faltante = cantidad_solicitada
+                            lotes_usados = []
+                            
+                            for lote in lotes_activos:
+                                if faltante <= 0: break
+                                    
+                                cantidad_a_extraer = min(lote.cantidad, faltante)
+                                faltante -= cantidad_a_extraer
+                                
+                                # Registro de Servicio
+                                registro = RegistroServicio.objects.create(
+                                    lote=lote,
+                                    cantidad_servida=cantidad_a_extraer,
+                                    area=area_final,
+                                    responsable=request.user.get_full_name() or str(request.user),
+                                    observaciones=f"Importado de {archivo.name} (Hoja: {hoja.title}). Solicitante: {solicitante}.",
+                                )
+                                
+                                if isinstance(fecha_final, datetime.date) and not isinstance(fecha_final, datetime.datetime):
+                                    registro.fecha = datetime.datetime.combine(fecha_final, datetime.time.min)
+                                else:
+                                    registro.fecha = fecha_final
+                                registro.save()
+                                
+                                lote.cantidad -= cantidad_a_extraer
+                                if lote.cantidad <= 0:
+                                    lote.cantidad = 0
+                                    lote.estado = "CONSUMIDO"
+                                lote.save()
+                                lotes_usados.append((lote.numero_lote, cantidad_a_extraer))
+                            
+                            if faltante > 0:
+                                extraido = cantidad_solicitada - faltante
+                                msg = f"[{hoja.title}] {producto.nombre}: Solo se descontaron {extraido}/{cantidad_solicitada}. Faltan {faltante}."
+                                warning_mensajes.append(msg)
+                                conteo_advertencias += 1
+                                if extraido > 0: conteo_exitosos += 1
+                            else:
+                                conteo_exitosos += 1
+
+                # Invalidad caché
+                from django.core.cache import cache
+                cache.delete("dashboard_inv_kpis")
+
+                return render(request, "inventario/resultados_excel.html", {
+                    "success_count": conteo_exitosos,
+                    "warning_count": conteo_advertencias,
+                    "success_messages": success_mensajes[:100], # Limitar mensajes si son demasiados
+                    "warning_messages": warning_mensajes,
+                })
+                
+            except Exception as e:
+                messages.error(request, f"Error al procesar: {str(e)}")
+                return redirect("inventario_cargar_excel")
+    else:
+        form = CargaExcelForm()
+
+    return render(request, "inventario/cargar_excel.html", {"form": form})
+
+
+@operacional_required
+def gestionar_facturas(request):
+    """Buzón de facturas PDF para registro rápido de lotes."""
+    path_facturas = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO")
+    facturas = []
+    
+    if os.path.exists(path_facturas):
+        archivos = [f for f in os.listdir(path_facturas) if f.lower().endswith(".pdf")]
+        
+        # Obtener números de guía ya registrados para marcar facturas como "procesadas"
+        # Esto ayuda a saber qué falta por ingresar al sistema
+        guias_registradas = set(Lote.objects.values_list("numero_guia", flat=True))
+        
+        for arch in archivos:
+            num_guia_sugerido = arch.replace(".pdf", "").replace(".PDF", "")
+            procesada = num_guia_sugerido in guias_registradas
+            
+            facturas.append({
+                "nombre": arch,
+                "guia": num_guia_sugerido,
+                "procesada": procesada,
+                "fecha_mod": datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(path_facturas, arch)))
+            })
+    
+    # Ordenar por fecha de modificación (más recientes primero)
+    facturas.sort(key=lambda x: x["fecha_mod"], reverse=True)
+    
+    return render(request, "inventario/gestionar_facturas.html", {
+        "facturas": facturas,
+        "total": len(facturas),
+        "procesadas": sum(1 for f in facturas if f["procesada"])
+    })
+
+
+@operacional_required
+def despacho_rapido(request):
+    """Interfaz de despacho ultra-rápido de insumos (Task: Quick Dispatch)."""
+    if request.method == "POST":
+        import json
+        try:
+            data = json.loads(request.body)
+            area = data.get("area")
+            fecha_str = data.get("fecha")
+            items = data.get("items", [])
+            
+            if not area or not items:
+                return JsonResponse({"success": False, "error": "Faltan datos de área o productos"})
+            
+            # Convertir fecha a datetime
+            if fecha_str:
+                fecha_final = datetime.datetime.strptime(fecha_str, "%Y-%m-%d")
+            else:
+                fecha_final = datetime.datetime.now()
+
+            resultados = []
+            for item in items:
+                prod_id = item.get("id")
+                cantidad_a_despachar = float(item.get("cantidad", 0))
+                
+                if cantidad_a_despachar <= 0: continue
+                
+                producto = get_object_or_404(Producto, id=prod_id)
+                # FIFO: Lotes más próximos a vencer primero
+                lotes_activos = Lote.objects.filter(producto=producto, estado="ACTIVO").order_by("fecha_vencimiento")
+                
+                faltante = cantidad_a_despachar
+                for lote in lotes_activos:
+                    if faltante <= 0: break
+                    
+                    descontar = min(lote.cantidad, faltante)
+                    faltante -= descontar
+                    
+                    # Registrar Servicio
+                    registro = RegistroServicio.objects.create(
+                        lote=lote,
+                        cantidad_servida=descontar,
+                        area=area,
+                        fecha=fecha_final,
+                        responsable=request.user.get_full_name() or str(request.user),
+                        observaciones="Despacho rápido desde interfaz web"
+                    )
+                    
+                    lote.cantidad -= descontar
+                    if lote.cantidad <= 0:
+                        lote.cantidad = 0
+                        lote.estado = "CONSUMIDO"
+                    lote.save()
+                
+                resultados.append({
+                    "nombre": producto.nombre, 
+                    "despachado": cantidad_a_despachar - faltante, 
+                    "faltante": faltante
+                })
+            
+            # Invalidad caché
+            from django.core.cache import cache
+            cache.delete("dashboard_inv_kpis")
+            
+            return JsonResponse({"success": True, "resultados": resultados})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+            
+    # GET: Mostrar interfaz
+    productos = Producto.objects.annotate(
+        stock_total=Sum("lotes__cantidad", filter=Q(lotes__estado="ACTIVO"))
+    ).filter(stock_total__gt=0).order_by("nombre")
+    
+    context = {
+        "productos": productos,
+        "ubicaciones": Lote.UBICACION_CHOICES,
+    }
+    return render(request, "inventario/despacho_rapido.html", context)
+
+
+@operacional_required
+def ver_factura_pdf(request, filename):
+    """Sirve el archivo PDF para previsualización en el navegador."""
+    from django.http import FileResponse
+    path_pdf = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO", filename)
+    if os.path.exists(path_pdf):
+        return FileResponse(open(path_pdf, "rb"), content_type="application/pdf")
+    messages.error(request, "Archivo no encontrado.")
+    return redirect("inventario_gestionar_facturas")
+
+
+@operacional_required
+def procesar_factura_pdf(request, filename):
+    """Lee el PDF y muestra una previsualización de los productos detectados."""
+    from .pdf_parser import extraer_datos_factura
+    
+    path_pdf = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO", filename)
+    if not os.path.exists(path_pdf):
+        messages.error(request, "El archivo ya no existe en la carpeta.")
+        return redirect("inventario_gestionar_facturas")
+        
+    # Extraer datos
+    items = extraer_datos_factura(path_pdf)
+    num_guia = filename.replace(".pdf", "").replace(".PDF", "")
+    
+    return render(request, "inventario/previsualizar_factura.html", {
+        "items": items,
+        "filename": filename,
+        "guia": num_guia,
+        "hoy": datetime.date.today().isoformat(),
+        "proveedores": Proveedor.objects.all(),
+        "ubicaciones": Lote.UBICACION_CHOICES,
+        "unidades": Producto.UNIDAD_CHOICES,
+        "categorias": Producto.CATEGORIA_CHOICES,
+    })
+
+
+@operacional_required
+def confirmar_carga_factura(request):
+    """Carga masiva de los productos seleccionados de la factura."""
+    if request.method == "POST":
+        import json
+        try:
+            guia = request.POST.get("guia")
+            proveedor_id = request.POST.get("proveedor")
+            ubicacion = request.POST.get("ubicacion_actual", "BODEGA")
+            fecha_rec = request.POST.get("fecha_recepcion")
+            
+            # Recoger los items que llegaron (los que no fueron eliminados)
+            productos_nombres = request.POST.getlist("prod_nombre")
+            cantidades = request.POST.getlist("prod_cantidad")
+            precios = request.POST.getlist("prod_precio")
+            unidades = request.POST.getlist("prod_unidad")
+            categorias = request.POST.getlist("prod_categoria")
+            vencimientos = request.POST.getlist("prod_vencimiento")
+
+            count = 0
+            for i in range(len(productos_nombres)):
+                nombre = productos_nombres[i].strip()
+                if not nombre: continue
+                
+                # Buscar o crear producto
+                producto, _ = Producto.objects.get_or_create(
+                    nombre__iexact=nombre,
+                    defaults={
+                        "nombre": nombre, 
+                        "unidad_medida": unidades[i], 
+                        "categoria": categorias[i]
+                    }
+                )
+                
+                # Crear Lote
+                lote = Lote.objects.create(
+                    producto=producto,
+                    proveedor_id=proveedor_id if proveedor_id else None,
+                    numero_guia=guia,
+                    cantidad=float(cantidades[i] or 0),
+                    precio_unitario=float(precios[i] or 0),
+                    fecha_recepcion=fecha_rec,
+                    fecha_vencimiento=vencimientos[i] or (datetime.date.today() + datetime.timedelta(days=365)).isoformat(),
+                    ubicacion_actual=ubicacion,
+                    responsable_registro=request.user.get_full_name() or str(request.user),
+                    proceso="RECEPCION",
+                    observaciones=f"Cargado automáticamente desde factura {guia}"
+                )
+                count += 1
+            
+            messages.success(request, f"Se han registrado {count} productos de la factura {guia}.")
+            return redirect("inventario_gestionar_facturas")
+            
+        except Exception as e:
+            messages.error(request, f"Error al procesar la carga: {str(e)}")
+            return redirect("inventario_gestionar_facturas")
+            
+    return redirect("inventario_gestionar_facturas")

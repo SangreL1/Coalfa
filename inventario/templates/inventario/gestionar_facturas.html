@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Gestión de Facturas - San Lucas{% endblock %}
+
+{% block nav_facturas %}active{% endblock %}
+{% block topbar_title %}Buzón de Facturas Inventario{% endblock %}
+
+{% block content %}
+<div class="header-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 class="page-title">Buzón de Facturas</h1>
+        <p class="page-subtitle" style="margin-bottom: 0;">Administra y registra facturas pendientes desde la carpeta del servidor.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <div class="kpi-card" style="padding: 0.75rem 1.5rem; flex-direction: row; align-items: center; gap: 1rem; min-width: auto;">
+            <div style="font-size: 1.5rem;">📂</div>
+            <div>
+                <div class="kpi-label">Total Archivos</div>
+                <div class="kpi-value" style="font-size: 1.25rem;">{{ total }}</div>
+            </div>
+        </div>
+        <div class="kpi-card" style="padding: 0.75rem 1.5rem; flex-direction: row; align-items: center; gap: 1rem; min-width: auto;">
+            <div style="font-size: 1.5rem; color: var(--success);">✅</div>
+            <div>
+                <div class="kpi-label">Procesadas</div>
+                <div class="kpi-value" style="font-size: 1.25rem;">{{ procesadas }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Facturas en Carpeta (FACTURAS INVENTARIO)</h2>
+        <div style="display: flex; gap: 0.5rem;">
+            <span class="badge badge-vacaciones" style="background: rgba(251, 191, 36, 0.1); color: #fbbf24;">Pendientes: {{ total|add:procesadas|add:"-0" }}</span>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Estado</th>
+                    <th>Nombre del Archivo</th>
+                    <th>Nº Guía / Factura</th>
+                    <th>Fecha Modificación</th>
+                    <th style="text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in facturas %}
+                <tr style="{% if f.procesada %}opacity: 0.6;{% endif %}">
+                    <td>
+                        {% if f.procesada %}
+                        <span class="badge badge-activo">Procesada</span>
+                        {% else %}
+                        <span class="badge badge-licencia">Pendiente</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span style="font-size: 1.2rem;">📄</span>
+                            <span style="font-weight: 500;">{{ f.nombre }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <code style="background: var(--coal-mid); padding: 0.2rem 0.5rem; border-radius: 4px; color: var(--accent);">{{ f.guia }}</code>
+                    </td>
+                    <td style="color: var(--text-muted); font-size: 0.8rem;">
+                        {{ f.fecha_mod|date:"d/m/Y H:i" }}
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            {% if not f.procesada %}
+                            <a href="{% url 'inventario_procesar_factura_pdf' filename=f.nombre %}" class="btn btn-primary btn-sm" style="background: #8b5cf6;">
+                                ⚡ Carga Inteligente
+                            </a>
+                            <a href="{% url 'inventario_recibir_lote' %}?guia={{ f.guia }}" class="btn btn-ghost btn-sm">
+                                ➕ Registro Manual
+                            </a>
+                            {% endif %}
+                            <a href="{% url 'inventario_ver_factura_pdf' filename=f.nombre %}" class="btn btn-ghost btn-sm" target="_blank">
+                                👁️ Ver PDF
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        No se encontraron archivos PDF en la carpeta de facturas.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 2rem; border-style: dashed; background: rgba(0,0,0,0.1);">
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+        <div style="font-size: 2.5rem;">💡</div>
+        <div>
+            <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">¿Cómo funciona esto?</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                El sistema escanea la carpeta <code>FACTURAS INVENTARIO</code> automáticamente. Si el nombre del archivo PDF (ej: <code>12345.pdf</code>) ya existe como un Número de Guía en algún lote registrado, la factura se marcará como <strong>Procesada</strong>. Esto te ayuda a no duplicar registros y saber exactamente qué facturas faltan por ingresar.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

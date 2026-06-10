@@ -25,4 +25,11 @@ urlpatterns = [
     # Reportes de Consumo
     path("consumo/", views.resumen_consumo, name="inventario_resumen_consumo"),
     path("consumo/exportar/", views.exportar_consumo_excel, name="inventario_exportar_consumo_excel"),
+    # Carga Masiva y Facturas
+    path("importar/solicitudes/", views.cargar_solicitudes_excel, name="inventario_cargar_excel"),
+    path("facturas/", views.gestionar_facturas, name="inventario_gestionar_facturas"),
+    path("facturas/procesar/<str:filename>/", views.procesar_factura_pdf, name="inventario_procesar_factura_pdf"),
+    path("facturas/ver/<str:filename>/", views.ver_factura_pdf, name="inventario_ver_factura_pdf"),
+    path("facturas/confirmar/", views.confirmar_carga_factura, name="inventario_confirmar_carga_factura"),
+    path("despacho-rapido/", views.despacho_rapido, name="inventario_despacho_rapido"),
 ]

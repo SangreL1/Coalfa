@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Previsualizar Factura - San Lucas{% endblock %}
+
+{% block topbar_title %}Confirmación de Carga Automática{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 2rem;">
+    <h1 class="page-title">Previsualización de Factura: {{ guia }}</h1>
+    <p class="page-subtitle">Revisa los datos extraídos del PDF antes de guardarlos. Puedes editar cualquier campo.</p>
+</div>
+
+<form method="POST" action="{% url 'inventario_confirmar_carga_factura' %}">
+    {% csrf_token %}
+    <input type="hidden" name="guia" value="{{ guia }}">
+
+    <!-- Datos Generales -->
+    <div class="card" style="margin-bottom: 2rem; background: var(--accent-soft);">
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Proveedor</label>
+                <select name="proveedor" class="form-control">
+                    <option value="">-- Seleccionar Proveedor --</option>
+                    {% for p in proveedores %}
+                    <option value="{{ p.id }}">{{ p.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Fecha Recepción</label>
+                <input type="date" name="fecha_recepcion" class="form-control" value="{{ hoy }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Ubicación Destino</label>
+                <select name="ubicacion_actual" class="form-control">
+                    {% for key, label in ubicaciones %}
+                    <option value="{{ key }}" {% if key == 'BODEGA' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Productos -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title">Productos Detectados ({{ items|length }})</h2>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Marca los productos que deseas cargar.</div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="table-enterprise">
+                <thead>
+                    <tr>
+                        <th>Descripción del Producto</th>
+                        <th width="100">Cantidad</th>
+                        <th width="100">Unidad</th>
+                        <th width="120">Precio Unit.</th>
+                        <th width="150">Categoría</th>
+                        <th width="150">Vencimiento</th>
+                        <th width="50"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <input type="text" name="prod_nombre" value="{{ item.producto }}" class="form-control" style="font-size: 0.85rem;">
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" name="prod_cantidad" value="{{ item.cantidad }}" class="form-control" style="font-weight: 700; text-align: center;">
+                        </td>
+                        <td>
+                            <select name="prod_unidad" class="form-control">
+                                {% for u_key, u_val in unidades %}
+                                <option value="{{ u_key }}" {% if u_key == 'UN' %}selected{% endif %}>{{ u_val }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" step="0.01" name="prod_precio" value="{{ item.precio }}" class="form-control" style="color: var(--success); font-weight: 700;">
+                        </td>
+                        <td>
+                            <select name="prod_categoria" class="form-control">
+                                {% for c_key, c_val in categorias %}
+                                <option value="{{ c_key }}">{{ c_val }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="date" name="prod_vencimiento" class="form-control">
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('tr').remove();" style="color: var(--danger); padding: 5px;">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                            No se pudieron extraer productos automáticamente de este PDF.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center;">
+            <a href="{% url 'inventario_gestionar_facturas' %}" class="btn btn-ghost">❌ Cancelar y Volver</a>
+            <button type="submit" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.1rem; box-shadow: 0 10px 20px var(--accent-glow);">
+                🚀 Confirmar y Cargar Inventario
+            </button>
+        </div>
+    </div>
+</form>
+
+{% endblock %}

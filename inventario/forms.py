@@ -23,3 +23,43 @@ class LoteForm(forms.ModelForm):
             "responsable_registro": forms.TextInput(attrs={"class": "form-control"}),
             "observaciones": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
+
+class MultipleFileInput(forms.FileInput):
+    allow_multiple_selected = True
+
+class CargaExcelForm(forms.Form):
+    area = forms.ChoiceField(
+        label="Área que solicita",
+        required=True,
+        widget=forms.Select(attrs={"class": "form-control", "style": "margin-bottom: 1rem;"})
+    )
+    fecha_consumo = forms.DateField(
+        label="Fecha de la solicitud",
+        required=True,
+        widget=forms.DateInput(attrs={
+            "class": "form-control",
+            "type": "date",
+            "style": "margin-bottom: 1rem;"
+        })
+    )
+    archivo_excel = forms.FileField(
+        label="Archivos Excel de Solicitudes",
+        widget=MultipleFileInput(attrs={
+            "class": "form-control",
+            "accept": ".xlsx, .xls",
+            "multiple": True
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .models import Lote, RegistroServicio
+        # Opciones base de ubicaciones
+        choices = list(Lote.UBICACION_CHOICES)
+        # Áreas que ya tienen registros pero no están en la lista base (ej: COALFA)
+        registradas = RegistroServicio.objects.values_list('area', flat=True).distinct()
+        keys = [c[0] for c in choices]
+        for r in registradas:
+            if r and r not in keys:
+                choices.append((r, r))
+        self.fields['area'].choices = choices

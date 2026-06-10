@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Resultados de Importación - San Lucas{% endblock %}
+
+{% block topbar_title %}Resultados de Procesamiento{% endblock %}
+
+{% block content %}
+<div class="header-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 class="page-title">Resultados de Procesamiento</h1>
+        <p class="page-subtitle" style="margin-bottom: 0;">Resumen del despacho masivo por archivo Excel.</p>
+    </div>
+    <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost">
+        Volver al Dashboard
+    </a>
+</div>
+
+<div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+    
+    <!-- Tarjeta de Éxito -->
+    <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="card-header" style="background: rgba(34, 197, 94, 0.05); padding: 1.25rem 1.5rem; margin-bottom: 0; border-bottom: 1px solid rgba(34, 197, 94, 0.1);">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="background: rgba(34, 197, 94, 0.15); color: var(--success); padding: 0.5rem; border-radius: 8px;">
+                    <span style="font-size: 1.25rem;">✅</span>
+                </div>
+                <h2 class="card-title" style="margin: 0;">Procesados con Éxito</h2>
+            </div>
+        </div>
+        <div style="padding: 1.5rem;">
+            <div style="font-size: 2.25rem; font-weight: 800; color: var(--text); margin-bottom: 1rem;">{{ success_count }} <span style="font-size: 1rem; font-weight: 500; color: var(--text-muted);">registros</span></div>
+            
+            <div class="custom-scrollbar" style="max-height: 250px; overflow-y: auto; padding-right: 0.5rem;">
+                {% for msg in success_messages %}
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">
+                        {{ msg }}
+                    </div>
+                {% empty %}
+                    <div style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">No hubo registros exitosos.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjeta de Advertencias / Errores -->
+    <div class="card" style="padding: 0; overflow: hidden;">
+        <div class="card-header" style="background: rgba(248, 113, 113, 0.05); padding: 1.25rem 1.5rem; margin-bottom: 0; border-bottom: 1px solid rgba(248, 113, 113, 0.1);">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="background: rgba(248, 113, 113, 0.15); color: var(--danger); padding: 0.5rem; border-radius: 8px;">
+                    <span style="font-size: 1.25rem;">⚠️</span>
+                </div>
+                <h2 class="card-title" style="margin: 0;">Advertencias y Errores</h2>
+            </div>
+        </div>
+        <div style="padding: 1.5rem;">
+            <div style="font-size: 2.25rem; font-weight: 800; color: var(--text); margin-bottom: 1rem;">{{ warning_count }} <span style="font-size: 1rem; font-weight: 500; color: var(--text-muted);">incidentes</span></div>
+            
+            <div class="custom-scrollbar" style="max-height: 250px; overflow-y: auto; padding-right: 0.5rem;">
+                {% for msg in warning_messages %}
+                    <div style="background: rgba(248, 113, 113, 0.05); border: 1px solid rgba(248, 113, 113, 0.2); padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; font-size: 0.85rem; color: #fca5a5;">
+                        {{ msg }}
+                    </div>
+                {% empty %}
+                    <div style="font-size: 0.85rem; color: var(--success); font-style: italic;">¡Procesamiento limpio sin errores!</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div style="text-align: center; margin-top: 3rem;">
+     <a href="{% url 'inventario_cargar_excel' %}" class="btn btn-primary" style="padding: 0.75rem 2rem;">
+        Subir otro archivo
+    </a>
+</div>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: var(--coal-light); border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+</style>
+{% endblock %}

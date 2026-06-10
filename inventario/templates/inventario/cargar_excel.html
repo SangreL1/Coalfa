@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Importar Solicitudes - San Lucas{% endblock %}
+
+{% block topbar_title %}Importar Solicitudes (Excel){% endblock %}
+
+{% block content %}
+<div class="header-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 class="page-title">Importar Solicitudes</h1>
+        <p class="page-subtitle" style="margin-bottom: 0;">Sube la planilla de inventario para despachar insumos a las áreas automáticamente.</p>
+    </div>
+    <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost">
+        Volver al Dashboard
+    </a>
+</div>
+
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <div class="card-header">
+        <h2 class="card-title">Subir Planillas</h2>
+        <span class="badge badge-activo">Multi-Archivo y Multi-Hoja habilitado</span>
+    </div>
+    
+    <div class="alert alert-warning" style="margin-bottom: 1.5rem; font-size: 0.8rem;">
+        ⚡ <strong>¿Buscas más rapidez?</strong> Si no quieres subir un Excel, usa el nuevo <a href="{% url 'inventario_despacho_rapido' %}" style="color: inherit; font-weight: 700; text-decoration: underline;">Despacho Rápido</a> para entregar insumos directamente desde el sistema en segundos.
+    </div>
+
+    <div class="alert alert-info" style="margin-bottom: 1.5rem; font-size: 0.8rem;">
+        💡 <strong>Sugerencia:</strong> Ahora puedes subir varios archivos a la vez. El sistema procesará automáticamente todas las hojas de cada archivo y asignará el área detectada en la celda F3 o el nombre de la pestaña.
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="upload-form">
+        {% csrf_token %}
+        
+        <div class="form-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; color: var(--accent);">Área Predeterminada:</label>
+                {{ form.area }}
+                <p style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.25rem;">Se usará si el Excel no especifica una.</p>
+                {% if form.area.errors %}
+                <p style="color: var(--danger); font-size: 0.8rem;">{{ form.area.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700; color: var(--accent);">Fecha de Solicitud:</label>
+                {{ form.fecha_consumo }}
+                {% if form.fecha_consumo.errors %}
+                <p style="color: var(--danger); font-size: 0.8rem;">{{ form.fecha_consumo.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <label class="form-label" style="font-weight: 700; color: var(--accent); margin-bottom: 0.5rem; display: block;">Arrastra tus archivos aquí:</label>
+        <div class="form-group" style="text-align: center; border: 2px dashed var(--border); padding: 3rem 1.5rem; border-radius: var(--radius); background: rgba(0,0,0,0.2); transition: all 0.3s; position: relative;" id="drop-zone">
+            
+            <div id="upload-icon" style="font-size: 3rem; color: var(--accent); margin-bottom: 1rem; transition: transform 0.3s;">
+                📂
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label for="id_archivo_excel" style="cursor: pointer; color: var(--text); font-weight: 600; font-size: 1rem;">
+                    <span id="file-name-display">Haz clic para buscar o arrastra varios archivos</span>
+                    {{ form.archivo_excel }}
+                </label>
+            </div>
+            
+            <div id="file-list" style="display: none; margin-top: 1.5rem; text-align: left; background: var(--coal-mid); padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+                <p style="font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-bottom: 0.5rem; text-transform: uppercase;">Archivos seleccionados:</p>
+                <ul id="selected-files-names" style="font-size: 0.8rem; color: var(--text); list-style: none; padding: 0;"></ul>
+            </div>
+            
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem;">Formatos: .xlsx, .xls</p>
+            
+            {% if form.archivo_excel.errors %}
+            <p style="color: var(--danger); font-size: 0.8rem; margin-top: 1rem;">{{ form.archivo_excel.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <div style="background: var(--accent-soft); border-radius: 8px; padding: 1rem; margin-top: 1rem;">
+             <p style="font-size: 0.75rem; color: var(--text); margin-bottom: 0;">
+                🚀 <strong>Procesamiento Inteligente:</strong> El sistema buscará productos por nombre exacto o parcial y descontará los lotes más próximos a vencer (FIFO).
+             </p>
+        </div>
+
+        <div style="text-align: right; margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <button type="submit" id="submit-btn" class="btn btn-primary" style="padding: 0.8rem 2rem; font-size: 0.9rem; border-radius: 12px; display: inline-flex; align-items: center; gap: 0.75rem;">
+                <span>Procesar Todo</span>
+                <span style="font-size: 1.1rem;">⚡</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    #id_archivo_excel {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+    
+    #drop-zone {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    #drop-zone.dragover {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        transform: scale(1.01);
+    }
+    
+    #drop-zone.dragover #upload-icon {
+        transform: translateY(-10px) scale(1.2);
+    }
+    
+    .file-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .file-item:last-child {
+        border-bottom: none;
+    }
+    
+    #submit-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('id_archivo_excel');
+    const fileNameDisplay = document.getElementById('file-name-display');
+    const fileList = document.getElementById('file-list');
+    const fileListNames = document.getElementById('selected-files-names');
+    const submitBtn = document.getElementById('submit-btn');
+
+    function updateFileList(files) {
+        if (files.length > 0) {
+            fileList.style.display = 'block';
+            fileListNames.innerHTML = '';
+            Array.from(files).forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'file-item';
+                li.innerHTML = `<span>📄</span> <span style="flex:1">${file.name}</span> <span style="color:var(--text-muted); font-size:0.7rem">${(file.size/1024).toFixed(1)} KB</span>`;
+                fileListNames.appendChild(li);
+            });
+            fileNameDisplay.textContent = files.length === 1 ? files[0].name : `${files.length} archivos seleccionados`;
+        } else {
+            fileList.style.display = 'none';
+            fileNameDisplay.textContent = "Haz clic para buscar o arrastra varios archivos";
+        }
+    }
+
+    fileInput.addEventListener('change', function(e) {
+        updateFileList(e.target.files);
+    });
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+    });
+
+    dropZone.addEventListener('drop', e => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        fileInput.files = files; // Nota: esto puede no funcionar en todos los navegadores antiguos, pero es estándar moderno
+        updateFileList(files);
+    });
+
+    document.getElementById('upload-form').addEventListener('submit', function() {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>Procesando...</span> <div class="spinner-small"></div>';
+    });
+
+    // Poner fecha de hoy
+    var dateInput = document.getElementById('id_fecha_consumo');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+</script>
+{% endblock %}

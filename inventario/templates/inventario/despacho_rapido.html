@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Despacho Rápido - San Lucas{% endblock %}
+
+{% block topbar_title %}Despacho Rápido de Insumos{% endblock %}
+{% block nav_despacho %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dispatch-container {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        gap: 2rem;
+        align-items: start;
+    }
+
+    .search-panel {
+        position: sticky;
+        top: 84px;
+    }
+
+    .product-card {
+        padding: 1rem;
+        border-radius: 12px;
+        background: var(--coal-light);
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .product-card:hover {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+    }
+
+    .cart-item {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        display: grid;
+        grid-template-columns: 1fr auto auto auto;
+        align-items: center;
+        gap: 1.5rem;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .qty-input {
+        width: 100px;
+        text-align: center;
+        font-size: 1.1rem;
+        font-weight: 700;
+        background: var(--coal-mid);
+    }
+
+    .btn-remove {
+        color: var(--danger);
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 0.5rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 5rem 2rem;
+        border: 2px dashed var(--border);
+        border-radius: 20px;
+        color: var(--text-muted);
+    }
+
+    #search-input {
+        font-size: 1.1rem;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        border: 2px solid var(--border);
+    }
+
+    #search-input:focus {
+        border-color: var(--accent);
+    }
+
+    .stock-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        background: rgba(255,255,255,0.05);
+    }
+
+    @media (max-width: 992px) {
+        .dispatch-container { grid-template-columns: 1fr; }
+        .search-panel { position: static; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dispatch-container">
+    
+    <!-- Panel Izquierdo: Buscador -->
+    <div class="search-panel">
+        <div class="card">
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--accent);">1. Selecciona el Área</h3>
+            <select id="area-select" class="form-control" style="margin-bottom: 2rem; font-weight: 600;">
+                <option value="">-- Seleccionar Área de Destino --</option>
+                {% for key, label in ubicaciones %}
+                <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--accent);">2. Fecha de Solicitud</h3>
+            <input type="date" id="fecha-select" class="form-control" style="margin-bottom: 2rem;">
+
+            <h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--accent);">3. Buscar Productos</h3>
+            <input type="text" id="search-input" class="form-control" placeholder="Escribe nombre del producto...">
+            
+            <div id="product-results" style="max-height: 50vh; overflow-y: auto; padding-right: 5px;">
+                {% for p in productos %}
+                <div class="product-card" data-id="{{ p.id }}" data-nombre="{{ p.nombre }}" data-stock="{{ p.stock_total }}" data-unidad="{{ p.get_unidad_medida_display }}">
+                    <div>
+                        <div style="font-weight: 600;">{{ p.nombre }}</div>
+                        <div class="stock-badge">Stock: {{ p.stock_total }} {{ p.get_unidad_medida_display }}</div>
+                    </div>
+                    <div style="font-size: 1.2rem; color: var(--accent);">+</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Derecho: Lista de Despacho -->
+    <div class="main-panel">
+        <div class="card" style="min-height: 80vh; display: flex; flex-direction: column;">
+            <div class="card-header" style="border: none;">
+                <h2 class="card-title">Lista de Entrega</h2>
+                <div id="item-count" class="badge badge-activo">0 productos seleccionados</div>
+            </div>
+
+            <div id="dispatch-list" style="flex: 1;">
+                <div class="empty-state">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">📦</div>
+                    <h3>Tu lista está vacía</h3>
+                    <p>Busca y selecciona productos a la izquierda para empezar a repartir.</p>
+                </div>
+            </div>
+
+            <div id="actions-footer" style="display: none; border-top: 1px solid var(--border); padding-top: 2rem; margin-top: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="color: var(--text-muted);">
+                        Asegúrate de que las cantidades sean correctas antes de procesar.
+                    </div>
+                    <button id="process-btn" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.1rem; border-radius: 14px;">
+                        🚀 Confirmar y Repartir Todo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Resultados -->
+<div id="results-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+    <div class="card" style="max-width: 600px; width: 90%;">
+        <div class="card-header">
+            <h2 class="card-title">Resultado del Despacho</h2>
+        </div>
+        <div id="results-content" style="padding: 1rem 0; max-height: 60vh; overflow-y: auto;">
+            <!-- Resultados aquí -->
+        </div>
+        <div style="text-align: right; margin-top: 1.5rem;">
+            <button onclick="location.reload()" class="btn btn-primary">Entendido, Finalizar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const searchInput = document.getElementById('search-input');
+    const productCards = document.querySelectorAll('.product-card');
+    const dispatchList = document.getElementById('dispatch-list');
+    const actionsFooter = document.getElementById('actions-footer');
+    const itemCountBadge = document.getElementById('item-count');
+    const processBtn = document.getElementById('process-btn');
+    const areaSelect = document.getElementById('area-select');
+    const fechaSelect = document.getElementById('fecha-select');
+
+    let cart = [];
+
+    // Poner fecha de hoy por defecto
+    fechaSelect.value = new Date().toISOString().split('T')[0];
+
+    // Buscador en tiempo real
+    searchInput.addEventListener('input', function() {
+        const q = this.value.toLowerCase();
+        productCards.forEach(card => {
+            const name = card.dataset.nombre.toLowerCase();
+            card.style.display = name.includes(q) ? 'flex' : 'none';
+        });
+    });
+
+    // Agregar al carrito
+    productCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const nombre = this.dataset.nombre;
+            const stock = parseFloat(this.dataset.stock);
+            const unidad = this.dataset.unidad;
+
+            if (cart.find(item => item.id === id)) {
+                alert('Este producto ya está en la lista.');
+                return;
+            }
+
+            cart.push({ id, nombre, stock, unidad, cantidad: 0 });
+            renderCart();
+        });
+    });
+
+    function renderCart() {
+        if (cart.length === 0) {
+            dispatchList.innerHTML = `
+                <div class="empty-state">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">📦</div>
+                    <h3>Tu lista está vacía</h3>
+                    <p>Busca y selecciona productos a la izquierda para empezar a repartir.</p>
+                </div>
+            `;
+            actionsFooter.style.display = 'none';
+            itemCountBadge.textContent = '0 productos seleccionados';
+            return;
+        }
+
+        actionsFooter.style.display = 'block';
+        itemCountBadge.textContent = `${cart.length} productos seleccionados`;
+        dispatchList.innerHTML = '';
+
+        cart.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'cart-item';
+            div.innerHTML = `
+                <div>
+                    <div style="font-weight: 700; font-size: 1.1rem; color: var(--accent);">${item.nombre}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Stock disponible: ${item.stock} ${item.unidad}</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="number" class="form-control qty-input" value="${item.cantidad || ''}" placeholder="0" min="0" max="${item.stock}" onchange="updateQty(${index}, this.value)">
+                    <span style="font-weight: 600; color: var(--text-muted);">${item.unidad}</span>
+                </div>
+                <div class="btn-remove" onclick="removeFromCart(${index})">🗑️</div>
+            `;
+            dispatchList.appendChild(div);
+        });
+    }
+
+    window.updateQty = (index, val) => {
+        cart[index].cantidad = parseFloat(val) || 0;
+    };
+
+    window.removeFromCart = (index) => {
+        cart.splice(index, 1);
+        renderCart();
+    };
+
+    // Procesar despacho
+    processBtn.addEventListener('click', async function() {
+        const area = areaSelect.value;
+        if (!area) {
+            alert('Por favor, selecciona el área de destino primero.');
+            areaSelect.focus();
+            return;
+        }
+
+        const validItems = cart.filter(item => item.cantidad > 0);
+        if (validItems.length === 0) {
+            alert('Ingresa cantidades válidas para los productos.');
+            return;
+        }
+
+        // Mostrar loading
+        processBtn.disabled = true;
+        processBtn.textContent = 'Procesando... 🔄';
+
+        try {
+            const response = await fetch('', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    area: area,
+                    fecha: fechaSelect.value,
+                    items: validItems
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showResults(result.resultados);
+            } else {
+                alert('Error: ' + result.error);
+                processBtn.disabled = false;
+                processBtn.textContent = 'Confirmar y Repartir Todo';
+            }
+        } catch (error) {
+            alert('Error de conexión.');
+            processBtn.disabled = false;
+        }
+    });
+
+    function showResults(resultados) {
+        const modal = document.getElementById('results-modal');
+        const content = document.getElementById('results-content');
+        modal.style.display = 'flex';
+        
+        let html = '<ul style="list-style:none; padding:0;">';
+        resultados.forEach(res => {
+            const color = res.faltante > 0 ? 'var(--warning)' : 'var(--success)';
+            html += `
+                <li style="padding: 1rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;">
+                    <span>${res.nombre}</span>
+                    <span style="color: ${color}; font-weight: 700;">
+                        ${res.despachado} despachados ${res.faltante > 0 ? '(Faltaron ' + res.faltante + ')' : '✅'}
+                    </span>
+                </li>
+            `;
+        });
+        html += '</ul>';
+        content.innerHTML = html;
+    }
+</script>
+{% endblock %}

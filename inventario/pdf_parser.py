@@ -1,12 +1,20 @@
+import sys
+import os
+import re
+import traceback
 import pdfplumber
 import pytesseract
-import re
 from pdf2image import convert_from_path
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# Determinar si estamos en Windows
+IS_WINDOWS = sys.platform.startswith('win')
 
-# Ruta exacta de poppler en este sistema
-POPPLER_PATH = r"C:\Users\Coalfa\AppData\Local\Microsoft\WinGet\Packages\oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe\poppler-25.07.0\Library\bin"
+if IS_WINDOWS:
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    POPPLER_PATH = r"C:\Users\Coalfa\AppData\Local\Microsoft\WinGet\Packages\oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe\poppler-25.07.0\Library\bin"
+else:
+    # En Linux / PythonAnywhere, dejamos que busque 'tesseract' y 'pdftoppm' en el PATH del sistema
+    POPPLER_PATH = None
 
 
 def extraer_datos_factura(pdf_path):
@@ -38,7 +46,9 @@ def _extraer_con_pdfplumber(pdf_path):
                             if p:
                                 productos.extend(p)
                                 break
-                    except Exception:
+                    except Exception as ex:
+                        print(f"[pdfplumber] Error al parsear tabla: {ex}")
+                        traceback.print_exc()
                         continue
 
                 if not productos:
@@ -46,7 +56,8 @@ def _extraer_con_pdfplumber(pdf_path):
                     if text:
                         productos.extend(_parsear_texto_generico(text))
     except Exception as e:
-        print(f"[pdfplumber] Error: {e}")
+        print(f"[pdfplumber] Error en {pdf_path}: {e}")
+        traceback.print_exc()
     return productos
 
 
@@ -54,7 +65,11 @@ def _extraer_con_ocr(pdf_path):
     """Convierte el PDF a imagen y aplica OCR con Tesseract."""
     productos = []
     try:
-        images = convert_from_path(pdf_path, dpi=300, poppler_path=POPPLER_PATH)
+        if POPPLER_PATH:
+            images = convert_from_path(pdf_path, dpi=300, poppler_path=POPPLER_PATH)
+        else:
+            images = convert_from_path(pdf_path, dpi=300)
+            
         if not images:
             return []
 
@@ -72,7 +87,8 @@ def _extraer_con_ocr(pdf_path):
                 productos = _parsear_texto_generico(texto_completo)
 
     except Exception as e:
-        print(f"[OCR] Error: {e}")
+        print(f"[OCR] Error en {pdf_path}: {e}")
+        traceback.print_exc()
     return productos
 
 

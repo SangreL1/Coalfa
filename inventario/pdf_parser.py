@@ -2,6 +2,7 @@ import sys
 import os
 import re
 import traceback
+import shutil
 import pdfplumber
 import pytesseract
 from pdf2image import convert_from_path
@@ -12,9 +13,11 @@ IS_WINDOWS = sys.platform.startswith('win')
 if IS_WINDOWS:
     pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     POPPLER_PATH = r"C:\Users\Coalfa\AppData\Local\Microsoft\WinGet\Packages\oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe\poppler-25.07.0\Library\bin"
+    TESSERACT_AVAILABLE = os.path.exists(pytesseract.pytesseract.tesseract_cmd)
 else:
     # En Linux / PythonAnywhere, dejamos que busque 'tesseract' y 'pdftoppm' en el PATH del sistema
     POPPLER_PATH = None
+    TESSERACT_AVAILABLE = shutil.which('tesseract') is not None
 
 
 def extraer_datos_factura(pdf_path):
@@ -25,7 +28,11 @@ def extraer_datos_factura(pdf_path):
     """
     resultado = _extraer_con_pdfplumber(pdf_path)
     if not resultado:
-        resultado = _extraer_con_ocr(pdf_path)
+        if TESSERACT_AVAILABLE:
+            print(f"[pdf_parser] pdfplumber no detectó productos en {pdf_path}. Ejecutando OCR de respaldo...")
+            resultado = _extraer_con_ocr(pdf_path)
+        else:
+            print(f"[pdf_parser] pdfplumber no detectó productos en {pdf_path} y OCR (Tesseract) no está disponible en este entorno. Omitiendo OCR.")
     return resultado
 
 
@@ -65,10 +72,11 @@ def _extraer_con_ocr(pdf_path):
     """Convierte el PDF a imagen y aplica OCR con Tesseract."""
     productos = []
     try:
+        # Usamos 150 DPI en lugar de 300 para duplicar la velocidad de conversión y reducir consumo de memoria
         if POPPLER_PATH:
-            images = convert_from_path(pdf_path, dpi=300, poppler_path=POPPLER_PATH)
+            images = convert_from_path(pdf_path, dpi=150, poppler_path=POPPLER_PATH)
         else:
-            images = convert_from_path(pdf_path, dpi=300)
+            images = convert_from_path(pdf_path, dpi=150)
             
         if not images:
             return []

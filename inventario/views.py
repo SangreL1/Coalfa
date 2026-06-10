@@ -1531,7 +1531,7 @@ def ver_factura_pdf(request, filename):
 @operacional_required
 def procesar_factura_pdf(request, filename):
     """Lee el PDF y muestra una previsualización de los productos detectados."""
-    from .pdf_parser import extraer_datos_factura
+    from .pdf_parser import extraer_datos_factura, TESSERACT_AVAILABLE
     
     path_pdf = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO", filename)
     if not os.path.exists(path_pdf):
@@ -1541,6 +1541,14 @@ def procesar_factura_pdf(request, filename):
     # Extraer datos
     items = extraer_datos_factura(path_pdf)
     num_guia = filename.replace(".pdf", "").replace(".PDF", "")
+    
+    if not items and not TESSERACT_AVAILABLE:
+        messages.warning(
+            request,
+            "Este archivo PDF no contiene texto nativo (parece ser una imagen escaneada o foto) y "
+            "el servidor online no tiene activado el motor de OCR (Tesseract). "
+            "Por favor, intenta subir el PDF digital original emitido por el proveedor para una extracción instantánea."
+        )
     
     return render(request, "inventario/previsualizar_factura.html", {
         "items": items,

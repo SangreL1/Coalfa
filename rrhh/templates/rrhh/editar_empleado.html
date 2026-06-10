@@ -20,7 +20,7 @@
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
             <div class="form-group"><label class="form-label">Nombre</label>{{ form.nombre }}</div>
             <div class="form-group"><label class="form-label">Apellido</label>{{ form.apellido }}</div>
             <div class="form-group"><label class="form-label">RUT</label>{{ form.rut }}</div>
@@ -60,7 +60,7 @@
             </div>
         </div>
 
-        <div style="margin-top: 2rem; display: flex; gap: 1rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+        <div style="margin-top: 2rem; display: flex; gap: 1rem; border-top: 1px solid var(--border); padding-top: 1.5rem; flex-wrap: wrap;">
             <button type="submit" class="btn btn-primary">💾 Guardar Cambios</button>
             <a href="{% url 'rrhh_detalle_empleado' empleado.pk %}" class="btn btn-ghost">Cancelar</a>
         </div>

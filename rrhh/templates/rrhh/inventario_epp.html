@@ -51,21 +51,60 @@
 .table-premium tr:hover td {
     background: rgba(255,255,255,0.04);
 }
+
+.epp-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+.epp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.epp-header-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 992px) {
+    .epp-layout {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 768px) {
+    .epp-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .epp-header-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .epp-header-actions > button {
+        width: 100%;
+        justify-content: center;
+    }
+}
 {% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+<div class="epp-header">
     <div>
         <h2 style="font-size: 1.5rem; font-weight: 800;">Control de Ropa y EPP</h2>
-        <p style="color: var(--text-muted);">Administración de stock y entregas a personal.</p>
+        <p style="color: var(--text-muted); margin-bottom: 0;">Administración de stock y entregas a personal.</p>
     </div>
-    <div style="display: flex; gap: 0.75rem;">
+    <div class="epp-header-actions">
          <button class="btn btn-primary" onclick="toggleModal('modalEntrega')">🤝 Registrar Entrega</button>
          <button class="btn btn-ghost" onclick="toggleModal('modalIngreso')">➕ Cargar Stock</button>
     </div>
 </div>
 
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+<div class="epp-layout">
     <!-- Stock View -->
     <div>
         <div class="glass-card">
@@ -104,7 +143,7 @@
 </div>
 
 <!-- Modal Entrega -->
-<div id="modalEntrega" class="glass-card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; width: 450px; border-color: var(--accent);">
+<div id="modalEntrega" class="glass-card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; width: 95%; max-width: 450px; border-color: var(--accent);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
         <h3 style="margin: 0;">Registro de Entrega</h3>
         <button class="btn btn-ghost" onclick="toggleModal('modalEntrega')">×</button>
@@ -130,7 +169,7 @@
 </div>
 
 <!-- Modal Ingreso -->
-<div id="modalIngreso" class="glass-card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; width: 500px; border-color: var(--success); max-height: 90vh; overflow-y: auto;">
+<div id="modalIngreso" class="glass-card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2000; width: 95%; max-width: 500px; border-color: var(--success); max-height: 90vh; overflow-y: auto;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
         <h3 style="margin: 0;">Ingreso de Mercadería / Nuevo Producto</h3>
         <button class="btn btn-ghost" onclick="toggleModal('modalIngreso')">×</button>

@@ -15,27 +15,21 @@
 }
 
 .search-strip {
-    padding: 1.5rem;
+    padding: 1.25rem 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(255,255,255,0.02);
     border-bottom: 1px solid var(--border);
     flex-wrap: wrap;
-    gap: 1rem;
-}
-
-@media (max-width: 600px) {
-    .search-strip input { width: 100% !important; }
+    gap: 0.75rem;
 }
 
 .product-row:hover td {
     background: rgba(249, 115, 22, 0.05);
 }
 
-.health-bar-container {
-    width: 120px;
-}
+.health-bar-container { width: 110px; }
 
 .health-bar-track {
     height: 8px;
@@ -51,41 +45,61 @@
 }
 
 .status-dot {
-    width: 8px;
-    height: 8px;
+    width: 8px; height: 8px;
     border-radius: 50%;
     display: inline-block;
     margin-right: 6px;
+}
+
+/* Mobile */
+.prod-mobile-card {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+.prod-mobile-card:last-child { border-bottom: none; }
+
+.desktop-table { display: block; }
+.mobile-prod-list { display: none; }
+
+@media (max-width: 768px) {
+    .desktop-table    { display: none !important; }
+    .mobile-prod-list { display: block !important; }
+    .search-strip input { width: 100% !important; }
+    .search-strip { flex-direction: column; align-items: flex-start; }
+    .page-header-btns { flex-wrap: wrap !important; }
+    .page-header-btns > * { flex: 1 1 auto; text-align: center; justify-content: center; }
 }
 {% endblock %}
 
 {% block content %}
 
-<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:2.5rem; gap:1.5rem; flex-wrap:wrap;">
+<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:2.5rem; gap:1rem; flex-wrap:wrap;">
     <div>
         <h1 class="page-title">Catálogo Maestro</h1>
         <p class="page-subtitle" style="margin-bottom:0;">Supervisión de niveles críticos y especificaciones técnicas</p>
     </div>
-    <div style="display:flex; gap:0.75rem;">
-        <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost">← Volver al Centro de Control</a>
-        <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-primary">+ Nuevo Producto</a>
+    <div class="page-header-btns" style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+        <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost btn-sm">← Volver</a>
+        <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-primary btn-sm">+ Nuevo Producto</a>
     </div>
 </div>
 
 <div class="glass-table-card">
     <div class="search-strip">
-        <div style="position:relative;">
-            <input type="text" id="productSearch" placeholder="Filtrar por nombre o categoría..." 
-                   class="form-control" style="width:320px; padding-left:2.5rem; font-size:0.85rem;">
+        <div style="position:relative; width:100%;">
+            <input type="text" id="productSearch" placeholder="Filtrar por nombre o categoría..."
+                   class="form-control" style="padding-left:2.5rem; font-size:0.85rem;">
             <span style="position:absolute; left:1rem; top:50%; transform:translateY(-50%); opacity:0.5;">🔍</span>
         </div>
-        <div style="display:flex; gap:1.5rem; font-size:0.75rem; color:var(--text-muted);">
+        <div style="display:flex; gap:1rem; font-size:0.72rem; color:var(--text-muted); flex-wrap:wrap;">
             <div style="display:flex; align-items:center;"><span class="status-dot" style="background:var(--success);"></span> Óptimo</div>
             <div style="display:flex; align-items:center;"><span class="status-dot" style="background:var(--warning);"></span> Bajo</div>
             <div style="display:flex; align-items:center;"><span class="status-dot" style="background:var(--danger);"></span> Crítico</div>
         </div>
     </div>
 
+    <!-- Tabla desktop -->
+    <div class="desktop-table" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
     <table class="table-enterprise" style="border-spacing: 0;">
         <thead>
             <tr style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; background:rgba(0,0,0,0.1);">
@@ -115,9 +129,9 @@
                     </span>
                 </td>
                 <td>
-                    <div style="font-weight:800; font-size:1.1rem;">
-                        {{ item.stock_total|floatformat:1 }} 
-                        <span style="font-weight:400; font-size:0.75rem; color:var(--text-muted);">{{ item.producto.get_unidad_medida_display }}</span>
+                    <div style="font-weight:800; font-size:1.05rem;">
+                        {{ item.stock_total|floatformat:1 }}
+                        <span style="font-weight:400; font-size:0.72rem; color:var(--text-muted);">{{ item.producto.get_unidad_medida_display }}</span>
                     </div>
                     <div style="font-size:0.65rem; color:var(--text-muted);">{{ item.lotes_activos }} lotes activos</div>
                 </td>
@@ -125,22 +139,19 @@
                     <div class="health-bar-container">
                         <div style="display:flex; justify-content:space-between; font-size:0.65rem; font-weight:700;">
                             <span>{{ item.salud_real|floatformat:0 }}%</span>
-                            {% if item.salud_real < 50 %}
-                            <span style="color:var(--danger);">Reposición</span>
-                            {% endif %}
+                            {% if item.salud_real < 50 %}<span style="color:var(--danger);">Repo.</span>{% endif %}
                         </div>
                         <div class="health-bar-track">
-                            <div class="health-bar-fill" style="width:{{ item.salud }}%; 
+                            <div class="health-bar-fill" style="width:{{ item.salud }}%;
                                 background:{% if item.salud_real < 40 %}var(--danger){% elif item.salud_real < 100 %}var(--warning){% else %}var(--success){% endif %};
-                                box-shadow: 0 0 10px {% if item.salud_real < 40 %}rgba(248,113,113,0.3){% elif item.salud_real < 100 %}rgba(251,191,36,0.3){% else %}rgba(52,211,153,0.3){% endif %};">
-                            </div>
+                                box-shadow: 0 0 10px {% if item.salud_real < 40 %}rgba(248,113,113,0.3){% elif item.salud_real < 100 %}rgba(251,191,36,0.3){% else %}rgba(52,211,153,0.3){% endif %};"></div>
                         </div>
                     </div>
                 </td>
                 <td style="text-align:right; padding-right:1.5rem;">
                     <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
-                        <a href="{% url 'inventario_lista_lotes' %}?q={{ item.producto.nombre }}" class="btn btn-ghost btn-sm" title="Ver Historial">🎞️</a>
-                        <a href="{% url 'inventario_eliminar_producto' item.producto.pk %}" 
+                        <a href="{% url 'inventario_lista_lotes' %}?q={{ item.producto.nombre }}" class="btn btn-ghost btn-sm" title="Ver Historial">🎦</a>
+                        <a href="{% url 'inventario_eliminar_producto' item.producto.pk %}"
                            class="btn btn-danger btn-sm {% if item.lotes_activos > 0 %}disabled{% endif %}"
                            {% if item.lotes_activos > 0 %}style="opacity:0.2; pointer-events:none;"{% endif %}>
                            Eliminar
@@ -158,14 +169,58 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
+
+    <!-- Cards móvil -->
+    <div class="mobile-prod-list" id="productMobileList">
+        {% for item in data %}
+        <div class="prod-mobile-card" data-search="{{ item.producto.nombre|lower }} {{ item.producto.get_categoria_display|lower }}">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:700; font-size:0.9rem;">{{ item.producto.nombre }}{% if item.producto.talla %} ({{ item.producto.talla }}){% endif %}</div>
+                    <div style="font-size:0.68rem; color:var(--text-muted); margin-top:2px;">{{ item.producto.get_categoria_display }}</div>
+                </div>
+                <div style="text-align:right; flex-shrink:0; margin-left:1rem;">
+                    <div style="font-weight:800; font-size:1rem;">{{ item.stock_total|floatformat:1 }}</div>
+                    <div style="font-size:0.65rem; color:var(--text-muted);">{{ item.producto.get_unidad_medida_display }} &middot; {{ item.lotes_activos }} lotes</div>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.65rem; font-weight:700; margin-bottom:3px;">
+                <span>{{ item.salud_real|floatformat:0 }}%</span>
+                {% if item.salud_real < 50 %}<span style="color:var(--danger);">Reposición</span>{% elif item.salud_real < 100 %}<span style="color:var(--warning);">Bajo</span>{% else %}<span style="color:var(--success);">Saludable</span>{% endif %}
+            </div>
+            <div class="health-bar-track" style="margin-bottom:0.75rem;">
+                <div class="health-bar-fill" style="width:{{ item.salud }}%;
+                    background:{% if item.salud_real < 40 %}var(--danger){% elif item.salud_real < 100 %}var(--warning){% else %}var(--success){% endif %};"></div>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+                <a href="{% url 'inventario_lista_lotes' %}?q={{ item.producto.nombre }}" class="btn btn-ghost btn-sm" style="flex:1; text-align:center; justify-content:center;">🎦 Historial</a>
+                <a href="{% url 'inventario_eliminar_producto' item.producto.pk %}"
+                   class="btn btn-danger btn-sm {% if item.lotes_activos > 0 %}disabled{% endif %}"
+                   {% if item.lotes_activos > 0 %}style="opacity:0.2; pointer-events:none;"{% endif %}>Eliminar</a>
+            </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center; padding:3rem; color:var(--text-muted);">
+            <div style="font-size:3rem; margin-bottom:1rem;">📂</div>
+            No se han registrado productos.
+        </div>
+        {% endfor %}
+    </div>
 </div>
 
 <script>
     document.getElementById('productSearch').addEventListener('input', function(e) {
         const q = e.target.value.toLowerCase();
+        // Filtrar tabla desktop
         document.querySelectorAll('#productTableBody tr').forEach(row => {
-            const text = row.getAttribute('data-search');
+            const text = row.getAttribute('data-search') || '';
             row.style.display = text.includes(q) ? '' : 'none';
+        });
+        // Filtrar cards móvil
+        document.querySelectorAll('#productMobileList .prod-mobile-card').forEach(card => {
+            const text = card.getAttribute('data-search') || '';
+            card.style.display = text.includes(q) ? '' : 'none';
         });
     });
 </script>

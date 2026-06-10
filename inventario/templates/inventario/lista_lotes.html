@@ -53,14 +53,37 @@
 .lote-card:hover td { background: rgba(255,255,255,0.015); }
 
 @keyframes pulse-red-bg {
-    0% { background-color: rgba(239, 68, 68, 0.05); }
-    50% { background-color: rgba(239, 68, 68, 0.15); }
+    0%   { background-color: rgba(239, 68, 68, 0.05); }
+    50%  { background-color: rgba(239, 68, 68, 0.15); }
     100% { background-color: rgba(239, 68, 68, 0.05); }
 }
 
 .critical-fefo {
     animation: pulse-red-bg 2s infinite;
     border-left: 4px solid var(--danger) !important;
+}
+
+/* Cards para móvil */
+.lote-mobile-card {
+    background: rgba(255,255,255,0.025);
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    margin-bottom: 0.75rem;
+}
+.lote-mobile-card.critical-fefo-card {
+    animation: pulse-red-bg 2s infinite;
+    border-left: 4px solid var(--danger);
+}
+
+.desktop-table { display: block; }
+.mobile-cards  { display: none; }
+
+@media (max-width: 768px) {
+    .desktop-table { display: none !important; }
+    .mobile-cards  { display: block !important; }
+    .page-header-actions { flex-wrap: wrap !important; }
+    .page-header-actions > * { flex: 1 1 auto; text-align: center; justify-content: center; }
 }
 {% endblock %}
 
@@ -71,10 +94,10 @@
         <h1 class="page-title">Explorador de Lotes</h1>
         <p class="page-subtitle" style="margin-bottom:0;">Seguimiento detallado de ingresos, salidas y ubicaciones</p>
     </div>
-    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-        <a href="{% url 'exportar_inventario_csv' %}?q={{ q }}&ubicacion={{ ubicacion }}&estado={{ estado }}" class="btn btn-ghost">📊 CSV</a>
-        <a href="{% url 'exportar_inventario_excel' %}?q={{ q }}&ubicacion={{ ubicacion }}&estado={{ estado }}" class="btn btn-ghost" style="border-color:var(--success); color:var(--success);">📗 Descargar Excel</a>
-        <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-primary">📦 Registrar Ingreso</a>
+    <div class="page-header-actions" style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+        <a href="{% url 'exportar_inventario_csv' %}?q={{ q }}&ubicacion={{ ubicacion }}&estado={{ estado }}" class="btn btn-ghost btn-sm">📊 CSV</a>
+        <a href="{% url 'exportar_inventario_excel' %}?q={{ q }}&ubicacion={{ ubicacion }}&estado={{ estado }}" class="btn btn-ghost btn-sm" style="border-color:var(--success); color:var(--success);">📗 Excel</a>
+        <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-primary btn-sm">📦 Registrar</a>
     </div>
 </div>
 
@@ -115,13 +138,15 @@
     </form>
 </div>
 
-<div class="glass-panel" style="padding:0; overflow:hidden;">
+<!-- Tabla (desktop) -->
+<div class="glass-panel desktop-table" style="padding:0; overflow:hidden;">
+    <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
     <table class="table-enterprise" style="border-spacing: 0;">
         <thead>
             <tr style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; background:rgba(0,0,0,0.15);">
                 <th style="padding:1.25rem 1.5rem; text-align:left;">Lote</th>
                 <th>Producto</th>
-                <th>Cantidad Actual</th>
+                <th>Cantidad</th>
                 <th>Ubicación</th>
                 <th>Vencimiento</th>
                 <th style="text-align:right; padding-right:1.5rem;">Acciones</th>
@@ -163,7 +188,7 @@
                     {% endif %}
                 </td>
                 <td style="text-align:right; padding-right:1.5rem;">
-                    <a href="{% url 'inventario_detalle_lote' lote.pk %}" class="btn btn-ghost btn-sm">Abrir Detalle →</a>
+                    <a href="{% url 'inventario_detalle_lote' lote.pk %}" class="btn btn-ghost btn-sm">Abrir →</a>
                 </td>
             </tr>
             {% empty %}
@@ -179,6 +204,49 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
+</div>
+
+<!-- Cards (móvil) -->
+<div class="mobile-cards">
+    {% for lote in lotes %}
+    <div class="lote-mobile-card {% if lote.dias_restantes <= 3 %}critical-fefo-card{% endif %}">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
+            <div>
+                <div style="font-family:monospace; font-weight:800; color:var(--accent); font-size:0.95rem;">{{ lote.numero_lote }}</div>
+                <div style="font-weight:700; font-size:0.88rem; margin-top:2px;">{{ lote.producto.nombre }}</div>
+                <div style="font-size:0.68rem; color:var(--text-muted);">{{ lote.proveedor.nombre|default:"Sin proveedor" }}</div>
+            </div>
+            <span class="badge badge-{{ lote.ubicacion_actual|lower }}" style="font-size:0.62rem; flex-shrink:0;">{{ lote.get_ubicacion_actual_display }}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem;">
+            <div>
+                <span style="font-weight:800;">{{ lote.cantidad }}</span>
+                <span style="color:var(--text-muted); font-size:0.68rem;"> {{ lote.producto.get_unidad_medida_display }}</span>
+            </div>
+            <div style="text-align:right;">
+                {% if lote.fecha_vencimiento < hoy %}
+                <span style="color:var(--danger); font-weight:800; font-size:0.78rem;">VENCIDO</span>
+                {% elif lote.dias_restantes <= 7 %}
+                <span style="color:var(--warning); font-weight:800; font-size:0.78rem;">PRÓXIMO &middot; {{ lote.fecha_vencimiento|date:"d/m/Y" }}</span>
+                {% else %}
+                <span style="color:var(--success); font-size:0.75rem;">{{ lote.fecha_vencimiento|date:"d/m/Y" }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div style="margin-top:0.75rem;">
+            <a href="{% url 'inventario_detalle_lote' lote.pk %}" class="btn btn-ghost btn-sm" style="width:100%; text-align:center; justify-content:center;">Ver Detalle →</a>
+        </div>
+    </div>
+    {% empty %}
+    <div style="text-align:center; padding:3rem; color:var(--text-muted);">
+        <div style="font-size:3rem; opacity:0.3; margin-bottom:0.75rem;">📦</div>
+        <p>No se encontraron lotes.</p>
+        {% if q or ubicacion or estado %}
+        <a href="{% url 'inventario_lista_lotes' %}" style="color:var(--accent); font-weight:600; text-decoration:none;">Limpiar Filtros</a>
+        {% endif %}
+    </div>
+    {% endfor %}
 </div>
 
 {% endblock %}

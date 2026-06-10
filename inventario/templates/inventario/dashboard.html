@@ -16,31 +16,32 @@
     border: 1px solid rgba(255, 255, 255, 0.125);
     padding: 1.5rem;
     box-shadow: var(--shadow);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: box-shadow 0.3s ease;
 }
 
-.glass-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
-    border-color: rgba(249, 115, 22, 0.3);
+@media (hover: hover) {
+    .glass-card:hover {
+        box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+        border-color: rgba(249, 115, 22, 0.3);
+    }
 }
 
+/* ── Layout ── */
 .dashboard-layout {
     display: grid;
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: 1fr 320px;
     gap: 1.5rem;
 }
 
-/* KPI Premium */
+/* ── KPI Strip ── */
 .kpi-container {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
 .kpi-enterprise {
-    flex: 1 1 200px;
     min-width: 0;
     padding: 1.25rem;
     position: relative;
@@ -51,13 +52,14 @@
     position: absolute;
     right: -10px;
     bottom: -10px;
-    font-size: 4rem;
+    font-size: 3.5rem;
     opacity: 0.1;
     transform: rotate(-15deg);
+    pointer-events: none;
 }
 
 .kpi-enterprise .label {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.2px;
@@ -65,110 +67,137 @@
 }
 
 .kpi-enterprise .value {
-    font-size: clamp(1.25rem, 3.5vw, 2.2rem);
+    font-size: clamp(1.2rem, 2.5vw, 2rem);
     font-weight: 800;
-    margin-top: 0.4rem;
-    letter-spacing: -1px;
+    margin-top: 0.35rem;
+    letter-spacing: -0.5px;
     word-break: break-all;
     line-height: 1.1;
 }
 
 .kpi-enterprise .metric-sub {
-    font-size: clamp(0.65rem, 1.5vw, 0.8rem);
-    margin-top: 0.25rem;
+    font-size: 0.68rem;
+    margin-top: 0.2rem;
+    color: var(--text-muted);
 }
 
-.kpi-enterprise.accent { border-top: 4px solid var(--accent); }
+.kpi-enterprise.accent  { border-top: 4px solid var(--accent); }
 .kpi-enterprise.success { border-top: 4px solid var(--success); }
 .kpi-enterprise.warning { border-top: 4px solid var(--warning); }
-.kpi-enterprise.indigo { border-top: 4px solid var(--indigo); }
+.kpi-enterprise.indigo  { border-top: 4px solid var(--indigo); }
 
-/* Timeline Moderno */
-.timeline {
-    position: relative;
-    padding-left: 1.5rem;
-}
-
-.timeline::before {
-    content: '';
-    position: absolute;
-    left: 4px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background: linear-gradient(to bottom, var(--accent), var(--coal-light));
-    border-radius: 1px;
-}
-
-.timeline-item {
-    position: relative;
-    margin-bottom: 1.5rem;
-}
-
-.timeline-item::after {
-    content: '';
-    position: absolute;
-    left: -22px;
-    top: 6px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--coal);
-    border: 2px solid var(--accent);
-    box-shadow: 0 0 8px var(--accent-glow);
-}
-
-.timeline-content {
-    background: rgba(255,255,255,0.03);
-    padding: 0.75rem 1rem;
-    border-radius: 10px;
-}
-
-/* Tablas Premium */
-.table-enterprise { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
-.table-enterprise tr { transition: transform 0.2s; }
-.table-enterprise tr:hover { transform: scale(1.01); }
-.table-enterprise td {
-    background: rgba(255,255,255,0.025);
-    padding: 1rem;
-    font-size: 0.85rem;
-}
-.table-enterprise td:first-child { border-radius: 10px 0 0 10px; }
-.table-enterprise td:last-child { border-radius: 0 10px 10px 0; }
-
-.health-bar {
-    width: 100%;
-    height: 6px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 4px;
-}
-.health-fill { height: 100%; transition: width 0.6s ease; }
-
-@media (max-width: 1200px) {
-    .dashboard-layout { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 768px) {
-    .page-content { padding: 1rem; }
-    
-    .dashboard-header { 
-        flex-direction: column; 
-        align-items: flex-start !important; 
-        gap: 1rem; 
-    }
-
-    .glass-card { padding: 1rem; }
-
-    .analytics-grid {
-        grid-template-columns: 1fr !important;
-    }
-}
+/* ── Charts Grid ── */
 .analytics-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
+}
+
+/* ── Timeline ── */
+.timeline {
+    position: relative;
+    padding-left: 1.5rem;
+}
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 4px; top: 0; bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent), var(--coal-light));
+    border-radius: 1px;
+}
+.timeline-item {
+    position: relative;
+    margin-bottom: 1.25rem;
+}
+.timeline-item::after {
+    content: '';
+    position: absolute;
+    left: -22px; top: 6px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #0f172a;
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* ── Premium Table ── */
+.table-enterprise {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 6px;
+    min-width: 420px;
+}
+.table-enterprise tr  { transition: opacity 0.2s; }
+.table-enterprise tr:hover { opacity: 0.85; }
+.table-enterprise td {
+    background: rgba(255,255,255,0.025);
+    padding: 0.7rem 0.75rem;
+    font-size: 0.8rem;
+}
+.table-enterprise td:first-child { border-radius: 10px 0 0 10px; }
+.table-enterprise td:last-child  { border-radius: 0 10px 10px 0; }
+
+/* ── Salud bar ── */
+.health-bar {
+    width: 100%; height: 5px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px; overflow: hidden;
+    margin-top: 3px;
+}
+.health-fill { height: 100%; transition: width 0.6s ease; }
+
+/* ── Mobile card list (reemplaza tabla en móvil) ── */
+.critical-card-list { display: none; }
+
+/* ════════════════════════════════
+   RESPONSIVE
+   ════════════════════════════════ */
+
+/* Tablet */
+@media (max-width: 1100px) {
+    .dashboard-layout { grid-template-columns: 1fr; }
+    .kpi-container    { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .page-content { padding: 0.85rem !important; }
+
+    .dashboard-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem !important;
+    }
+    .dashboard-header h2 { font-size: 1.2rem !important; }
+    .dashboard-header > div:last-child {
+        display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%;
+    }
+    .dashboard-header > div:last-child > * { flex: 1 1 auto; text-align: center; justify-content: center; }
+
+    .glass-card { padding: 0.9rem; }
+
+    /* KPIs: 2 por fila en móvil */
+    .kpi-container { grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem; }
+    .kpi-enterprise .icon-bg { font-size: 2.5rem; }
+    .kpi-enterprise .metric-sub { display: none; } /* ahorra espacio */
+
+    /* Gráficos: 1 por fila */
+    .analytics-grid { grid-template-columns: 1fr !important; }
+
+    /* Tabla → ocultar y mostrar tarjetas */
+    .table-enterprise-wrap { display: none !important; }
+    .critical-card-list    { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    /* Consumos: limitar altura y scroll */
+    .timeline-scroll { max-height: 320px; overflow-y: auto; }
+}
+
+/* Very small */
+@media (max-width: 380px) {
+    .kpi-container { grid-template-columns: 1fr 1fr !important; }
+    .kpi-enterprise .value { font-size: 1rem; }
 }
 {% endblock %}
 
@@ -178,39 +207,39 @@
 <div class="dashboard-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <div>
         <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text);">Resumen Operativo</h2>
-        <p style="color: var(--text-muted); font-size: 0.875rem;">Control de stock, vencimientos y trazabilidad de alimentos.</p>
+        <p style="color: var(--text-muted); font-size: 0.82rem;">Control de stock, vencimientos y trazabilidad.</p>
     </div>
     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-        <a href="{% url 'inventario_mapa_bodega' %}" class="btn btn-primary btn-sm">🗺️ Ver Mapa Visual</a>
-        <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-ghost btn-sm">➕ Recibir Lote</a>
+        <a href="{% url 'inventario_mapa_bodega' %}" class="btn btn-primary btn-sm">🗺️ Mapa</a>
+        <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-ghost btn-sm">➕ Recibir</a>
         <div style="position:relative; display:inline-block;">
-            <button class="btn btn-ghost" onclick="toggleQuickMenu()">Acciones ▾</button>
-            <div id="quickMenu" class="glass-card" style="display:none; position:absolute; right:0; top:calc(100% + 10px); width:240px; z-index:1000; padding:0.5rem;">
-                <a href="{% url 'inventario_recibir_lote' %}" class="nav-item" style="padding:0.6rem 1rem;">📦 Registrar Stock Existente</a>
-                <a href="{% url 'inventario_transformar_lote' %}" class="nav-item" style="padding:0.6rem 1rem;">🔄 Transformar Lote</a>
-                <a href="{% url 'inventario_resumen_consumo' %}" class="nav-item" style="padding:0.6rem 1rem;">📈 Estadísticas y Consumo</a>
-                <a href="{% url 'exportar_inventario_excel' %}" class="nav-item" style="padding:0.6rem 1rem;">📗 Exportar Inventario (Excel)</a>
-                <a href="{% url 'generar_reporte_pdf' %}" class="nav-item" style="padding:0.6rem 1rem;">📊 Generar Reporte PDF</a>
+            <button class="btn btn-ghost btn-sm" onclick="toggleQuickMenu()">Acciones ▾</button>
+            <div id="quickMenu" class="glass-card" style="display:none; position:absolute; right:0; top:calc(100% + 8px); width:220px; z-index:1000; padding:0.5rem;">
+                <a href="{% url 'inventario_recibir_lote' %}"      class="nav-item" style="padding:0.5rem 0.9rem; font-size:0.82rem;">📦 Registrar Stock</a>
+                <a href="{% url 'inventario_transformar_lote' %}"   class="nav-item" style="padding:0.5rem 0.9rem; font-size:0.82rem;">🔄 Transformar Lote</a>
+                <a href="{% url 'inventario_resumen_consumo' %}"    class="nav-item" style="padding:0.5rem 0.9rem; font-size:0.82rem;">📈 Estadísticas</a>
+                <a href="{% url 'exportar_inventario_excel' %}"     class="nav-item" style="padding:0.5rem 0.9rem; font-size:0.82rem;">📗 Exportar Excel</a>
+                <a href="{% url 'generar_reporte_pdf' %}"           class="nav-item" style="padding:0.5rem 0.9rem; font-size:0.82rem;">📊 Reporte PDF</a>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Critical FEFO Alerts (Only if exists) -->
+<!-- Alertas FEFO -->
 {% if alertas %}
-<div class="glass-card" style="margin-bottom: 1.5rem; border-color: var(--danger); background: rgba(239, 68, 68, 0.05);">
-    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-        <span style="font-size: 1.5rem;">🔥</span>
-        <h3 style="font-weight: 800; color: var(--danger); font-size: 1rem; text-transform: uppercase; letter-spacing: 1px;">Alerta FEFO Crítica: Prioridad de Salida</h3>
+<div class="glass-card" style="margin-bottom: 1.25rem; border-color: var(--danger); background: rgba(239,68,68,0.05);">
+    <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.85rem;">
+        <span style="font-size:1.25rem;">🔥</span>
+        <h3 style="font-weight:800; color:var(--danger); font-size:0.9rem; text-transform:uppercase; letter-spacing:1px;">Alerta FEFO Crítica</h3>
     </div>
-    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:0.75rem;">
         {% for a in alertas|slice:":4" %}
-        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
-            <div style="font-size: 0.7rem; color: var(--accent); font-weight: 800;">{{ a.numero_lote }}</div>
-            <div style="font-weight: 700; margin: 0.25rem 0;">{{ a.producto.nombre }}</div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
-                <span style="color: var(--text-muted);">Vence en:</span>
-                <span style="color: var(--danger); font-weight: 800;">{{ a.dias_restantes }} DÍAS</span>
+        <div style="background:rgba(0,0,0,0.2); padding:0.85rem; border-radius:10px; border:1px solid rgba(239,68,68,0.2);">
+            <div style="font-size:0.65rem; color:var(--accent); font-weight:800;">{{ a.numero_lote }}</div>
+            <div style="font-weight:700; margin:0.2rem 0; font-size:0.875rem;">{{ a.producto.nombre }}</div>
+            <div style="display:flex; justify-content:space-between; font-size:0.78rem;">
+                <span style="color:var(--text-muted);">Vence en:</span>
+                <span style="color:var(--danger); font-weight:800;">{{ a.dias_restantes }} DÍAS</span>
             </div>
         </div>
         {% endfor %}
@@ -221,13 +250,13 @@
 <!-- KPI Strip -->
 <div class="kpi-container">
     <div class="glass-card kpi-enterprise accent">
-        <div class="label">Valor de Inventario</div>
+        <div class="label">Valor Inventario</div>
         <div class="value">${{ valor_total|intcomma }}</div>
-        <div class="metric-sub" style="color:var(--text-muted);">Valor total en inventario activo</div>
+        <div class="metric-sub">Valor total activo</div>
         <div class="icon-bg">💰</div>
     </div>
     <div class="glass-card kpi-enterprise success">
-        <div class="label">Suministros Totales</div>
+        <div class="label">Suministros</div>
         <div class="value">{{ total_activos }}</div>
         <div class="metric-sub">Lotes en circulación</div>
         <div class="icon-bg">📦</div>
@@ -235,57 +264,60 @@
     <div class="glass-card kpi-enterprise warning">
         <div class="label">Stock Crítico</div>
         <div class="value" style="color:var(--warning);">{{ criticos_count }}</div>
-        <div class="metric-sub">Requiere reposición inmediata</div>
+        <div class="metric-sub">Requiere reposición</div>
         <div class="icon-bg">⚠️</div>
     </div>
     <div class="glass-card kpi-enterprise indigo">
-        <div class="label">Fecha Próxima</div>
+        <div class="label">Próx. Venc.</div>
         <div class="value">{{ vencidos_count }}</div>
         <div class="metric-sub" style="color:var(--danger);">Vencimientos próximos</div>
         <div class="icon-bg">📅</div>
     </div>
 </div>
 
+<!-- Dashboard Layout -->
 <div class="dashboard-layout">
-    
-    <!-- Main Column -->
-    <div style="display:flex; flex-direction:column; gap:1.5rem;">
-        
-        <!-- Analytics & Distribution -->
+
+    <!-- ── Columna Principal ── -->
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+
+        <!-- Gráficos -->
         <div class="analytics-grid">
+
+            <!-- Dona: Stock por categoría -->
             <div class="glass-card">
-                <div class="card-header" style="border:none; margin-bottom:1rem;">
-                    <div class="card-title" style="text-transform:uppercase; font-size:0.75rem; color:var(--text-muted);">Stock por Categoría</div>
-                </div>
-                <div style="height:220px; position:relative;">
+                <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:0.85rem;">Stock por Categoría</div>
+                <div class="chart-container-donut" style="position:relative;">
                     <canvas id="categoryChart"></canvas>
                 </div>
             </div>
-            
+
+            <!-- Barras: Ubicación -->
             <div class="glass-card">
-                <div class="card-header" style="border:none; margin-bottom:1rem;">
-                    <div class="card-title" style="text-transform:uppercase; font-size:0.75rem; color:var(--text-muted);">Ubicación Estratégica</div>
-                </div>
-                <div style="height:220px;">
+                <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-muted); margin-bottom:0.85rem;">Ubicación Estratégica</div>
+                <div class="chart-container-location" style="position:relative;">
                     <canvas id="locationChart"></canvas>
                 </div>
             </div>
+
         </div>
 
-        <!-- Critical Stock Health -->
+        <!-- Monitor de Abastecimiento Crítico -->
         <div class="glass-card">
-            <div class="card-header">
-                <div class="card-title">Monitor de Abastecimiento Crítico</div>
-                <a href="{% url 'inventario_lista_productos' %}" class="btn btn-ghost btn-sm">Ver Inventario Completo</a>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid var(--border);">
+                <div style="font-weight:700; font-size:0.95rem;">Monitor de Abastecimiento Crítico</div>
+                <a href="{% url 'inventario_lista_productos' %}" class="btn btn-ghost btn-sm">Ver Inventario →</a>
             </div>
-            <div class="table-wrap">
+
+            <!-- Tabla (desktop) -->
+            <div class="table-enterprise-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
                 <table class="table-enterprise">
                     <thead>
-                        <tr style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase;">
-                            <th style="padding:0 1rem;">Producto</th>
-                            <th>Estado Actual</th>
-                            <th>Mínimo Requerido</th>
-                            <th width="140">Salud de Stock</th>
+                        <tr style="color:var(--text-muted); font-size:0.68rem; text-transform:uppercase;">
+                            <th style="padding:0 0.75rem;">Producto</th>
+                            <th>Estado</th>
+                            <th>Mín.</th>
+                            <th style="min-width:110px;">Salud</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -293,14 +325,17 @@
                         <tr>
                             <td>
                                 <div style="font-weight:700;">{{ item.producto.nombre }}</div>
-                                <div style="font-size:0.7rem; color:var(--text-muted);">{{ item.producto.get_categoria_display }}</div>
+                                <div style="font-size:0.65rem; color:var(--text-muted);">{{ item.producto.get_categoria_display }}</div>
                             </td>
-                            <td style="font-weight:800;">{{ item.actual|floatformat:1 }} <span style="font-weight:400; font-size:0.75rem;">{{ item.producto.get_unidad_medida_display }}</span></td>
+                            <td style="font-weight:800; white-space:nowrap;">
+                                {{ item.actual|floatformat:1 }}
+                                <span style="font-weight:400; font-size:0.68rem; color:var(--text-muted);">{{ item.producto.get_unidad_medida_display }}</span>
+                            </td>
                             <td style="color:var(--text-muted);">{{ item.minimo }}</td>
                             <td>
-                                <div style="display:flex; justify-content:space-between; font-size:0.7rem; margin-bottom:2px;">
+                                <div style="display:flex; justify-content:space-between; font-size:0.62rem; margin-bottom:3px;">
                                     <span>{{ item.porcentaje|floatformat:0 }}%</span>
-                                    <span style="color:var(--danger);">Reposición</span>
+                                    <span style="color:var(--danger);">Repo.</span>
                                 </div>
                                 <div class="health-bar">
                                     <div class="health-fill" style="width:{{ item.porcentaje }}%; background:var(--danger);"></div>
@@ -308,40 +343,67 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="4" style="text-align:center; padding:2rem; color:var(--text-muted);">Niveles de stock saludables.</td></tr>
+                        <tr><td colspan="4" style="text-align:center; padding:2rem; color:var(--text-muted);">✅ Niveles de stock saludables.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+
+            <!-- Cards (móvil) -->
+            <div class="critical-card-list">
+                {% for item in productos_criticos %}
+                <div style="background:rgba(255,255,255,0.025); border-radius:10px; padding:0.85rem; border-left:3px solid var(--danger);">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+                        <div>
+                            <div style="font-weight:700; font-size:0.88rem;">{{ item.producto.nombre }}</div>
+                            <div style="font-size:0.65rem; color:var(--text-muted);">{{ item.producto.get_categoria_display }}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-weight:800; font-size:0.95rem;">{{ item.actual|floatformat:1 }}</div>
+                            <div style="font-size:0.62rem; color:var(--text-muted);">{{ item.producto.get_unidad_medida_display }} · mín {{ item.minimo }}</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.65rem; margin-bottom:3px;">
+                        <span style="color:var(--danger); font-weight:700;">Reposición necesaria</span>
+                        <span>{{ item.porcentaje|floatformat:0 }}%</span>
+                    </div>
+                    <div class="health-bar">
+                        <div class="health-fill" style="width:{{ item.porcentaje }}%; background:var(--danger);"></div>
+                    </div>
+                </div>
+                {% empty %}
+                <div style="text-align:center; padding:1.5rem; color:var(--text-muted); font-size:0.85rem;">✅ Niveles de stock saludables.</div>
+                {% endfor %}
+            </div>
+
         </div>
 
     </div>
 
-        <!-- Actividad Reciente de Consumo -->
-        <div class="glass-card">
-            <h3 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--success); margin-bottom: 1.5rem;">Consumos Recientes</h3>
-            <div class="timeline">
-                {% for c in consumos_recientes %}
-                <div class="timeline-item">
-                    <div style="font-size: 0.65rem; color: var(--text-muted); margin-bottom: 0.25rem;">
-                        {{ c.fecha|date:"d/m/Y H:i" }} — <span style="color:var(--accent);">{{ c.get_area_display }}</span>
-                    </div>
-                    <div style="font-weight: 700; font-size: 0.85rem;">{{ c.lote.producto.nombre }}</div>
-                    <div style="font-size: 0.8rem; color: var(--success); font-weight: 800;">
-                        -{{ c.cantidad_servida }} <span style="font-weight:400; font-size:0.7rem;">{{ c.lote.producto.get_unidad_medida_display }}</span>
-                    </div>
+    <!-- ── Columna Lateral: Consumos Recientes ── -->
+    <div class="glass-card" style="display:flex; flex-direction:column;">
+        <h3 style="font-size:0.82rem; text-transform:uppercase; letter-spacing:1px; color:var(--success); margin-bottom:1.25rem; flex-shrink:0;">Consumos Recientes</h3>
+        <div class="timeline timeline-scroll" style="flex:1; overflow-y:auto;">
+            {% for c in consumos_recientes %}
+            <div class="timeline-item">
+                <div style="font-size:0.62rem; color:var(--text-muted); margin-bottom:0.2rem;">
+                    {{ c.fecha|date:"d/m/Y H:i" }} — <span style="color:var(--accent);">{{ c.get_area_display }}</span>
                 </div>
-                {% empty %}
-                <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">No hay consumos registrados.</p>
-                {% endfor %}
+                <div style="font-weight:700; font-size:0.83rem;">{{ c.lote.producto.nombre }}</div>
+                <div style="font-size:0.78rem; color:var(--success); font-weight:800;">
+                    -{{ c.cantidad_servida }} <span style="font-weight:400; font-size:0.68rem; color:var(--text-muted);">{{ c.lote.producto.get_unidad_medida_display }}</span>
+                </div>
             </div>
-            <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; text-align: center;">
-                <a href="{% url 'inventario_resumen_consumo' %}" class="btn-link" style="font-size: 0.75rem; color: var(--accent); text-decoration: none;">Ver todos los consumos ➜</a>
-            </div>
+            {% empty %}
+            <p style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:1rem 0;">No hay consumos registrados.</p>
+            {% endfor %}
         </div>
+        <div style="margin-top:1rem; border-top:1px solid rgba(255,255,255,0.05); padding-top:0.85rem; text-align:center; flex-shrink:0;">
+            <a href="{% url 'inventario_resumen_consumo' %}" style="font-size:0.75rem; color:var(--accent); text-decoration:none; font-weight:600;">Ver todos los consumos ➜</a>
+        </div>
+    </div>
 
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
@@ -351,18 +413,34 @@
         const menu = document.getElementById('quickMenu');
         menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
     }
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('quickMenu');
+        if (menu && !e.target.closest('[onclick="toggleQuickMenu()"]') && !e.target.closest('#quickMenu')) {
+            menu.style.display = 'none';
+        }
+    });
 
-    // --- Charts ---
     document.addEventListener('DOMContentLoaded', function() {
-        // Data from view
-        // Data from view
+        const isMobile = window.innerWidth <= 768;
+
         const catLabels = [{% for item in cat_val_data %}"{{ item.label }}"{% if not forloop.last %},{% endif %}{% endfor %}];
         const catValues = [{% for item in cat_val_data %}{{ item.value }}{% if not forloop.last %},{% endif %}{% endfor %}];
-
         const locLabels = [{% for key, data in por_ubicacion.items %}"{{ data.label }}"{% if not forloop.last %},{% endif %}{% endfor %}];
         const locValues = [{% for key, data in por_ubicacion.items %}{{ data.count }}{% if not forloop.last %},{% endif %}{% endfor %}];
 
-        // Advanced Category Chart (Monetary Value)
+        // ── Altura dinámica según dispositivo ──
+        const donutH   = isMobile ? 300 : 220;
+        const locCount = locLabels.length || 1;
+        const locationH = isMobile
+            ? Math.max(200, locCount * 36)   // 36px por barra en móvil
+            : Math.max(220, locCount * 30);   // 30px por barra en desktop
+
+        const donutEl = document.querySelector('.chart-container-donut');
+        const locEl   = document.querySelector('.chart-container-location');
+        if (donutEl) donutEl.style.height = donutH + 'px';
+        if (locEl)   locEl.style.height   = locationH + 'px';
+
+        // ── Gráfico dona ──
         new Chart(document.getElementById('categoryChart'), {
             type: 'doughnut',
             data: {
@@ -370,82 +448,83 @@
                 datasets: [{
                     data: catValues,
                     backgroundColor: [
-                        '#f97316', '#38bdf8', '#34d399', '#fbbf24', 
-                        '#818cf8', '#f87171', '#67e8f9', '#a5b4fc',
-                        '#ec4899', '#8b5cf6', '#10b981'
+                        '#f97316','#38bdf8','#34d399','#fbbf24',
+                        '#818cf8','#f87171','#67e8f9','#a5b4fc',
+                        '#ec4899','#8b5cf6','#10b981'
                     ],
                     borderWidth: 2,
-                    borderColor: 'rgba(17, 25, 40, 0.8)',
-                    hoverOffset: 15,
+                    borderColor: 'rgba(17,25,40,0.8)',
+                    hoverOffset: 12,
                     borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: { padding: isMobile ? 0 : 4 },
                 plugins: {
                     legend: {
-                        position: 'right',
-                        labels: { 
-                            color: '#94a3b8', 
-                            font: { size: 10, family: 'Inter', weight: '600' }, 
-                            usePointStyle: true, 
-                            padding: 12
+                        position: isMobile ? 'bottom' : 'right',
+                        align: 'center',
+                        labels: {
+                            color: '#94a3b8',
+                            font: { size: isMobile ? 9 : 10, family: 'Inter', weight: '600' },
+                            usePointStyle: true,
+                            padding: isMobile ? 7 : 12,
+                            boxWidth: isMobile ? 7 : 10
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        titleFont: { size: 12, weight: 'bold' },
-                        bodyFont: { size: 12 },
+                        backgroundColor: 'rgba(15,23,42,0.9)',
                         padding: 10,
                         callbacks: {
-                            label: function(context) {
-                                let label = context.label || '';
-                                if (label) label += ': ';
-                                if (context.parsed !== null) {
-                                    label += '$' + new Intl.NumberFormat('de-DE').format(context.parsed);
-                                }
-                                return label;
+                            label: function(ctx) {
+                                let l = ctx.label ? ctx.label + ': ' : '';
+                                if (ctx.parsed !== null) l += '$' + new Intl.NumberFormat('de-DE').format(ctx.parsed);
+                                return l;
                             }
                         }
                     }
                 },
-                cutout: '65%'
+                cutout: isMobile ? '52%' : '65%'
             }
         });
 
-        // Location Distribution (Vertical Bar)
+        // ── Gráfico de barras horizontales (Ubicación) ──
         new Chart(document.getElementById('locationChart'), {
             type: 'bar',
             data: {
                 labels: locLabels,
                 datasets: [{
-                    label: 'Cantidad de Lotes',
+                    label: 'Lotes',
                     data: locValues,
-                    backgroundColor: 'rgba(129, 140, 248, 0.4)',
+                    backgroundColor: 'rgba(129,140,248,0.4)',
                     borderColor: '#818cf8',
                     borderWidth: 2,
                     borderRadius: 4,
-                    barThickness: 15
+                    barThickness: isMobile ? 18 : 14
                 }]
             },
             options: {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { 
+                plugins: {
                     legend: { display: false },
-                    tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' }
+                    tooltip: { backgroundColor: 'rgba(15,23,42,0.9)' }
                 },
                 scales: {
-                    x: { 
-                        beginAtZero: true, 
+                    x: {
+                        beginAtZero: true,
                         grid: { color: 'rgba(255,255,255,0.05)' },
-                        ticks: { color: '#64748b', font: { size: 10 } }
+                        ticks: { color: '#64748b', font: { size: 9 } }
                     },
-                    y: { 
+                    y: {
                         grid: { display: false },
-                        ticks: { color: '#cbd5e1', font: { size: 10, weight: '600' } }
+                        ticks: {
+                            color: '#cbd5e1',
+                            font: { size: isMobile ? 10 : 10, weight: '600' }
+                        }
                     }
                 }
             }

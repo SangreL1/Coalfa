@@ -14,8 +14,8 @@
 .modal-overlay.open { display: flex; }
 .modal-box {
     background: var(--coal-mid); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 2.5rem;
-    width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+    border-radius: var(--radius); padding: 2rem;
+    width: 95%; max-width: 560px; max-height: 90vh; overflow-y: auto;
     box-shadow: var(--shadow); position: relative;
     animation: modalIn 0.25s ease;
 }
@@ -30,7 +30,6 @@
 }
 .modal-close:hover { color: var(--danger); }
 .form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-@media (max-width:600px) { .form-grid-2 { grid-template-columns:1fr; } }
 
 /* Alerta informativa */
 .info-banner {
@@ -48,10 +47,28 @@
     padding: 0.75rem 1.25rem; background: rgba(255,255,255,0.03);
     border-bottom: 1px solid var(--border);
 }
+
+.desktop-table { display: block; }
+.mobile-cards  { display: none; }
+
+.aus-mobile-card {
+    background: rgba(255,255,255,0.025);
+    border-radius: 12px; padding: 1rem;
+    border: 1px solid var(--border);
+    margin: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .form-grid-2 { grid-template-columns: 1fr; }
+    .desktop-table { display: none !important; }
+    .mobile-cards  { display: block !important; }
+    .page-header { flex-direction: column; align-items: stretch !important; gap: 1rem; }
+    .page-header button { width: 100%; text-align: center; justify-content: center; }
+}
 {% endblock %}
 
 {% block content %}
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+<div class="page-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
     <div>
         <h1 class="page-title">Vacaciones y Licencias</h1>
         <p class="page-subtitle" style="margin-bottom:0;">Ausencias vigentes y programadas del personal</p>
@@ -79,7 +96,7 @@
 <div class="card" style="padding:0;">
     {% if ausencias %}
     <div class="section-label">📋 Ausencias Activas y Programadas</div>
-    <div class="table-wrap">
+    <div class="table-wrap desktop-table">
         <table>
             <thead>
                 <tr>
@@ -127,6 +144,38 @@
             </tbody>
         </table>
     </div>
+    <div class="mobile-cards">
+        {% for a in ausencias %}
+        <div class="aus-mobile-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:700; font-size:0.92rem;">{{ a.empleado.apellido }}, {{ a.empleado.nombre }}</div>
+                    <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+                        <span class="badge badge-{{ a.empleado.estado|lower }}">{{ a.empleado.get_estado_display }}</span>
+                    </div>
+                </div>
+                <span class="badge {% if a.tipo == 'VACACIONES' %}badge-vacaciones{% else %}badge-licencia{% endif %}" style="flex-shrink:0;">
+                    {{ a.get_tipo_display }}
+                </span>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.78rem; color:var(--text-muted); margin-bottom:0.6rem; flex-wrap:wrap; gap:0.25rem;">
+                <span>{{ a.fecha_inicio|date:"d/m/Y" }} al {{ a.fecha_fin|date:"d/m/Y" }}</span>
+                <span style="font-weight: 600;">
+                    {% if a.fecha_inicio <= hoy and a.fecha_fin >= hoy %}
+                        <span class="badge badge-activo">En curso</span>
+                    {% else %}
+                        <span class="badge badge-vacaciones">Programada</span>
+                    {% endif %}
+                </span>
+            </div>
+            {% if a.descripcion %}
+            <div style="background:rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius:6px; padding:0.5rem; font-size:0.75rem; color:var(--text-muted);">
+                {{ a.descripcion }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
     {% else %}
     <div style="text-align:center;padding:3rem;color:var(--text-muted);">
         <div style="font-size:2.5rem;margin-bottom:1rem;">📭</div>
@@ -139,7 +188,7 @@
 {% if ausencias_historial %}
 <div class="card" style="padding:0; margin-top:1.5rem;">
     <div class="section-label">🗂 Historial del Mes Actual</div>
-    <div class="table-wrap">
+    <div class="table-wrap desktop-table">
         <table>
             <thead>
                 <tr>
@@ -166,6 +215,26 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+    <div class="mobile-cards">
+        {% for a in ausencias_historial %}
+        <div class="aus-mobile-card">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
+                <div style="font-weight:700; font-size:0.92rem;">{{ a.empleado.apellido }}, {{ a.empleado.nombre }}</div>
+                <span class="badge {% if a.tipo == 'VACACIONES' %}badge-vacaciones{% else %}badge-licencia{% endif %}" style="flex-shrink:0;">
+                    {{ a.get_tipo_display }}
+                </span>
+            </div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:0.6rem;">
+                {{ a.fecha_inicio|date:"d/m/Y" }} al {{ a.fecha_fin|date:"d/m/Y" }}
+            </div>
+            {% if a.descripcion %}
+            <div style="background:rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius:6px; padding:0.5rem; font-size:0.75rem; color:var(--text-muted);">
+                {{ a.descripcion }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endif %}
@@ -217,7 +286,7 @@
                 {{ ausencia_form.descripcion }}
             </div>
 
-            <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:2rem;">
+            <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:2rem; flex-wrap:wrap;">
                 <button type="button" onclick="closeModal('modalAusencia')" class="btn btn-ghost">Cancelar</button>
                 <button type="submit" name="registrar_ausencia" value="1" class="btn btn-primary" style="padding:0.75rem 2rem;">
                     Confirmar Ausencia

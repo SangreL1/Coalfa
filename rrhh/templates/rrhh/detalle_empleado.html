@@ -5,9 +5,36 @@
 {% block nav_empleados %}active{% endblock %}
 
 {% block extra_css %}
-.tabs { display:flex; gap:0.25rem; margin-bottom:1.5rem; border-bottom:1px solid var(--border); }
-.tab { padding:0.75rem 1.25rem; font-size:0.875rem; font-weight:500; cursor:pointer; color:var(--text-muted);
-text-decoration:none; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+}
+.tabs::-webkit-scrollbar {
+    height: 4px;
+}
+.tabs::-webkit-scrollbar-track {
+    background: transparent;
+}
+.tabs::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+}
+.tab {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    flex-shrink: 0;
+}
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 .panel { display:none; } .panel.active{display:block;}
 .doc-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-top:1rem;}
@@ -18,6 +45,22 @@ margin-bottom:0.5rem; }
 font-size:0.875rem; gap: 1rem; }
 .info-label { color:var(--text-muted); font-weight:500; flex-shrink: 0; }
 .info-row span:not(.info-label) { text-align: right; word-break: break-word; }
+
+.desktop-table { display: block; }
+.mobile-cards  { display: none; }
+
+.doc-mobile-card {
+    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .desktop-table { display: none !important; }
+    .mobile-cards  { display: block !important; }
+}
 {% endblock %}
 
 {% block content %}
@@ -44,7 +87,7 @@ font-size:0.875rem; gap: 1rem; }
                 <span style="font-size:0.75rem;color:var(--text-muted);">RUT: {{ empleado.rut }}</span>
             </div>
         </div>
-        <div style="display:flex; gap:0.5rem;">
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
             <a href="{% url 'rrhh_editar_empleado' empleado.pk %}" class="btn btn-primary btn-sm">✏️ Editar Datos</a>
             <a href="/admin/rrhh/empleado/{{ empleado.pk }}/change/" class="btn btn-ghost btn-sm">Ver en Admin</a>
         </div>
@@ -112,7 +155,7 @@ font-size:0.875rem; gap: 1rem; }
             </div>
         </div>
 
-        <div class="table-wrap">
+        <div class="table-wrap desktop-table">
             <table id="docTable">
                 <thead>
                     <tr>
@@ -152,12 +195,43 @@ font-size:0.875rem; gap: 1rem; }
                 </tbody>
             </table>
         </div>
+        <div class="mobile-cards" style="padding: 1rem;">
+            {% for doc in documentos %}
+            <div class="doc-mobile-card doc-row" data-search="{{ doc.get_tipo_display|lower }} {{ doc.descripcion|lower }}">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+                    <div>
+                        <div style="font-weight:700; font-size:0.92rem;">{{ doc.get_tipo_display }}</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace; margin-top:2px;">{{ doc.archivo.name|truncatechars:30 }}</div>
+                    </div>
+                    <span style="font-size:1.25rem;">📄</span>
+                </div>
+                {% if doc.descripcion %}
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.75rem;">
+                    {{ doc.descripcion }}
+                </div>
+                {% endif %}
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.05); padding-top:0.5rem; margin-top:0.5rem;">
+                    <span>Subido: {{ doc.fecha_subida|date:"d/m/Y H:i" }}</span>
+                    <div style="display:flex; gap:0.5rem;">
+                        <a href="{{ doc.archivo.url }}" target="_blank" class="btn btn-ghost btn-sm" style="padding:0.25rem 0.5rem;" title="Ver archivo">👁️</a>
+                        <button type="button" class="btn btn-ghost btn-sm" style="padding:0.25rem 0.5rem;" title="Editar tipo/descripción" onclick="openEditModal('{{ doc.pk }}', '{{ doc.tipo }}', '{{ doc.descripcion|escapejs }}')">✏️</button>
+                        <form method="post" action="{% url 'rrhh_eliminar_documento' doc.pk %}" style="display:inline; margin:0;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger); padding:0.25rem 0.5rem;" onclick="return confirm('¿Estás seguro de que deseas eliminar este documento?')">🗑️</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align:center; padding:3rem; color:var(--text-muted);">Sin documentos registrados.</div>
+            {% endfor %}
+        </div>
     </div>
 </div>
 
 <!-- Modal para editar documento -->
 <div id="editDocModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
-    <div class="card" style="width:100%; max-width:450px;">
+    <div class="card" style="width:95%; max-width:450px; margin: 1rem;">
         <h3 style="font-weight:700; margin-bottom:1.5rem;">Editar Documento</h3>
         <form id="editDocForm" method="post">
             {% csrf_token %}
@@ -173,9 +247,9 @@ font-size:0.875rem; gap: 1rem; }
                 <label class="form-label">Descripción</label>
                 <input type="text" name="descripcion" id="modal_doc_desc" class="form-control">
             </div>
-            <div style="display:flex; gap:1rem; margin-top:2rem;">
-                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">Cancelar</button>
+            <div style="display:flex; gap:1rem; margin-top:2rem; flex-wrap:wrap;">
+                <button type="submit" class="btn btn-primary" style="flex:1;">Guardar Cambios</button>
+                <button type="button" class="btn btn-ghost" style="flex:1;" onclick="closeEditModal()">Cancelar</button>
             </div>
         </form>
     </div>
@@ -184,7 +258,7 @@ font-size:0.875rem; gap: 1rem; }
 <!-- Tab: Ausencias -->
 <div id="tab-ausencias" class="panel">
     <div class="card" style="padding:0;">
-        <div class="table-wrap">
+        <div class="table-wrap desktop-table">
             <table>
                 <thead>
                     <tr>
@@ -210,6 +284,23 @@ font-size:0.875rem; gap: 1rem; }
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+        <div class="mobile-cards" style="padding: 1rem;">
+            {% for a in ausencias %}
+            <div style="background: rgba(255,255,255,0.025); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+                    <span class="badge {% if a.tipo == 'VACACIONES' %}badge-vacaciones{% else %}badge-licencia{% endif %}">{{ a.get_tipo_display }}</span>
+                    <span style="font-size:0.75rem; color:var(--text-muted);">{{ a.fecha_inicio|date:"d/m/Y" }} al {{ a.fecha_fin|date:"d/m/Y" }}</span>
+                </div>
+                {% if a.descripcion %}
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;">
+                    {{ a.descripcion }}
+                </div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div style="text-align:center; padding:3rem; color:var(--text-muted);">Sin ausencias registradas.</div>
+            {% endfor %}
         </div>
     </div>
 </div>

@@ -51,6 +51,9 @@
         html,
         body {
             height: 100%;
+            width: 100%;
+            overflow-x: hidden;
+            position: relative;
             /* Fallback seguro: texto visible de inmediato; Inter reemplaza con font-display:swap */
             font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #0f172a;
@@ -203,6 +206,7 @@
             min-height: 100vh;
             background: linear-gradient(135deg, #0f172a 0%, #1a2744 100%);
             transition: margin-left 0.3s ease;
+            max-width: 100%;
         }
 
         .sidebar-overlay {
@@ -237,6 +241,8 @@
 
             .main-wrapper {
                 margin-left: 0 !important;
+                max-width: 100vw;
+                overflow-x: hidden;
             }
 
             .sidebar-overlay.show {
@@ -672,6 +678,37 @@
         #nprogress .spinner-icon {
             border-top-color: var(--accent) !important;
             border-left-color: var(--accent) !important;
+        }
+
+        /* Responsive Global Overrides */
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .header-section {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+            }
+            .header-section > div {
+                width: 100%;
+            }
+            /* Apilar divs de flexibilidad en el header */
+            .header-section div[style*="display: flex"],
+            .header-section div[style*="display:flex"] {
+                flex-wrap: wrap;
+                width: 100%;
+            }
+            /* Convertir grids inline a 1 columna en celulares */
+            .page-content div[style*="display: grid"],
+            .page-content div[style*="display:grid"] {
+                grid-template-columns: 1fr !important;
+            }
         }
 
         {% block extra_css %}{% endblock %}

@@ -1388,8 +1388,25 @@ def cargar_solicitudes_excel(request):
 
 @operacional_required
 def gestionar_facturas(request):
-    """Buzón de facturas PDF para registro rápido de lotes."""
+    """Buzón de facturas PDF para registro rápido de lotes y subida de archivos."""
     path_facturas = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO")
+    
+    if request.method == "POST" and request.FILES.get("factura_pdf"):
+        pdf_file = request.FILES.get("factura_pdf")
+        if pdf_file.name.lower().endswith(".pdf"):
+            os.makedirs(path_facturas, exist_ok=True)
+            file_path = os.path.join(path_facturas, pdf_file.name)
+            try:
+                with open(file_path, "wb+") as destination:
+                    for chunk in pdf_file.chunks():
+                        destination.write(chunk)
+                messages.success(request, f"Factura '{pdf_file.name}' subida correctamente.")
+            except Exception as e:
+                messages.error(request, f"Error al guardar el archivo: {str(e)}")
+        else:
+            messages.error(request, "Error: Solo se admiten archivos en formato PDF.")
+        return redirect("inventario_gestionar_facturas")
+
     facturas = []
     
     if os.path.exists(path_facturas):

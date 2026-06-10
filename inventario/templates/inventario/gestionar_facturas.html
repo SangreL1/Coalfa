@@ -6,12 +6,12 @@
 {% block topbar_title %}Buzón de Facturas Inventario{% endblock %}
 
 {% block content %}
-<div class="header-section" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+<div class="header-section">
     <div>
         <h1 class="page-title">Buzón de Facturas</h1>
-        <p class="page-subtitle" style="margin-bottom: 0;">Administra y registra facturas pendientes desde la carpeta del servidor.</p>
+        <p class="page-subtitle" style="margin-bottom: 0;">Administra y registra facturas pendientes de ingresar al inventario.</p>
     </div>
-    <div style="display: flex; gap: 0.75rem;">
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
         <div class="kpi-card" style="padding: 0.75rem 1.5rem; flex-direction: row; align-items: center; gap: 1rem; min-width: auto;">
             <div style="font-size: 1.5rem;">📂</div>
             <div>
@@ -27,6 +27,22 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- Formulario para subir nuevas facturas -->
+<div class="card" style="margin-bottom: 2rem; border-color: rgba(249, 115, 22, 0.25); background: rgba(249, 115, 22, 0.02);">
+    <div class="card-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);">
+        <h2 class="card-title">📤 Cargar Nueva Factura PDF</h2>
+    </div>
+    <form method="POST" enctype="multipart/form-data" action="{% url 'inventario_gestionar_facturas' %}" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; width: 100%;">
+        {% csrf_token %}
+        <div style="flex: 1; min-width: 260px;">
+            <input type="file" name="factura_pdf" accept=".pdf" class="form-control" required style="width: 100%;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="padding: 0.7rem 1.5rem; flex-shrink: 0;">
+            Subir y Analizar
+        </button>
+    </form>
 </div>
 
 <div class="card">
@@ -104,7 +120,7 @@
         <div>
             <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">¿Cómo funciona esto?</h3>
             <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
-                El sistema escanea la carpeta <code>FACTURAS INVENTARIO</code> automáticamente. Si el nombre del archivo PDF (ej: <code>12345.pdf</code>) ya existe como un Número de Guía en algún lote registrado, la factura se marcará como <strong>Procesada</strong>. Esto te ayuda a no duplicar registros y saber exactamente qué facturas faltan por ingresar.
+                Puedes subir tus facturas PDF directamente con el botón <strong>"Subir y Analizar"</strong> de arriba, o colocarlas en la carpeta <code>FACTURAS INVENTARIO</code> del servidor. Si el nombre del archivo PDF (ej: <code>12345.pdf</code>) ya coincide con un Número de Guía en algún lote registrado, la factura se marcará automáticamente como <strong>Procesada</strong>. Esto evita duplicaciones y te ayuda a rastrear lo que falta por ingresar.
             </p>
         </div>
     </div>

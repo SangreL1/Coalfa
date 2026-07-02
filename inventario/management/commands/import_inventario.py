@@ -1,12 +1,13 @@
 """
 Management command: import_inventario
-Lee el Excel 'Planilla de invntario 28-02-26.xlsx' y carga todos los
+Lee el Excel 'Planilla de inventario 30-06-2026.xlsx' y carga todos los
 Productos (y, si tienen stock, un Lote de stock inicial) en la BD.
 
 Uso:
     python manage.py import_inventario
     python manage.py import_inventario --excel ruta/al/archivo.xlsx
     python manage.py import_inventario --dry-run   (solo muestra, no guarda)
+    python manage.py import_inventario --limpiar   (elimina TODO el inventario antes de importar)
 """
 
 import datetime
@@ -150,7 +151,7 @@ class Command(BaseCommand):
             "..",
             "..",
             "..",
-            "Planilla de inventario 31-05-26.xlsx",
+            "Planilla de inventario 30-06-2026.xlsx",
         )
         parser.add_argument(
             "--excel",
@@ -162,6 +163,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Simula la importación sin guardar nada",
         )
+        parser.add_argument(
+            "--limpiar",
+            action="store_true",
+            help="Elimina TODOS los Lotes y Productos existentes antes de importar",
+        )
 
     def handle(self, *args, **options):
         if openpyxl is None:
@@ -170,6 +176,7 @@ class Command(BaseCommand):
 
         ruta = options["excel"]
         dry_run = options["dry_run"]
+        limpiar = options["limpiar"]
 
         if not os.path.exists(ruta):
             self.stderr.write(self.style.ERROR(f"Archivo no encontrado: {ruta}"))
@@ -178,6 +185,19 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_HEADING(f"\nLeyendo: {ruta}"))
         if dry_run:
             self.stdout.write(self.style.WARNING("[DRY-RUN] No se guardara nada\n"))
+
+        # ── Limpiar inventario existente si se pidió ─────────────────────────
+        if limpiar and not dry_run:
+            self.stdout.write(self.style.WARNING("Eliminando inventario existente..."))
+            from inventario.models import MovimientoTrazabilidad, RegistroServicio
+            n_mov = MovimientoTrazabilidad.objects.all().delete()[0]
+            n_serv = RegistroServicio.objects.all().delete()[0]
+            n_lotes = Lote.objects.all().delete()[0]
+            n_prod = Producto.objects.all().delete()[0]
+            self.stdout.write(self.style.WARNING(
+                f"  Eliminados: {n_prod} productos, {n_lotes} lotes, "
+                f"{n_serv} registros de servicio, {n_mov} movimientos\n"
+            ))
 
         wb = openpyxl.load_workbook(ruta, data_only=True)
         ws = wb.active
@@ -188,6 +208,7 @@ class Command(BaseCommand):
         lotes_creados = 0
         sin_stock = 0
         errores = 0
+        total_neto = 0.0   # suma de (cantidad * precio_unit_sin_iva)
 
         fecha_hoy = datetime.date.today()
         # Fecha de vencimiento por defecto para el stock inicial: 6 meses
@@ -265,9 +286,15 @@ class Command(BaseCommand):
                     cantidad = 0
 
                 try:
-                    precio = round(float(costo_unit) * 1.19, 2) if costo_unit is not None else 0
+                    costo_unit_float = float(costo_unit) if costo_unit is not None else 0
+                    precio = round(costo_unit_float * 1.19, 2)  # precio con IVA 19%
                 except (ValueError, TypeError):
+                    costo_unit_float = 0
                     precio = 0
+
+                # Acumular total neto para el resumen
+                if cantidad > 0:
+                    total_neto += cantidad * costo_unit_float
 
                 if cantidad > 0:
                     if not dry_run:
@@ -306,6 +333,7 @@ class Command(BaseCommand):
                 )
 
         # ── Resumen final ────────────────────────────────────────────────────
+        total_con_iva = total_neto * 1.19
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS(f"[OK] Productos creados:      {creados}"))
         self.stdout.write(self.style.SUCCESS(f"[OK] Productos actualizados: {actualizados}"))
@@ -313,6 +341,13 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(f"[--] Productos sin stock:    {sin_stock}"))
         if errores:
             self.stdout.write(self.style.ERROR(f"[!!] Errores:                {errores}"))
+        self.stdout.write("")
+        self.stdout.write(self.style.SUCCESS(
+            f"[$$] Total inventario NETO:  $ {total_neto:,.0f}"
+        ))
+        self.stdout.write(self.style.SUCCESS(
+            f"[$$] Total inventario + IVA: $ {total_con_iva:,.0f}  (IVA 19%)"
+        ))
         self.stdout.write("")
         if dry_run:
             self.stdout.write(self.style.WARNING("(Nada fue guardado - modo dry-run)\n"))

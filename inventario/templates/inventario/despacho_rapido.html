@@ -159,9 +159,14 @@
                     <div style="color: var(--text-muted);">
                         Asegúrate de que las cantidades sean correctas antes de procesar.
                     </div>
-                    <button id="process-btn" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.1rem; border-radius: 14px;">
-                        🚀 Confirmar y Repartir Todo
-                    </button>
+                    <div style="display: flex; gap: 1rem;">
+                        <button id="cancel-btn" type="button" class="btn btn-ghost" style="padding: 1rem 2rem; font-size: 1.1rem; border-radius: 14px; border: 1px solid var(--danger); color: var(--danger);">
+                            ❌ Cancelar
+                        </button>
+                        <button id="process-btn" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.1rem; border-radius: 14px;">
+                            🚀 Confirmar y Repartir Todo
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -190,6 +195,7 @@
     const actionsFooter = document.getElementById('actions-footer');
     const itemCountBadge = document.getElementById('item-count');
     const processBtn = document.getElementById('process-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
     const areaSelect = document.getElementById('area-select');
     const fechaSelect = document.getElementById('fecha-select');
 
@@ -269,6 +275,16 @@
         cart.splice(index, 1);
         renderCart();
     };
+
+    // Cancelar despacho
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+            if (confirm('¿Estás seguro de que deseas cancelar y vaciar la lista de despacho?')) {
+                cart = [];
+                renderCart();
+            }
+        });
+    }
 
     // Procesar despacho
     processBtn.addEventListener('click', async function() {

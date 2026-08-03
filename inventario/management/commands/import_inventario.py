@@ -151,7 +151,7 @@ class Command(BaseCommand):
             "..",
             "..",
             "..",
-            "Planilla de inventario 30-06-2026.xlsx",
+            "Planilla de inventario 31-07-26.xlsx",
         )
         parser.add_argument(
             "--excel",
@@ -166,7 +166,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--limpiar",
             action="store_true",
-            help="Elimina TODOS los Lotes y Productos existentes antes de importar",
+            help="Elimina los Lotes y Productos existentes antes de importar (preserva el historial de servicios)",
         )
 
     def handle(self, *args, **options):
@@ -186,17 +186,15 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write(self.style.WARNING("[DRY-RUN] No se guardara nada\n"))
 
-        # ── Limpiar inventario existente si se pidió ─────────────────────────
+        # ── Limpiar inventario existente si se pidió (sin borrar el historial de RegistroServicio) ─────────────────────────
         if limpiar and not dry_run:
-            self.stdout.write(self.style.WARNING("Eliminando inventario existente..."))
-            from inventario.models import MovimientoTrazabilidad, RegistroServicio
+            self.stdout.write(self.style.WARNING("Eliminando inventario activo existente (preservando historial)..."))
+            from inventario.models import MovimientoTrazabilidad
             n_mov = MovimientoTrazabilidad.objects.all().delete()[0]
-            n_serv = RegistroServicio.objects.all().delete()[0]
             n_lotes = Lote.objects.all().delete()[0]
             n_prod = Producto.objects.all().delete()[0]
             self.stdout.write(self.style.WARNING(
-                f"  Eliminados: {n_prod} productos, {n_lotes} lotes, "
-                f"{n_serv} registros de servicio, {n_mov} movimientos\n"
+                f"  Eliminados: {n_prod} productos, {n_lotes} lotes, {n_mov} movimientos. (Histórico de consumo intacto)\n"
             ))
 
         wb = openpyxl.load_workbook(ruta, data_only=True)
@@ -352,4 +350,6 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write(self.style.WARNING("(Nada fue guardado - modo dry-run)\n"))
         else:
+            from django.core.cache import cache
+            cache.delete("dashboard_inv_kpis")
             self.stdout.write(self.style.MIGRATE_HEADING("Importacion completada!\n"))

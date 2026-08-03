@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
-{% block title %}Resumen de Consumo — Bodega{% endblock %}
-{% block topbar_title %}Control de Gastos y Consumo por Área{% endblock %}
+{% block title %}Estadísticas y Búsqueda Histórica — Bodega{% endblock %}
+{% block topbar_title %}Control de Gastos y Búsqueda Histórica de Productos{% endblock %}
+{% block nav_consumo %}active{% endblock %}
 
 {% block extra_css %}
 .glass-card {
@@ -44,13 +45,26 @@
 .table-enterprise { width: 100%; border-collapse: separate; border-spacing: 0 4px; }
 .table-enterprise td { padding: 0.75rem; background: rgba(255,255,255,0.02); }
 .table-enterprise tr:hover td { background: rgba(255,255,255,0.05); }
+
+.historico-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+.historico-kpi-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+}
 {% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
     <div>
-        <h2 style="font-size: 1.5rem; font-weight: 800;">Estadísticas de Consumo</h2>
-        <p style="color: var(--text-muted);">Análisis de costos y distribución de mercadería por departamento.</p>
+        <h2 style="font-size: 1.5rem; font-weight: 800;">Estadísticas & Búsqueda Histórica</h2>
+        <p style="color: var(--text-muted);">Consulta de salidas de productos por fecha exacta e historial permanente.</p>
     </div>
     <div style="display: flex; gap: 0.75rem;">
          <button class="btn btn-ghost" onclick="window.print()">🖨️ Imprimir</button>
@@ -59,6 +73,135 @@
     </div>
 </div>
 
+<!-- ================================================================= -->
+<!-- MÓDULO DE BÚSQUEDA HISTÓRICA DE PRODUCTOS PERMANENTE -->
+<!-- ================================================================= -->
+<div class="glass-card" style="border: 1px solid var(--accent); background: linear-gradient(135deg, rgba(16,25,45,0.9) 0%, rgba(30,41,59,0.8) 100%);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+        <div>
+            <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--accent); display: flex; align-items: center; gap: 0.5rem;">
+                🔍 Búsqueda Histórica de Productos y Consumos
+            </h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+                Consulte exactamente qué productos salieron en cualquier fecha (ej: 01-04-2025). Este historial se preserva intacto aun si el inventario o lotes se borran a fin de mes.
+            </p>
+        </div>
+        {% if is_busqueda_historica %}
+        <div>
+            <a href="{% url 'inventario_exportar_historico_excel' %}?h_q={{ h_q }}&h_fecha={{ h_fecha }}&h_fecha_hasta={{ h_fecha_hasta }}&h_categoria={{ h_categoria }}&h_area={{ h_area }}" class="btn btn-primary btn-sm" style="background: var(--success); color: #000; font-weight: 700;">
+                📥 Exportar Búsqueda a Excel
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Formulario de Búsqueda Histórica -->
+    <form method="get" action="{% url 'inventario_resumen_consumo' %}" style="margin-bottom: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; align-items: end;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Producto / Código Lote</label>
+                <input type="text" name="h_q" value="{{ h_q }}" placeholder="Ej: Bebida, Carne, Arroz..." class="form-control">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Fecha Específica (Día)</label>
+                <input type="date" name="h_fecha" value="{{ h_fecha }}" class="form-control">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Hasta (Opcional rango)</label>
+                <input type="date" name="h_fecha_hasta" value="{{ h_fecha_hasta }}" class="form-control">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Categoría</label>
+                <select name="h_categoria" class="form-control">
+                    <option value="">Todas las Categorías</option>
+                    {% for key, label in categorias %}
+                    <option value="{{ key }}" {% if h_categoria == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Área Destino</label>
+                <select name="h_area" class="form-control">
+                    <option value="">Todas las Áreas</option>
+                    {% for key, label in ubicaciones %}
+                    <option value="{{ key }}" {% if h_area == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" class="btn btn-primary w-full" style="justify-content: center;">🔍 Buscar</button>
+                {% if is_busqueda_historica %}
+                <a href="{% url 'inventario_resumen_consumo' %}" class="btn btn-ghost" title="Limpiar Búsqueda">✕</a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+
+    <!-- Resumen KPI de la Búsqueda Histórica -->
+    {% if is_busqueda_historica or historicos %}
+    <div class="historico-kpi-grid">
+        <div class="historico-kpi-card">
+            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Registros Encontrados</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">{{ total_registros_historicos }}</div>
+        </div>
+        <div class="historico-kpi-card">
+            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Total Unidades Despachadas</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--info);">{{ total_cant_historico|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="historico-kpi-card">
+            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Valor Total Gastado</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--success);">${{ total_costo_historico|floatformat:0|intcomma }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabla Resultados Históricos -->
+    {% if is_busqueda_historica %}
+    <div style="overflow-x: auto; border-radius: 12px; border: 1px solid var(--border);">
+        <table class="table-enterprise">
+            <thead>
+                <tr style="color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; background: rgba(0,0,0,0.3);">
+                    <th>Fecha y Hora</th>
+                    <th>Producto Histórico</th>
+                    <th>Categoría</th>
+                    <th>Código Lote</th>
+                    <th>Cantidad</th>
+                    <th>Costo Total</th>
+                    <th>Área Destino</th>
+                    <th>Responsable</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in historicos %}
+                <tr>
+                    <td style="font-size: 0.8rem; font-weight: 600;">{{ h.fecha|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <div style="font-weight: 700; color: #fff;">{{ h.get_producto_nombre }}</div>
+                        {% if h.producto_talla %}<div style="font-size:0.7rem; color: var(--text-muted);">Talla: {{ h.producto_talla }}</div>{% endif %}
+                    </td>
+                    <td><span class="badge badge-bodega" style="font-size: 0.65rem;">{{ h.get_producto_categoria }}</span></td>
+                    <td style="font-family: monospace; font-size: 0.8rem; color: var(--accent);">{{ h.get_lote_codigo }}</td>
+                    <td style="font-weight: 700;">{{ h.cantidad_servida }} <span style="font-size: 0.7rem; font-weight: 400;">{{ h.get_producto_unidad }}</span></td>
+                    <td style="color: var(--success); font-weight: 800;">${{ h.costo_total|floatformat:0|intcomma }}</td>
+                    <td><span class="badge badge-{{ h.area|lower }}">{{ h.get_area_display }}</span></td>
+                    <td style="font-size: 0.75rem; color: var(--text-muted);">{{ h.responsable|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                        No se encontraron registros de salidas para los criterios seleccionados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ================================================================= -->
+<!-- SECCIÓN ESTADÍSTICAS GENERALES Y RANKING -->
+<!-- ================================================================= -->
 <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
     <!-- Ranking Column -->
     <div>
@@ -177,10 +320,10 @@
                     <td style="font-size: 0.75rem;">{{ c.fecha|date:"d/m/Y H:i" }}</td>
                     <td><span class="badge badge-{{ c.area|lower }}">{{ c.get_area_display }}</span></td>
                     <td>
-                        <div style="font-weight: 700;">{{ c.lote.producto.nombre }}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted);">Lote: {{ c.lote.numero_lote }}</div>
+                        <div style="font-weight: 700;">{{ c.get_producto_nombre }}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">Lote: {{ c.get_lote_codigo }}</div>
                     </td>
-                    <td style="font-weight: 700;">{{ c.cantidad_servida }} <span style="font-weight: 400; font-size: 0.7rem;">{{ c.lote.producto.get_unidad_medida_display }}</span></td>
+                    <td style="font-weight: 700;">{{ c.cantidad_servida }} <span style="font-weight: 400; font-size: 0.7rem;">{{ c.get_producto_unidad }}</span></td>
                     <td style="color: var(--success); font-weight: 800;">${{ c.costo_total|floatformat:0|intcomma }}</td>
                 </tr>
                 {% empty %}

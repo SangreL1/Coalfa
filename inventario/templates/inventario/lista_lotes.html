@@ -97,7 +97,9 @@
     <div class="page-header-actions" style="display:flex; gap:0.75rem; flex-wrap:wrap;">
         <a href="{% url 'exportar_inventario_csv' %}?q={{ q }}&ubicacion={{ ubicacion }}&estado={{ estado }}" class="btn btn-ghost btn-sm">📊 CSV</a>
         <a href="{% url 'exportar_inventario_excel' %}?q={{ q }}&ubicacion={{ ubicacion }}&estado={{ estado }}" class="btn btn-ghost btn-sm" style="border-color:var(--success); color:var(--success);">📗 Excel</a>
+        {% if user.rol != 'AUDITOR' %}
         <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-primary btn-sm">📦 Registrar</a>
+        {% endif %}
     </div>
 </div>
 

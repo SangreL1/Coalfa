@@ -4,7 +4,7 @@ from django.http import HttpResponse, JsonResponse
 from django.db.models import Sum, Q
 from django.conf import settings
 import os
-from coalfa.decorators import operacional_required
+from coalfa.decorators import operacional_required, audit_read_only
 from .models import Lote, MovimientoTrazabilidad, Proveedor, Producto, RegistroServicio, RegistroTemperaturaCamara
 from .forms import LoteForm
 import datetime
@@ -45,8 +45,11 @@ def dashboard_inventario(request):
     lotes_activos = Lote.objects.filter(estado="ACTIVO").select_related("producto", "proveedor")
     
     # KPIs de la empresa
+    # NOTA: precio_unitario en BD ya incluye IVA 19% (se aplica al importar desde planilla sin IVA).
     total_activos = lotes_activos.count()
-    valor_total = sum(l.valor_total for l in lotes_activos)
+    valor_con_iva = sum(l.valor_total for l in lotes_activos)   # precio ya incluye IVA
+    valor_sin_iva = round(valor_con_iva / 1.19, 0)              # valor neto sin IVA (reversión)
+    valor_total = valor_con_iva  # alias de compatibilidad para templates
     
     # Consolidamos las consultas agrupadas para evitar N+1 queries.
     from django.db.models import Sum, Count, ExpressionWrapper, F, FloatField
@@ -116,6 +119,8 @@ def dashboard_inventario(request):
 
     context = {
         "valor_total": valor_total,
+        "valor_sin_iva": int(valor_sin_iva),
+        "valor_con_iva": int(valor_con_iva),
         "total_activos": total_activos,
         "productos_criticos": sorted(productos_criticos, key=lambda x: x["porcentaje"])[:5],
         "criticos_count": len(productos_criticos),
@@ -291,6 +296,7 @@ def editar_lote(request, pk):
 # ── Mover / Despachar Lote ─────────────────────────────────────────────────────
 
 @operacional_required
+@audit_read_only
 def mover_lote(request, lote_id, nueva_ubicacion):
     lote = get_object_or_404(Lote, id=lote_id)
     if lote.estado != "ACTIVO":
@@ -359,6 +365,7 @@ def mover_lote(request, lote_id, nueva_ubicacion):
 # ── Eliminar Lote ──────────────────────────────────────────────────────────────
 
 @operacional_required
+@audit_read_only
 def eliminar_lote(request, pk):
     lote = get_object_or_404(Lote, pk=pk)
     if request.method == "POST":
@@ -617,6 +624,7 @@ def lista_productos(request):
 
 
 @operacional_required
+@audit_read_only
 def eliminar_producto(request, pk):
     producto = get_object_or_404(Producto, pk=pk)
     total_lotes = producto.lotes.count()
@@ -725,7 +733,7 @@ def generar_reporte_pdf(request):
 
     elements = []
 
-    elements.append(Paragraph("Centro Medico San Lucas", sub_s))
+    elements.append(Paragraph("Empresa Coalfa", sub_s))
     elements.append(Paragraph("Reporte de Inventario Activo", title_s))
     elements.append(Paragraph(f"Generado: {hoy.strftime('%d/%m/%Y')}   Lotes: {lotes.count()}", sub_s))
     elements.append(HRFlowable(width="100%", thickness=2, color=ORANGE, spaceAfter=12))
@@ -787,7 +795,7 @@ def generar_reporte_pdf(request):
     elements.append(Spacer(1, 12))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=GRAY))
     elements.append(Spacer(1, 4))
-    elements.append(Paragraph(f"Reporte confidencial - Centro Medico San Lucas - {hoy.strftime('%Y')}", footer_s))
+    elements.append(Paragraph(f"Reporte confidencial - Empresa Coalfa - {hoy.strftime('%Y')}", footer_s))
 
     doc.build(elements)
     buffer.seek(0)
@@ -852,7 +860,7 @@ def exportar_inventario_excel(request):
 
     # ─── Fila 1: Título empresa ───
     ws.merge_cells("A1:J1")
-    ws["A1"] = "CENTRO MÉDICO SAN LUCAS"
+    ws["A1"] = "EMPRESA COALFA"
     ws["A1"].font = font_empresa
     ws["A1"].fill = fill_titulo
     ws["A1"].alignment = left
@@ -986,7 +994,7 @@ def exportar_inventario_excel(request):
 
 @operacional_required
 def resumen_consumo(request):
-    """Muestra el ranking de áreas que más consumen (Task 4)."""
+    """Muestra el ranking de áreas que más consumen y permite búsqueda histórica de productos."""
     # Ranking de áreas por gasto monetario
     ranking = RegistroServicio.objects.values('area').annotate(
         total_gastado=Sum('costo_total'),
@@ -1006,10 +1014,80 @@ def resumen_consumo(request):
     choices_dict = dict(Lote.UBICACION_CHOICES)
     areas_dropdown = [(a, choices_dict.get(a, a)) for a in areas_existentes if a]
 
+    # ── Búsqueda Histórica de Productos ──
+    h_q = request.GET.get("h_q", "").strip()
+    h_fecha = request.GET.get("h_fecha", "").strip()
+    h_fecha_hasta = request.GET.get("h_fecha_hasta", "").strip()
+    h_categoria = request.GET.get("h_categoria", "").strip()
+    h_area = request.GET.get("h_area", "").strip()
+
+    historicos = RegistroServicio.objects.select_related('lote', 'lote__producto').all()
+
+    if h_q:
+        historicos = historicos.filter(
+            Q(lote__producto__nombre__icontains=h_q) |
+            Q(producto_nombre__icontains=h_q) |
+            Q(lote_codigo__icontains=h_q) |
+            Q(lote__numero_lote__icontains=h_q)
+        )
+
+    if h_fecha:
+        try:
+            if "-" in h_fecha:
+                parts = h_fecha.split("-")
+                dt_inicio = datetime.date(int(parts[0]), int(parts[1]), int(parts[2])) if len(parts[0]) == 4 else datetime.date(int(parts[2]), int(parts[1]), int(parts[0]))
+            elif "/" in h_fecha:
+                parts = h_fecha.split("/")
+                dt_inicio = datetime.date(int(parts[2]), int(parts[1]), int(parts[0]))
+            else:
+                dt_inicio = None
+
+            if dt_inicio:
+                if h_fecha_hasta:
+                    if "-" in h_fecha_hasta:
+                        parts2 = h_fecha_hasta.split("-")
+                        dt_fin = datetime.date(int(parts2[0]), int(parts2[1]), int(parts2[2])) if len(parts2[0]) == 4 else datetime.date(int(parts2[2]), int(parts2[1]), int(parts2[0]))
+                    else:
+                        parts2 = h_fecha_hasta.split("/")
+                        dt_fin = datetime.date(int(parts2[2]), int(parts2[1]), int(parts2[0]))
+                    historicos = historicos.filter(fecha__date__gte=dt_inicio, fecha__date__lte=dt_fin)
+                else:
+                    historicos = historicos.filter(fecha__date=dt_inicio)
+        except Exception as e:
+            print(f"Error procesando fecha filtro: {e}")
+
+    if h_categoria:
+        historicos = historicos.filter(
+            Q(lote__producto__categoria=h_categoria) |
+            Q(producto_categoria=h_categoria)
+        )
+
+    if h_area:
+        historicos = historicos.filter(area=h_area)
+
+    is_busqueda_historica = bool(h_q or h_fecha or h_categoria or h_area)
+    total_cant_historico = historicos.aggregate(Sum('cantidad_servida'))['cantidad_servida__sum'] or 0
+    total_costo_historico = historicos.aggregate(Sum('costo_total'))['costo_total__sum'] or 0
+    total_registros_historicos = historicos.count()
+
+    historicos_list = historicos.order_by('-fecha')[:100]
+
     return render(request, "inventario/resumen_consumo.html", {
         "ranking": ranking,
         "ultimos_consumos": ultimos_consumos,
         "ubicaciones": areas_dropdown,
+        "categorias": Producto.CATEGORIA_CHOICES,
+        # Filtros e historial
+        "h_q": h_q,
+        "h_fecha": h_fecha,
+        "h_fecha_hasta": h_fecha_hasta,
+        "h_categoria": h_categoria,
+        "h_area": h_area,
+        "is_busqueda_historica": is_busqueda_historica,
+        "total_cant_historico": total_cant_historico,
+        "total_costo_historico": total_costo_historico,
+        "total_registros_historicos": total_registros_historicos,
+        "historicos": historicos_list,
     })
 
 @operacional_required
@@ -1108,7 +1186,7 @@ def exportar_consumo_excel(request):
 
     # ─── Encabezado de Reporte ───
     ws.merge_cells("A1:I1")
-    ws["A1"] = "CENTRO MÉDICO SAN LUCAS"
+    ws["A1"] = "EMPRESA COALFA"
     ws["A1"].font = font_empresa
     ws["A1"].fill = fill_titulo
     ws["A1"].alignment = left
@@ -1229,6 +1307,203 @@ def exportar_consumo_excel(request):
 
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response["Content-Disposition"] = f'attachment; filename="Consumo_Bodega_{hoy}.xlsx"'
+    wb.save(response)
+    return response
+
+
+@operacional_required
+def exportar_busqueda_historica_excel(request):
+    """Exporta los resultados de la búsqueda histórica de salidas de productos a Excel."""
+    h_q = request.GET.get("h_q", "").strip()
+    h_fecha = request.GET.get("h_fecha", "").strip()
+    h_fecha_hasta = request.GET.get("h_fecha_hasta", "").strip()
+    h_categoria = request.GET.get("h_categoria", "").strip()
+    h_area = request.GET.get("h_area", "").strip()
+
+    historicos = RegistroServicio.objects.select_related('lote', 'lote__producto').all()
+
+    if h_q:
+        historicos = historicos.filter(
+            Q(lote__producto__nombre__icontains=h_q) |
+            Q(producto_nombre__icontains=h_q) |
+            Q(lote_codigo__icontains=h_q) |
+            Q(lote__numero_lote__icontains=h_q)
+        )
+
+    if h_fecha:
+        try:
+            if "-" in h_fecha:
+                parts = h_fecha.split("-")
+                dt_inicio = datetime.date(int(parts[0]), int(parts[1]), int(parts[2])) if len(parts[0]) == 4 else datetime.date(int(parts[2]), int(parts[1]), int(parts[0]))
+            elif "/" in h_fecha:
+                parts = h_fecha.split("/")
+                dt_inicio = datetime.date(int(parts[2]), int(parts[1]), int(parts[0]))
+            else:
+                dt_inicio = None
+
+            if dt_inicio:
+                if h_fecha_hasta:
+                    if "-" in h_fecha_hasta:
+                        parts2 = h_fecha_hasta.split("-")
+                        dt_fin = datetime.date(int(parts2[0]), int(parts2[1]), int(parts2[2])) if len(parts2[0]) == 4 else datetime.date(int(parts2[2]), int(parts2[1]), int(parts2[0]))
+                    else:
+                        parts2 = h_fecha_hasta.split("/")
+                        dt_fin = datetime.date(int(parts2[2]), int(parts2[1]), int(parts2[0]))
+                    historicos = historicos.filter(fecha__date__gte=dt_inicio, fecha__date__lte=dt_fin)
+                else:
+                    historicos = historicos.filter(fecha__date=dt_inicio)
+        except Exception:
+            pass
+
+    if h_categoria:
+        historicos = historicos.filter(
+            Q(lote__producto__categoria=h_categoria) |
+            Q(producto_categoria=h_categoria)
+        )
+
+    if h_area:
+        historicos = historicos.filter(area=h_area)
+
+    historicos = historicos.order_by('-fecha')
+    hoy = datetime.date.today()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Histórico de Producto"
+
+    # Estilos Premium
+    color_naranja  = "F97316"
+    color_oscuro   = "0B1120"
+    color_gris     = "64748B"
+    color_verde    = "22C55E"
+    color_fila_a   = "111827"
+    color_fila_b   = "1F2937"
+
+    font_titulo  = Font(name="Calibri", size=16, bold=True, color=color_naranja)
+    font_empresa = Font(name="Calibri", size=10, color=color_gris, italic=True)
+    font_header  = Font(name="Calibri", size=9,  bold=True, color="FFFFFF")
+    font_normal  = Font(name="Calibri", size=9,  color="F1F5F9")
+    font_total   = Font(name="Calibri", size=10, bold=True, color=color_verde)
+    font_muted   = Font(name="Calibri", size=8, color="94A3B8")
+
+    fill_titulo  = PatternFill("solid", fgColor=color_oscuro)
+    fill_header  = PatternFill("solid", fgColor="1E293B")
+    fill_fila_a  = PatternFill("solid", fgColor=color_fila_a)
+    fill_fila_b  = PatternFill("solid", fgColor=color_fila_b)
+    fill_total   = PatternFill("solid", fgColor="0F2027")
+
+    thin = Side(style="thin", color="374151")
+    borde = Border(left=thin, right=thin, top=thin, bottom=thin)
+    borde_total = Border(left=thin, right=thin, top=Side(style="medium", color=color_naranja), bottom=thin)
+
+    center = Alignment(horizontal="center", vertical="center")
+    left   = Alignment(horizontal="left",   vertical="center", wrap_text=True)
+    right  = Alignment(horizontal="right",  vertical="center")
+
+    # Header
+    ws.merge_cells("A1:I1")
+    ws["A1"] = "EMPRESA COALFA"
+    ws["A1"].font = font_empresa
+    ws["A1"].fill = fill_titulo
+    ws["A1"].alignment = left
+
+    ws.merge_cells("A2:I2")
+    ws["A2"] = f"REPORTE HISTÓRICO DE CONSUMO / SALIDAS ({h_q or 'Todos los Productos'})"
+    ws["A2"].font = font_titulo
+    ws["A2"].fill = fill_titulo
+    ws["A2"].alignment = left
+
+    ws.merge_cells("A3:I3")
+    ws["A3"] = f"Generado el {hoy.strftime('%d/%m/%Y')} | Fecha filtro: {h_fecha or 'Todas'} | Categoría: {h_categoria or 'Todas'} | Registros: {historicos.count()}"
+    ws["A3"].font = font_muted
+    ws["A3"].fill = fill_titulo
+    ws["A3"].alignment = left
+
+    ws.row_dimensions[1].height = 18
+    ws.row_dimensions[2].height = 28
+    ws.row_dimensions[3].height = 16
+
+    for cell in ws["A4:I4"][0]: cell.fill = fill_titulo
+    ws.row_dimensions[4].height = 6
+
+    headers = ["Fecha y Hora", "Área Destino", "Producto", "Categoría", "Código Lote", "Cantidad", "Unidad", "Costo Total", "Responsable"]
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=5, column=col_idx, value=header)
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = center
+        cell.border = borde
+    ws.row_dimensions[5].height = 22
+
+    COL_WIDTHS = [20, 18, 30, 18, 18, 12, 10, 14, 20]
+    for i, w in enumerate(COL_WIDTHS, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    total_cant = 0
+    total_costo = 0
+    row_num = 6
+    for c in historicos:
+        fill = fill_fila_a if row_num % 2 == 0 else fill_fila_b
+
+        fila_data = [
+            (c.fecha.strftime("%d/%m/%Y %H:%M"), font_normal, center),
+            (c.get_area_display(),               font_normal, center),
+            (c.get_producto_nombre,              font_normal, left),
+            (c.get_producto_categoria,           font_normal, center),
+            (c.get_lote_codigo,                  font_normal, left),
+            (c.cantidad_servida,                 font_normal, right),
+            (c.get_producto_unidad,              font_normal, center),
+            (c.costo_total,                      Font(name="Calibri", size=9, bold=True, color=color_verde), right),
+            (c.responsable or "—",               font_normal, left),
+        ]
+
+        total_cant += c.cantidad_servida
+        total_costo += c.costo_total
+
+        for col_idx, (value, font_, align_) in enumerate(fila_data, start=1):
+            cell = ws.cell(row=row_num, column=col_idx, value=value)
+            cell.font = font_
+            cell.fill = fill
+            cell.alignment = align_
+            cell.border = borde
+            if col_idx == 8: cell.number_format = "$#,##0"
+            elif col_idx == 6: cell.number_format = "#,##0.00"
+
+        ws.row_dimensions[row_num].height = 18
+        row_num += 1
+
+    # Totales
+    ws.merge_cells(f"A{row_num}:E{row_num}")
+    ws[f"A{row_num}"] = "TOTALES BÚSQUEDA HISTÓRICA"
+    ws[f"A{row_num}"].font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+    ws[f"A{row_num}"].fill = fill_total
+    ws[f"A{row_num}"].alignment = right
+    ws[f"A{row_num}"].border = borde_total
+
+    ws[f"F{row_num}"] = total_cant
+    ws[f"F{row_num}"].font = font_total
+    ws[f"F{row_num}"].fill = fill_total
+    ws[f"F{row_num}"].alignment = right
+    ws[f"F{row_num}"].border = borde_total
+    ws[f"F{row_num}"].number_format = "#,##0.00"
+
+    ws[f"H{row_num}"] = total_costo
+    ws[f"H{row_num}"].font = font_total
+    ws[f"H{row_num}"].fill = fill_total
+    ws[f"H{row_num}"].alignment = right
+    ws[f"H{row_num}"].border = borde_total
+    ws[f"H{row_num}"].number_format = "$#,##0"
+
+    for col in ["G", "I"]:
+        ws[f"{col}{row_num}"].fill = fill_total
+        ws[f"{col}{row_num}"].border = borde_total
+
+    ws.row_dimensions[row_num].height = 24
+    ws.freeze_panes = "A6"
+    ws.auto_filter.ref = f"A5:I{row_num - 1}"
+
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="Busqueda_Historica_{hoy}.xlsx"'
     wb.save(response)
     return response
 
@@ -1441,6 +1716,11 @@ def gestionar_facturas(request):
 def despacho_rapido(request):
     """Interfaz de despacho ultra-rápido de insumos (Task: Quick Dispatch)."""
     if request.method == "POST":
+        if request.user.rol == "AUDITOR":
+            return JsonResponse({
+                "success": False,
+                "error": "🔒 Acción no permitida: Tu usuario tiene el rol 'Auditor (Solo Lectura)' y no tienes permisos para realizar despachos ni repartir mercadería."
+            })
         import json
         try:
             data = json.loads(request.body)
@@ -1563,6 +1843,7 @@ def procesar_factura_pdf(request, filename):
 
 
 @operacional_required
+@audit_read_only
 def confirmar_carga_factura(request):
     """Carga masiva de los productos seleccionados de la factura."""
     if request.method == "POST":
@@ -1623,6 +1904,7 @@ def confirmar_carga_factura(request):
 
 
 @operacional_required
+@audit_read_only
 def eliminar_factura_pdf(request, filename):
     """Elimina una factura PDF específica de la carpeta."""
     path_pdf = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO", filename)
@@ -1638,6 +1920,7 @@ def eliminar_factura_pdf(request, filename):
 
 
 @operacional_required
+@audit_read_only
 def eliminar_todas_facturas(request):
     """Elimina todas las facturas PDF de la carpeta."""
     path_facturas = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO")

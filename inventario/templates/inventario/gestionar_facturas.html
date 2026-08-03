@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Gestión de Facturas - San Lucas{% endblock %}
+{% block title %}Gestión de Facturas - Coalfa{% endblock %}
 
 {% block nav_facturas %}active{% endblock %}
 {% block topbar_title %}Buzón de Facturas Inventario{% endblock %}
@@ -34,6 +34,11 @@
     <div class="card-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);">
         <h2 class="card-title">📤 Cargar Nueva Factura PDF</h2>
     </div>
+    {% if user.rol == 'AUDITOR' %}
+    <div class="alert alert-warning" style="margin: 0; font-weight: 700;">
+        🔒 Tu cuenta tiene el rol Auditor (Solo Lectura). No tienes permisos para subir nuevas facturas.
+    </div>
+    {% else %}
     <form method="POST" enctype="multipart/form-data" action="{% url 'inventario_gestionar_facturas' %}" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; width: 100%;">
         {% csrf_token %}
         <div style="flex: 1; min-width: 260px;">
@@ -43,6 +48,7 @@
             Subir y Analizar
         </button>
     </form>
+    {% endif %}
 </div>
 
 <div class="card">
@@ -107,12 +113,14 @@
                             <a href="{% url 'inventario_ver_factura_pdf' filename=f.nombre %}" class="btn btn-ghost btn-sm" target="_blank">
                                 👁️ Ver PDF
                             </a>
+                            {% if user.rol != 'AUDITOR' %}
                             <form method="POST" action="{% url 'inventario_eliminar_factura_pdf' filename=f.nombre %}" onsubmit="return confirm('¿Estás seguro de que deseas eliminar esta factura?')" style="display: inline; margin: 0;">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--danger); padding: 0.35rem 0.6rem;" title="Eliminar factura">
                                     🗑️
                                 </button>
                             </form>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>

@@ -211,12 +211,16 @@
     </div>
     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
         <a href="{% url 'inventario_mapa_bodega' %}" class="btn btn-primary btn-sm">🗺️ Mapa</a>
+        {% if user.rol != 'AUDITOR' %}
         <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-ghost btn-sm">➕ Recibir</a>
+        {% endif %}
         <div style="position:relative; display:inline-block;">
             <button class="btn btn-ghost btn-sm" onclick="toggleQuickMenu()">Acciones ▾</button>
             <div id="quickMenu" class="glass-card" style="display:none; position:absolute; right:0; top:calc(100% + 8px); width:220px; z-index:1000; padding:0.5rem;">
+                {% if user.rol != 'AUDITOR' %}
                 <a href="{% url 'inventario_recibir_lote' %}"      class="nav-item" style="padding:0.5rem 0.9rem; font-size:0.82rem;">📦 Registrar Stock</a>
                 <a href="{% url 'inventario_transformar_lote' %}"   class="nav-item" style="padding:0.5rem 0.9rem; font-size:0.82rem;">🔄 Transformar Lote</a>
+                {% endif %}
                 <a href="{% url 'inventario_resumen_consumo' %}"    class="nav-item" style="padding:0.5rem 0.9rem; font-size:0.82rem;">📈 Estadísticas</a>
                 <a href="{% url 'exportar_inventario_excel' %}"     class="nav-item" style="padding:0.5rem 0.9rem; font-size:0.82rem;">📗 Exportar Excel</a>
                 <a href="{% url 'generar_reporte_pdf' %}"           class="nav-item" style="padding:0.5rem 0.9rem; font-size:0.82rem;">📊 Reporte PDF</a>

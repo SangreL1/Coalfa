@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Previsualizar Factura - San Lucas{% endblock %}
+{% block title %}Previsualizar Factura - Coalfa{% endblock %}
 
 {% block topbar_title %}Confirmación de Carga Automática{% endblock %}
 
@@ -109,9 +109,13 @@
 
         <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <a href="{% url 'inventario_gestionar_facturas' %}" class="btn btn-ghost">❌ Cancelar y Volver</a>
+            {% if user.rol == 'AUDITOR' %}
+            <div class="alert alert-warning" style="margin: 0; font-weight: 700;">🔒 Modo Auditor (Solo Lectura): No tienes permisos para ingresar productos de facturas al inventario.</div>
+            {% else %}
             <button type="submit" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.1rem; box-shadow: 0 10px 20px var(--accent-glow);">
                 🚀 Confirmar y Cargar Inventario
             </button>
+            {% endif %}
         </div>
     </div>
 </form>

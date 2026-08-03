@@ -100,7 +100,11 @@
 
         <div style="display:flex;justify-content:flex-end;gap:0.75rem;">
             <a href="{% url 'inventario_detalle_lote' lote.pk %}" class="btn btn-ghost">Cancelar</a>
+            {% if user.rol == 'AUDITOR' %}
+            <div class="alert alert-warning" style="margin:0; font-weight:700;">🔒 Modo Auditor (Solo Lectura): No tienes permisos para registrar salidas ni servicios.</div>
+            {% else %}
             <button type="submit" class="btn btn-primary" id="btn_serv">🍽️ Registrar Servicio</button>
+            {% endif %}
         </div>
     </form>
 </div>

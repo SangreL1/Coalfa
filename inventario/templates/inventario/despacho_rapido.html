@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Despacho Rápido - San Lucas{% endblock %}
+{% block title %}Despacho Rápido - Coalfa{% endblock %}
 
 {% block topbar_title %}Despacho Rápido de Insumos{% endblock %}
 {% block nav_despacho %}active{% endblock %}
@@ -163,9 +163,15 @@
                         <button id="cancel-btn" type="button" class="btn btn-ghost" style="padding: 1rem 2rem; font-size: 1.1rem; border-radius: 14px; border: 1px solid var(--danger); color: var(--danger);">
                             ❌ Cancelar
                         </button>
+                        {% if user.rol == 'AUDITOR' %}
+                        <button type="button" disabled class="btn btn-ghost" style="padding: 1rem 2rem; font-size: 1.1rem; border-radius: 14px; opacity:0.5; cursor:not-allowed;">
+                            🔒 Auditor (Solo Lectura)
+                        </button>
+                        {% else %}
                         <button id="process-btn" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.1rem; border-radius: 14px;">
                             🚀 Confirmar y Repartir Todo
                         </button>
+                        {% endif %}
                     </div>
                 </div>
             </div>

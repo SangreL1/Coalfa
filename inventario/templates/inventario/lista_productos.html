@@ -80,7 +80,9 @@
     </div>
     <div class="page-header-btns" style="display:flex; gap:0.75rem; flex-wrap:wrap;">
         <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost btn-sm">← Volver</a>
+        {% if user.rol != 'AUDITOR' %}
         <a href="{% url 'inventario_recibir_lote' %}" class="btn btn-primary btn-sm">+ Nuevo Producto</a>
+        {% endif %}
     </div>
 </div>
 
@@ -151,11 +153,13 @@
                 <td style="text-align:right; padding-right:1.5rem;">
                     <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
                         <a href="{% url 'inventario_lista_lotes' %}?q={{ item.producto.nombre }}" class="btn btn-ghost btn-sm" title="Ver Historial">🎦</a>
+                        {% if user.rol != 'AUDITOR' %}
                         <a href="{% url 'inventario_eliminar_producto' item.producto.pk %}"
                            class="btn btn-danger btn-sm {% if item.lotes_activos > 0 %}disabled{% endif %}"
                            {% if item.lotes_activos > 0 %}style="opacity:0.2; pointer-events:none;"{% endif %}>
                            Eliminar
                         </a>
+                        {% endif %}
                     </div>
                 </td>
             </tr>

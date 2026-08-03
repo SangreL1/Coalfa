@@ -218,12 +218,16 @@
             <textarea name="observaciones" class="form-control" rows="3" placeholder="Descripción del estado del empaque, transporte, etc..."></textarea>
         </div>
 
+        {% if user.rol == 'AUDITOR' %}
+        <div class="alert alert-warning" style="margin-top:2rem; font-weight:700;">🔒 Tu cuenta tiene el rol Auditor (Solo Lectura). No tienes permisos para registrar nuevos lotes.</div>
+        {% else %}
         <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:3rem;">
             <a href="{% url 'inventario_dashboard' %}" class="btn btn-ghost" style="padding:1rem 2rem;">Cancelar</a>
             <button type="submit" class="btn btn-primary" style="padding:1rem 3rem; font-size:1rem; box-shadow: 0 10px 20px var(--accent-glow);">
                 Confirmar Recepción
             </button>
         </div>
+        {% endif %}
     </form>
 </div>
 

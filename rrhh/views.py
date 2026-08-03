@@ -3,7 +3,7 @@ from django.db import models
 from django.db.models import Sum
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from coalfa.decorators import rrhh_required
+from coalfa.decorators import rrhh_required, audit_read_only
 from .models import Empleado, PeriodoAusencia, Documento, GastoRRHH, ProductoEPP, EntregaEPP
 from .forms import EmpleadoForm, DocumentoEditForm, GastoRRHHForm, EntregaEPPForm
 from django import forms
@@ -111,6 +111,7 @@ def editar_empleado(request, pk):
 
 
 @rrhh_required
+@audit_read_only
 def editar_documento(request, pk):
     doc = get_object_or_404(Documento, pk=pk)
     if request.method == "POST":
@@ -124,6 +125,7 @@ def editar_documento(request, pk):
 
 
 @rrhh_required
+@audit_read_only
 def eliminar_documento(request, pk):
     doc = get_object_or_404(Documento, pk=pk)
     empleado_pk = doc.empleado.pk
@@ -201,7 +203,7 @@ def exportar_nomina_excel(request):
 
     # Encabezado Empresa
     ws.merge_cells("A1:G1")
-    ws["A1"] = "CENTRO MÉDICO SAN LUCAS"
+    ws["A1"] = "EMPRESA COALFA"
     ws["A1"].font = Font(name="Calibri", size=10, color=color_gris, italic=True)
     ws["A1"].fill = fill_titulo
     
@@ -407,6 +409,7 @@ def inventario_epp(request):
     })
 
 @rrhh_required
+@audit_read_only
 def registrar_ingreso_epp(request):
     """Añadir stock a un producto de RRHH. Crea el producto si no existe."""
     if request.method == "POST":
@@ -461,6 +464,7 @@ def registrar_ingreso_epp(request):
     return redirect("rrhh_inventario_epp")
 
 @rrhh_required
+@audit_read_only
 def registrar_entrega_epp(request):
     """Registra la entrega de un implemento a un empleado y descuenta stock."""
     if request.method == "POST":

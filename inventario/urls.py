@@ -25,6 +25,7 @@ urlpatterns = [
     # Reportes de Consumo
     path("consumo/", views.resumen_consumo, name="inventario_resumen_consumo"),
     path("consumo/exportar/", views.exportar_consumo_excel, name="inventario_exportar_consumo_excel"),
+    path("consumo/historico/exportar/", views.exportar_busqueda_historica_excel, name="inventario_exportar_historico_excel"),
     # Carga Masiva y Facturas
     path("importar/solicitudes/", views.cargar_solicitudes_excel, name="inventario_cargar_excel"),
     path("facturas/", views.gestionar_facturas, name="inventario_gestionar_facturas"),

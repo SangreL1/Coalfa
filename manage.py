@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Centro Médico San Lucas — Gestión de Inventario y RRHH."""
+"""Coalfa — Gestión de Inventario y RRHH."""
 import os
 import sys
 

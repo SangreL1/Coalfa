@@ -1,5 +1,5 @@
 """
-Django settings for Centro Médico San Lucas project — PRODUCCION.
+Django settings for Coalfa project — PRODUCCION.
 """
 
 import os

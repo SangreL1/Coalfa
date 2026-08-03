@@ -748,7 +748,7 @@
                 <span class="icon">🏠</span> Dashboard
             </a>
 
-            {% if user.rol == 'RRHH' or user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
+            {% if user.rol == 'RRHH' or user.rol == 'ADMIN' or user.rol == 'GERENTE' or user.rol == 'AUDITOR' %}
             <div class="nav-section-label">Recursos Humanos</div>
             <a href="{% url 'rrhh_dashboard' %}" class="nav-item {% block nav_rrhh %}{% endblock %}">
                 <span class="icon">👥</span> Nómina de Personal
@@ -767,13 +767,16 @@
             </a>
             {% endif %}
 
-            {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' or user.rol == 'GERENTE' %}
+            {% if user.rol == 'OPERACIONAL' or user.rol == 'ADMIN' or user.rol == 'GERENTE' or user.rol == 'AUDITOR' %}
             <div class="nav-section-label">Operaciones</div>
             <a href="{% url 'inventario_dashboard' %}" class="nav-item {% block nav_inventario %}{% endblock %}">
                 <span class="icon">📦</span> Bodega y Trazabilidad
             </a>
             <a href="{% url 'inventario_lista_lotes' %}" class="nav-item {% block nav_lotes %}{% endblock %}">
                 <span class="icon">🏷️</span> Control de Lotes
+            </a>
+            <a href="{% url 'inventario_resumen_consumo' %}" class="nav-item {% block nav_consumo %}{% endblock %}">
+                <span class="icon">📊</span> Estadísticas y Consumos
             </a>
             <a href="{% url 'inventario_alertas' %}" class="nav-item {% block nav_alertas %}{% endblock %}">
                 <span class="icon">⚠️</span> Alertas de Vencimiento
@@ -837,6 +840,33 @@
         </div>
 
         <div class="page-content">
+            {% if user.rol == 'AUDITOR' %}
+            <div id="auditor-banner" class="alert alert-warning" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; border-color:var(--warning); background:rgba(234,179,8,0.12); margin-bottom:1.5rem; padding: 0.85rem 1.25rem; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:0.75rem; flex:1; min-width:240px;">
+                    <span style="font-size:1.3rem;">🔒</span>
+                    <div>
+                        <strong style="color:var(--warning); font-size:0.9rem;">Modo Auditor (Solo Lectura)</strong>
+                        <div style="font-size:0.78rem; color:var(--text); opacity:0.9; margin-top:2px;">
+                            Tu cuenta tiene el rol <strong>Auditor</strong>. Puedes navegar y descargar información, pero no editar datos.
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="ocultarBannerAuditor()" class="btn btn-ghost btn-sm" style="border-color:rgba(234,179,8,0.4); color:var(--warning); font-size:0.75rem; white-space:nowrap;">
+                    ✕ No volver a mostrar
+                </button>
+            </div>
+            <script>
+                if (localStorage.getItem('hideAuditorBanner') === 'true') {
+                    const b = document.getElementById('auditor-banner');
+                    if (b) b.style.display = 'none';
+                }
+                function ocultarBannerAuditor() {
+                    localStorage.setItem('hideAuditorBanner', 'true');
+                    const b = document.getElementById('auditor-banner');
+                    if (b) b.style.display = 'none';
+                }
+            </script>
+            {% endif %}
             {% for message in messages %}
             <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
             {% endfor %}

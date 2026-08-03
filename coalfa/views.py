@@ -37,7 +37,7 @@ def logout_view(request):
 def dashboard(request):
     context = {}
 
-    if request.user.rol in ("RRHH", "ADMIN", "GERENTE"):
+    if request.user.rol in ("RRHH", "ADMIN", "GERENTE", "AUDITOR"):
         total_empleados = Empleado.objects.count()
         activos = Empleado.objects.filter(estado="ACTIVO").count()
         en_vacaciones = Empleado.objects.filter(estado="VACACIONES").count()
@@ -52,7 +52,7 @@ def dashboard(request):
             "finiquitados": finiquitados,
         })
 
-    if request.user.rol in ("OPERACIONAL", "ADMIN", "GERENTE"):
+    if request.user.rol in ("OPERACIONAL", "ADMIN", "GERENTE", "AUDITOR"):
         hoy = datetime.date.today()
         pronto = hoy + datetime.timedelta(days=7)
         lotes_activos = Lote.objects.filter(estado="ACTIVO")

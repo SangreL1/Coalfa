@@ -206,8 +206,13 @@ class MovimientoTrazabilidad(models.Model):
 
 
 class RegistroServicio(models.Model):
-    """Registro de salida a línea / consumo final."""
-    lote = models.ForeignKey(Lote, on_delete=models.CASCADE, related_name="servicios")
+    """Registro de salida a línea / consumo final con preservación histórica."""
+    lote = models.ForeignKey(Lote, on_delete=models.SET_NULL, null=True, blank=True, related_name="servicios")
+    producto_nombre = models.CharField(max_length=150, blank=True, verbose_name="Nombre del Producto Histórico")
+    producto_categoria = models.CharField(max_length=20, blank=True, verbose_name="Categoría del Producto")
+    producto_talla = models.CharField(max_length=50, blank=True, verbose_name="Talla")
+    producto_unidad = models.CharField(max_length=10, blank=True, verbose_name="Unidad de Medida")
+    lote_codigo = models.CharField(max_length=60, blank=True, verbose_name="Código de Lote Original")
     cantidad_servida = models.FloatField()
     area = models.CharField(max_length=30, choices=Lote.UBICACION_CHOICES, default="LINEA")
     costo_total = models.FloatField(default=0, help_text="Costo calculado (cantidad * precio_unitario del lote)")
@@ -216,13 +221,51 @@ class RegistroServicio(models.Model):
     observaciones = models.TextField(blank=True)
 
     def save(self, *args, **kwargs):
-        if self.lote and not self.costo_total:
-            # Redondeamos a 2 decimales para evitar errores de coma flotante (.00000000005)
-            self.costo_total = round(self.cantidad_servida * self.lote.precio_unitario, 2)
+        if self.lote:
+            if not self.costo_total:
+                self.costo_total = round(self.cantidad_servida * self.lote.precio_unitario, 2)
+            if not self.producto_nombre and self.lote.producto:
+                self.producto_nombre = self.lote.producto.nombre
+            if not self.producto_categoria and self.lote.producto:
+                self.producto_categoria = self.lote.producto.categoria
+            if not self.producto_talla and self.lote.producto:
+                self.producto_talla = self.lote.producto.talla or ""
+            if not self.producto_unidad and self.lote.producto:
+                self.producto_unidad = self.lote.producto.get_unidad_medida_display()
+            if not self.lote_codigo:
+                self.lote_codigo = self.lote.numero_lote
         super().save(*args, **kwargs)
 
+    @property
+    def get_producto_nombre(self):
+        if self.lote and self.lote.producto:
+            return self.lote.producto.nombre
+        return self.producto_nombre or "Producto Eliminado"
+
+    @property
+    def get_producto_categoria(self):
+        if self.lote and self.lote.producto:
+            return self.lote.producto.get_categoria_display()
+        if self.producto_categoria:
+            dict_cat = dict(Producto.CATEGORIA_CHOICES)
+            return dict_cat.get(self.producto_categoria, self.producto_categoria)
+        return "OTRO"
+
+    @property
+    def get_producto_unidad(self):
+        if self.lote and self.lote.producto:
+            return self.lote.producto.get_unidad_medida_display()
+        return self.producto_unidad or "UN"
+
+    @property
+    def get_lote_codigo(self):
+        if self.lote:
+            return self.lote.numero_lote
+        return self.lote_codigo or "—"
+
     def __str__(self):
-        return f"Servicio {self.lote.numero_lote} — {self.fecha:%d/%m/%Y %H:%M} ({self.area})"
+        cod = self.get_lote_codigo
+        return f"Servicio {cod} — {self.fecha:%d/%m/%Y %H:%M} ({self.area})"
 
     class Meta:
         verbose_name = "Registro de Servicio"

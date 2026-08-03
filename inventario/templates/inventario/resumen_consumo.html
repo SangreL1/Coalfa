@@ -206,7 +206,31 @@
     <!-- Ranking Column -->
     <div>
         <div class="glass-card">
-            <h3 style="font-size: 1rem; margin-bottom: 1.5rem; text-transform: uppercase; color: var(--accent);">Ranking de Áreas</h3>
+            <!-- Selector de mes/año -->
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; margin-bottom:1.25rem;">
+                <h3 style="font-size: 1rem; text-transform: uppercase; color: var(--accent); margin:0;">Ranking de Áreas</h3>
+                <form method="get" action="{% url 'inventario_resumen_consumo' %}" style="display:flex; gap:0.4rem; align-items:center;" id="form-mes-ranking">
+                    <select name="mes" class="form-control" style="padding:0.3rem 0.5rem; font-size:0.78rem; width:auto;" onchange="this.form.submit()">
+                        {% for d in meses_disponibles %}
+                        <option value="{{ d.month }}" data-year="{{ d.year }}" {% if d.month == mes_ranking and d.year == anio_ranking %}selected{% endif %}>
+                            {{ d|date:"F Y" }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="anio" id="anio-hidden" value="{{ anio_ranking }}">
+                </form>
+            </div>
+            <!-- Totales del mes -->
+            <div style="display:flex; gap:1rem; margin-bottom:1.25rem; flex-wrap:wrap;">
+                <div style="background:rgba(99,102,241,0.1); border:1px solid var(--indigo); border-radius:10px; padding:0.6rem 1rem; flex:1; min-width:120px;">
+                    <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Costo Total {{ mes_nombre }}</div>
+                    <div style="font-size:1.1rem; font-weight:800; color:var(--success);">${{ total_mes_costo|floatformat:0|intcomma }}</div>
+                </div>
+                <div style="background:rgba(16,185,129,0.08); border:1px solid var(--success); border-radius:10px; padding:0.6rem 1rem; flex:1; min-width:120px;">
+                    <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Unidades {{ mes_nombre }}</div>
+                    <div style="font-size:1.1rem; font-weight:800; color:var(--accent);">{{ total_mes_cant|floatformat:0|intcomma }}</div>
+                </div>
+            </div>
             {% for r in ranking %}
             <div class="rank-item">
                 <div class="rank-number">{{ forloop.counter }}</div>
@@ -222,7 +246,7 @@
                 <div class="rank-value">${{ r.total_gastado|floatformat:0|intcomma }}</div>
             </div>
             {% empty %}
-            <p style="color: var(--text-muted);">No hay datos de consumo registrados.</p>
+            <p style="color: var(--text-muted); text-align:center; padding:1rem;">Sin consumos registrados en {{ mes_nombre }} {{ anio_ranking }}.</p>
             {% endfor %}
         </div>
         
@@ -327,7 +351,7 @@
                     <td style="color: var(--success); font-weight: 800;">${{ c.costo_total|floatformat:0|intcomma }}</td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="5" style="text-align:center; padding: 2rem;">No hay registros recientes.</td></tr>
+                <tr><td colspan="5" style="text-align:center; padding: 2rem;">Sin registros de consumo en {{ mes_nombre }} {{ anio_ranking }}.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -337,3 +361,21 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+// Sincronizar el año oculto cuando cambia el selector de mes
+document.addEventListener('DOMContentLoaded', function() {
+    const selectMes = document.querySelector('#form-mes-ranking select[name="mes"]');
+    const inputAnio = document.getElementById('anio-hidden');
+    if (selectMes && inputAnio) {
+        selectMes.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const year = selectedOption.getAttribute('data-year');
+            if (year) inputAnio.value = year;
+        });
+    }
+});
+</script>
+{% endblock %}
+

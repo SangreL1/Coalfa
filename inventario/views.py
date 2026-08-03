@@ -995,31 +995,61 @@ def exportar_inventario_excel(request):
 @operacional_required
 def resumen_consumo(request):
     """Muestra el ranking de áreas que más consumen y permite búsqueda histórica de productos."""
-    # Ranking de áreas por gasto monetario
-    ranking = RegistroServicio.objects.values('area').annotate(
+    hoy = datetime.date.today()
+
+    # ── Filtro de mes/año para el ranking (por defecto: mes actual) ──────────
+    mes_param  = request.GET.get("mes", "")
+    anio_param = request.GET.get("anio", "")
+    try:
+        mes_ranking  = int(mes_param)  if mes_param  else hoy.month
+        anio_ranking = int(anio_param) if anio_param else hoy.year
+    except (ValueError, TypeError):
+        mes_ranking, anio_ranking = hoy.month, hoy.year
+
+    # Aseguramos rango válido
+    mes_ranking  = max(1, min(12, mes_ranking))
+    anio_ranking = max(2020, min(2100, anio_ranking))
+
+    qs_mes = RegistroServicio.objects.filter(
+        fecha__year=anio_ranking,
+        fecha__month=mes_ranking,
+    )
+
+    # Ranking de áreas por gasto monetario — solo del mes seleccionado
+    ranking = qs_mes.values('area').annotate(
         total_gastado=Sum('costo_total'),
         total_productos=Sum('cantidad_servida')
     ).order_by('-total_gastado')
-    
-    # Convertir keys de area a labels (human-readable)
+
     ubicaciones_dict = dict(Lote.UBICACION_CHOICES)
     for r in ranking:
         r['area_label'] = ubicaciones_dict.get(r['area'], r['area'])
 
-    # Últimos 20 registros de consumo
-    ultimos_consumos = RegistroServicio.objects.select_related('lote', 'lote__producto').order_by('-fecha')[:20]
+    # Últimos 20 registros del mes seleccionado
+    ultimos_consumos = qs_mes.select_related('lote', 'lote__producto').order_by('-fecha')[:20]
 
-    # Áreas dinámicas para el filtro (todas las que existan en registros)
+    # Totales del mes
+    total_mes_costo = qs_mes.aggregate(Sum('costo_total'))['costo_total__sum'] or 0
+    total_mes_cant  = qs_mes.aggregate(Sum('cantidad_servida'))['cantidad_servida__sum'] or 0
+
+    # Áreas dinámicas para el filtro histórico
     areas_existentes = RegistroServicio.objects.values_list('area', flat=True).distinct()
     choices_dict = dict(Lote.UBICACION_CHOICES)
     areas_dropdown = [(a, choices_dict.get(a, a)) for a in areas_existentes if a]
 
-    # ── Búsqueda Histórica de Productos ──
-    h_q = request.GET.get("h_q", "").strip()
-    h_fecha = request.GET.get("h_fecha", "").strip()
+    # Meses disponibles para el selector (todos los meses con registros)
+    import calendar
+    meses_disponibles = (
+        RegistroServicio.objects
+        .dates('fecha', 'month', order='DESC')
+    )
+
+    # ── Búsqueda Histórica de Productos (sin restricción de mes) ─────────────
+    h_q         = request.GET.get("h_q", "").strip()
+    h_fecha     = request.GET.get("h_fecha", "").strip()
     h_fecha_hasta = request.GET.get("h_fecha_hasta", "").strip()
     h_categoria = request.GET.get("h_categoria", "").strip()
-    h_area = request.GET.get("h_area", "").strip()
+    h_area      = request.GET.get("h_area", "").strip()
 
     historicos = RegistroServicio.objects.select_related('lote', 'lote__producto').all()
 

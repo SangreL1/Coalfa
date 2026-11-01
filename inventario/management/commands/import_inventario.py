@@ -151,7 +151,7 @@ class Command(BaseCommand):
             "..",
             "..",
             "..",
-            "Planilla de inventario 31-07-26.xlsx",
+            "Planilla de inventario 31-10-26.xlsx",
         )
         parser.add_argument(
             "--excel",

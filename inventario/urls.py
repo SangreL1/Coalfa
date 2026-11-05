@@ -29,6 +29,7 @@ urlpatterns = [
     # Carga Masiva y Facturas
     path("importar/solicitudes/", views.cargar_solicitudes_excel, name="inventario_cargar_excel"),
     path("facturas/", views.gestionar_facturas, name="inventario_gestionar_facturas"),
+    path("facturas/manual/", views.procesar_factura_pdf, {"filename": "manual"}, name="inventario_factura_manual"),
     path("facturas/procesar/<str:filename>/", views.procesar_factura_pdf, name="inventario_procesar_factura_pdf"),
     path("facturas/ver/<str:filename>/", views.ver_factura_pdf, name="inventario_ver_factura_pdf"),
     path("facturas/eliminar/<str:filename>/", views.eliminar_factura_pdf, name="inventario_eliminar_factura_pdf"),

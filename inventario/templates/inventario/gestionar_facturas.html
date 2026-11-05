@@ -31,8 +31,13 @@
 
 <!-- Formulario para subir nuevas facturas -->
 <div class="card" style="margin-bottom: 2rem; border-color: rgba(249, 115, 22, 0.25); background: rgba(249, 115, 22, 0.02);">
-    <div class="card-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);">
-        <h2 class="card-title">📤 Cargar Nueva Factura PDF</h2>
+    <div class="card-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+        <h2 class="card-title" style="margin: 0;">📤 Cargar Nueva Factura PDF</h2>
+        {% if user.rol != 'AUDITOR' %}
+        <a href="{% url 'inventario_factura_manual' %}" class="btn btn-ghost btn-sm" style="border: 1px dashed var(--accent); color: var(--accent);">
+            ➕ Nueva Factura Manual (Sin PDF)
+        </a>
+        {% endif %}
     </div>
     {% if user.rol == 'AUDITOR' %}
     <div class="alert alert-warning" style="margin: 0; font-weight: 700;">
@@ -45,7 +50,7 @@
             <input type="file" name="factura_pdf" accept=".pdf" class="form-control" required style="width: 100%;">
         </div>
         <button type="submit" class="btn btn-primary" style="padding: 0.7rem 1.5rem; flex-shrink: 0;">
-            Subir y Analizar
+            Subir Factura PDF
         </button>
     </form>
     {% endif %}
@@ -103,10 +108,10 @@
                     <td style="text-align: right;">
                         <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
                             {% if not f.procesada %}
-                            <a href="{% url 'inventario_procesar_factura_pdf' filename=f.nombre %}" class="btn btn-primary btn-sm" style="background: #8b5cf6;">
+                            <a href="{% url 'inventario_procesar_factura_pdf' filename=f.nombre %}" class="btn btn-primary btn-sm btn-carga-inteligente" style="background: #8b5cf6;" title="Escanear y extraer productos del PDF automáticamente">
                                 ⚡ Carga Inteligente
                             </a>
-                            <a href="{% url 'inventario_recibir_lote' %}?guia={{ f.guia }}" class="btn btn-ghost btn-sm">
+                            <a href="{% url 'inventario_procesar_factura_pdf' filename=f.nombre %}?manual=1" class="btn btn-ghost btn-sm" title="Abrir formulario para escribir los productos manualmente sin esperar">
                                 ➕ Registro Manual
                             </a>
                             {% endif %}
@@ -147,4 +152,14 @@
         </div>
     </div>
 </div>
+
+<script>
+document.querySelectorAll('.btn-carga-inteligente').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        this.innerHTML = '⏳ Leyendo PDF...';
+        this.style.pointerEvents = 'none';
+        this.style.opacity = '0.75';
+    });
+});
+</script>
 {% endblock %}

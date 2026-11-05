@@ -1,37 +1,65 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Previsualizar Factura - Coalfa{% endblock %}
+{% block title %}{% if es_manual %}Registro Manual de Factura{% else %}Previsualizar Factura{% endif %} - San Lucas{% endblock %}
 
-{% block topbar_title %}Confirmación de Carga Automática{% endblock %}
+{% block topbar_title %}{% if es_manual %}Registro Manual de Factura{% else %}Confirmación de Carga de Factura{% endif %}{% endblock %}
 
 {% block content %}
-<div class="header-section" style="margin-bottom: 2rem;">
-    <h1 class="page-title">Previsualización de Factura: {{ guia }}</h1>
-    <p class="page-subtitle">Revisa los datos extraídos del PDF antes de guardarlos. Puedes editar cualquier campo.</p>
+<div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title">
+            {% if es_manual %}
+            ✍️ Registro Manual de Factura {% if guia %}({{ guia }}){% endif %}
+            {% else %}
+            ⚡ Previsualización de Factura: {{ guia }}
+            {% endif %}
+        </h1>
+        <p class="page-subtitle" style="margin-bottom: 0;">
+            {% if es_manual %}
+            Ingresa los productos directamente en las casillas a continuación. Puedes añadir tantas filas como necesites.
+            {% else %}
+            Revisa los datos extraídos del PDF. Puedes editar cualquier casilla o presionar <strong>"Añadir Producto"</strong> para agregar más casillas.
+            {% endif %}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+        {% if filename and filename != 'manual' %}
+        <a href="{% url 'inventario_ver_factura_pdf' filename=filename %}" class="btn btn-ghost btn-sm" target="_blank" title="Abrir archivo PDF en una pestaña para consultarlo">
+            👁️ Ver PDF en otra pestaña
+        </a>
+        {% endif %}
+        <a href="{% url 'inventario_gestionar_facturas' %}" class="btn btn-ghost btn-sm">
+            ← Volver al Buzón
+        </a>
+    </div>
 </div>
 
-<form method="POST" action="{% url 'inventario_confirmar_carga_factura' %}">
+<form method="POST" action="{% url 'inventario_confirmar_carga_factura' %}" id="form-factura">
     {% csrf_token %}
-    <input type="hidden" name="guia" value="{{ guia }}">
+    <input type="hidden" name="modo_manual" value="{% if es_manual %}1{% else %}0{% endif %}">
 
-    <!-- Datos Generales -->
-    <div class="card" style="margin-bottom: 2rem; background: var(--accent-soft);">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+    <!-- Datos Generales de la Factura -->
+    <div class="card" style="margin-bottom: 2rem; background: var(--accent-soft); border-color: rgba(139, 92, 246, 0.25);">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+            <div class="form-group">
+                <label class="form-label" style="font-weight: 700;">Nº Guía / Factura <span style="color: var(--danger);">*</span></label>
+                <input type="text" name="guia" class="form-control" value="{{ guia }}" required placeholder="Ej: 104523" style="font-weight: 600;">
+            </div>
             <div class="form-group">
                 <label class="form-label" style="font-weight: 700;">Proveedor</label>
                 <select name="proveedor" class="form-control">
-                    <option value="">-- Seleccionar Proveedor --</option>
+                    <option value="">-- Seleccionar Proveedor (Opcional) --</option>
                     {% for p in proveedores %}
                     <option value="{{ p.id }}">{{ p.nombre }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label" style="font-weight: 700;">Fecha Recepción</label>
-                <input type="date" name="fecha_recepcion" class="form-control" value="{{ hoy }}">
+                <label class="form-label" style="font-weight: 700;">Fecha Recepción <span style="color: var(--danger);">*</span></label>
+                <input type="date" name="fecha_recepcion" class="form-control" value="{{ hoy }}" required>
             </div>
             <div class="form-group">
-                <label class="form-label" style="font-weight: 700;">Ubicación Destino</label>
+                <label class="form-label" style="font-weight: 700;">Ubicación Destino <span style="color: var(--danger);">*</span></label>
                 <select name="ubicacion_actual" class="form-control">
                     {% for key, label in ubicaciones %}
                     <option value="{{ key }}" {% if key == 'BODEGA' %}selected{% endif %}>{{ label }}</option>
@@ -41,34 +69,46 @@
         </div>
     </div>
 
-    <!-- Tabla de Productos -->
+    <!-- Tabla Dinámica de Productos -->
     <div class="card">
-        <div class="card-header">
-            <h2 class="card-title">Productos Detectados ({{ items|length }})</h2>
-            <div style="font-size: 0.8rem; color: var(--text-muted);">Marca los productos que deseas cargar.</div>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem;">
+            <div>
+                <h2 class="card-title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    📦 Productos a Registrar 
+                    <span class="badge badge-activo" id="contador-productos" style="font-size: 0.8rem; background: var(--accent); color: white;">
+                        {{ items|length }}
+                    </span>
+                </h2>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    Completa la información de los productos. Puedes usar el botón de la derecha para añadir más filas.
+                </div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" onclick="agregarFilaProducto();" style="background: var(--accent); display: flex; align-items: center; gap: 0.35rem;">
+                ➕ Añadir Casilla de Producto
+            </button>
         </div>
 
         <div class="table-wrap">
-            <table class="table-enterprise">
+            <table class="table-enterprise" style="width: 100%;">
                 <thead>
                     <tr>
-                        <th>Descripción del Producto</th>
-                        <th width="100">Cantidad</th>
-                        <th width="100">Unidad</th>
-                        <th width="120">Precio Unit.</th>
-                        <th width="150">Categoría</th>
+                        <th style="min-width: 250px;">Descripción del Producto <span style="color: var(--danger);">*</span></th>
+                        <th width="120">Cantidad <span style="color: var(--danger);">*</span></th>
+                        <th width="120">Unidad</th>
+                        <th width="130">Precio Unit. ($)</th>
+                        <th width="160">Categoría</th>
                         <th width="150">Vencimiento</th>
-                        <th width="50"></th>
+                        <th width="50" style="text-align: center;">Acción</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tbody-productos">
                     {% for item in items %}
-                    <tr>
+                    <tr class="fila-producto">
                         <td>
-                            <input type="text" name="prod_nombre" value="{{ item.producto }}" class="form-control" style="font-size: 0.85rem;">
+                            <input type="text" name="prod_nombre" value="{{ item.producto }}" class="form-control input-nombre" placeholder="Nombre del producto..." required style="font-size: 0.9rem;">
                         </td>
                         <td>
-                            <input type="number" step="0.01" name="prod_cantidad" value="{{ item.cantidad }}" class="form-control" style="font-weight: 700; text-align: center;">
+                            <input type="number" step="0.01" name="prod_cantidad" value="{{ item.cantidad }}" class="form-control" placeholder="0" required style="font-weight: 700; text-align: center;">
                         </td>
                         <td>
                             <select name="prod_unidad" class="form-control">
@@ -78,7 +118,7 @@
                             </select>
                         </td>
                         <td>
-                            <input type="number" step="0.01" name="prod_precio" value="{{ item.precio }}" class="form-control" style="color: var(--success); font-weight: 700;">
+                            <input type="number" step="0.01" name="prod_precio" value="{{ item.precio }}" class="form-control" placeholder="0" style="color: var(--success); font-weight: 700;">
                         </td>
                         <td>
                             <select name="prod_categoria" class="form-control">
@@ -90,16 +130,10 @@
                         <td>
                             <input type="date" name="prod_vencimiento" class="form-control">
                         </td>
-                        <td>
-                            <button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('tr').remove();" style="color: var(--danger); padding: 5px;">
+                        <td style="text-align: center;">
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="eliminarFila(this);" style="color: var(--danger); padding: 5px;" title="Eliminar este producto">
                                 🗑️
                             </button>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
-                            No se pudieron extraer productos automáticamente de este PDF.
                         </td>
                     </tr>
                     {% endfor %}
@@ -107,17 +141,119 @@
             </table>
         </div>
 
-        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-            <a href="{% url 'inventario_gestionar_facturas' %}" class="btn btn-ghost">❌ Cancelar y Volver</a>
-            {% if user.rol == 'AUDITOR' %}
-            <div class="alert alert-warning" style="margin: 0; font-weight: 700;">🔒 Modo Auditor (Solo Lectura): No tienes permisos para ingresar productos de facturas al inventario.</div>
-            {% else %}
+        <!-- Botón accesible para añadir más casillas -->
+        <div style="margin-top: 1rem;">
+            <button type="button" class="btn btn-ghost" onclick="agregarFilaProducto();" style="border: 2px dashed var(--accent); color: var(--accent); width: 100%; padding: 0.85rem; font-weight: 600; font-size: 0.95rem; border-radius: 8px; background: rgba(139, 92, 246, 0.05);">
+                ➕ Añadir otra casilla para más productos
+            </button>
+        </div>
+
+        <div style="margin-top: 2.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <a href="{% url 'inventario_gestionar_facturas' %}" class="btn btn-ghost">
+                ❌ Cancelar y Volver
+            </a>
             <button type="submit" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.1rem; box-shadow: 0 10px 20px var(--accent-glow);">
                 🚀 Confirmar y Cargar Inventario
             </button>
-            {% endif %}
         </div>
     </div>
 </form>
 
+<!-- Plantilla oculta para añadir nuevas filas dinámicamente -->
+<template id="fila-producto-template">
+    <tr class="fila-producto">
+        <td>
+            <input type="text" name="prod_nombre" class="form-control input-nombre" placeholder="Nombre o descripción del producto..." required style="font-size: 0.9rem;">
+        </td>
+        <td>
+            <input type="number" step="0.01" name="prod_cantidad" class="form-control" placeholder="0" required style="font-weight: 700; text-align: center;">
+        </td>
+        <td>
+            <select name="prod_unidad" class="form-control">
+                {% for u_key, u_val in unidades %}
+                <option value="{{ u_key }}" {% if u_key == 'UN' %}selected{% endif %}>{{ u_val }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input type="number" step="0.01" name="prod_precio" class="form-control" placeholder="0" style="color: var(--success); font-weight: 700;">
+        </td>
+        <td>
+            <select name="prod_categoria" class="form-control">
+                {% for c_key, c_val in categorias %}
+                <option value="{{ c_key }}">{{ c_val }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input type="date" name="prod_vencimiento" class="form-control">
+        </td>
+        <td style="text-align: center;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="eliminarFila(this);" style="color: var(--danger); padding: 5px;" title="Eliminar fila">
+                🗑️
+            </button>
+        </td>
+    </tr>
+</template>
+
+<script>
+function actualizarContador() {
+    const tbody = document.getElementById('tbody-productos');
+    const filas = tbody.querySelectorAll('tr.fila-producto');
+    const badge = document.getElementById('contador-productos');
+    if (badge) {
+        badge.textContent = filas.length;
+    }
+}
+
+function agregarFilaProducto(datos = null) {
+    const template = document.getElementById('fila-producto-template');
+    const clon = template.content.cloneNode(true);
+    const tr = clon.querySelector('tr');
+
+    if (datos) {
+        if (datos.nombre) tr.querySelector('[name="prod_nombre"]').value = datos.nombre;
+        if (datos.cantidad) tr.querySelector('[name="prod_cantidad"]').value = datos.cantidad;
+        if (datos.unidad) tr.querySelector('[name="prod_unidad"]').value = datos.unidad;
+        if (datos.precio) tr.querySelector('[name="prod_precio"]').value = datos.precio;
+        if (datos.categoria) tr.querySelector('[name="prod_categoria"]').value = datos.categoria;
+        if (datos.vencimiento) tr.querySelector('[name="prod_vencimiento"]').value = datos.vencimiento;
+    }
+
+    const tbody = document.getElementById('tbody-productos');
+    tbody.appendChild(tr);
+    actualizarContador();
+
+    // Si fue agregada manualmente por el usuario, dar foco al campo de nombre
+    if (!datos) {
+        const inputNombre = tr.querySelector('.input-nombre');
+        if (inputNombre) {
+            inputNombre.focus();
+        }
+    }
+}
+
+function eliminarFila(btn) {
+    const fila = btn.closest('tr');
+    if (fila) {
+        fila.remove();
+        actualizarContador();
+        
+        // Si no queda ninguna fila, asegurar que haya al menos una para escribir
+        const tbody = document.getElementById('tbody-productos');
+        if (tbody.querySelectorAll('tr.fila-producto').length === 0) {
+            agregarFilaProducto();
+        }
+    }
+}
+
+// Al cargar la página: si la tabla está vacía (modo manual o sin productos extraídos), agregar 1 fila lista para escribir
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('tbody-productos');
+    if (tbody && tbody.querySelectorAll('tr.fila-producto').length === 0) {
+        agregarFilaProducto();
+    }
+    actualizarContador();
+});
+</script>
 {% endblock %}

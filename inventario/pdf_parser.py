@@ -41,7 +41,13 @@ def _extraer_con_pdfplumber(pdf_path):
     productos = []
     try:
         with pdfplumber.open(pdf_path) as pdf:
-            for page in pdf.pages:
+            # Limitar a las primeras 3 páginas para evitar sobrecarga y demoras
+            for page in pdf.pages[:3]:
+                # Verificar primero si la página tiene texto nativo
+                text = page.extract_text()
+                if not text or len(text.strip()) < 10:
+                    continue
+
                 for strategy in [
                     {"vertical_strategy": "lines", "horizontal_strategy": "lines"},
                     {"vertical_strategy": "text", "horizontal_strategy": "text"},
@@ -55,13 +61,10 @@ def _extraer_con_pdfplumber(pdf_path):
                                 break
                     except Exception as ex:
                         print(f"[pdfplumber] Error al parsear tabla: {ex}")
-                        traceback.print_exc()
                         continue
 
-                if not productos:
-                    text = page.extract_text()
-                    if text:
-                        productos.extend(_parsear_texto_generico(text))
+                if not productos and text:
+                    productos.extend(_parsear_texto_generico(text))
     except Exception as e:
         print(f"[pdfplumber] Error en {pdf_path}: {e}")
         traceback.print_exc()
@@ -72,11 +75,12 @@ def _extraer_con_ocr(pdf_path):
     """Convierte el PDF a imagen y aplica OCR con Tesseract."""
     productos = []
     try:
-        # Usamos 150 DPI en lugar de 300 para duplicar la velocidad de conversión y reducir consumo de memoria
+        # DPI=100 y máximo 2 páginas para ejecución rápida y bajo consumo de memoria
+        kwargs = {"dpi": 100, "first_page": 1, "last_page": 2}
         if POPPLER_PATH:
-            images = convert_from_path(pdf_path, dpi=150, poppler_path=POPPLER_PATH)
-        else:
-            images = convert_from_path(pdf_path, dpi=150)
+            kwargs["poppler_path"] = POPPLER_PATH
+
+        images = convert_from_path(pdf_path, **kwargs)
             
         if not images:
             return []

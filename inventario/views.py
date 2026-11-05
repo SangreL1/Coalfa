@@ -1839,52 +1839,64 @@ def ver_factura_pdf(request, filename):
 
 
 @operacional_required
-def procesar_factura_pdf(request, filename):
-    """Lee el PDF y muestra una previsualización de los productos detectados."""
-    from .pdf_parser import extraer_datos_factura, TESSERACT_AVAILABLE
+def procesar_factura_pdf(request, filename="manual"):
+    """Lee el PDF y muestra una previsualización de los productos detectados, o abre el formulario en modo manual inmediato."""
+    es_manual = request.GET.get("manual") == "1" or request.GET.get("modo") == "manual" or filename == "manual"
     
-    path_pdf = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO", filename)
-    if not os.path.exists(path_pdf):
-        messages.error(request, "El archivo ya no existe en la carpeta.")
-        return redirect("inventario_gestionar_facturas")
-        
-    # Extraer datos
-    items = extraer_datos_factura(path_pdf)
-    num_guia = filename.replace(".pdf", "").replace(".PDF", "")
+    path_pdf = None
+    num_guia = ""
     
-    if not items and not TESSERACT_AVAILABLE:
-        messages.warning(
-            request,
-            "Este archivo PDF no contiene texto nativo (parece ser una imagen escaneada o foto) y "
-            "el servidor online no tiene activado el motor de OCR (Tesseract). "
-            "Por favor, intenta subir el PDF digital original emitido por el proveedor para una extracción instantánea."
-        )
+    if filename and filename != "manual":
+        path_pdf = os.path.join(settings.BASE_DIR, "FACTURAS INVENTARIO", filename)
+        num_guia = filename.replace(".pdf", "").replace(".PDF", "")
+        if not os.path.exists(path_pdf) and not es_manual:
+            messages.error(request, "El archivo ya no existe en la carpeta.")
+            return redirect("inventario_gestionar_facturas")
+
+    items = []
+    # Solo ejecutar la lectura del PDF si NO estamos en modo manual
+    if not es_manual and path_pdf and os.path.exists(path_pdf):
+        from .pdf_parser import extraer_datos_factura, TESSERACT_AVAILABLE
+        try:
+            items = extraer_datos_factura(path_pdf)
+        except Exception as e:
+            messages.warning(request, f"No se pudo extraer texto del PDF ({e}). Puedes agregar los productos manualmente.")
+            items = []
+            
+        if not items and not TESSERACT_AVAILABLE:
+            messages.warning(
+                request,
+                "No se detectó texto nativo en este PDF y el OCR no está activo en este servidor. "
+                "Puedes ingresar los productos manualmente a continuación."
+            )
     
     return render(request, "inventario/previsualizar_factura.html", {
         "items": items,
-        "filename": filename,
+        "filename": filename if filename != "manual" else None,
         "guia": num_guia,
         "hoy": datetime.date.today().isoformat(),
-        "proveedores": Proveedor.objects.all(),
+        "proveedores": Proveedor.objects.all().order_by("nombre"),
         "ubicaciones": Lote.UBICACION_CHOICES,
         "unidades": Producto.UNIDAD_CHOICES,
         "categorias": Producto.CATEGORIA_CHOICES,
+        "es_manual": es_manual,
     })
 
 
 @operacional_required
 @audit_read_only
 def confirmar_carga_factura(request):
-    """Carga masiva de los productos seleccionados de la factura."""
+    """Carga masiva de los productos seleccionados o agregados manualmente en la factura."""
     if request.method == "POST":
         import json
         try:
-            guia = request.POST.get("guia")
+            guia = request.POST.get("guia", "").strip()
             proveedor_id = request.POST.get("proveedor")
             ubicacion = request.POST.get("ubicacion_actual", "BODEGA")
-            fecha_rec = request.POST.get("fecha_recepcion")
+            fecha_rec = request.POST.get("fecha_recepcion") or datetime.date.today().isoformat()
+            es_modo_manual = request.POST.get("modo_manual") == "1"
             
-            # Recoger los items que llegaron (los que no fueron eliminados)
+            # Recoger los items que llegaron del formulario
             productos_nombres = request.POST.getlist("prod_nombre")
             cantidades = request.POST.getlist("prod_cantidad")
             precios = request.POST.getlist("prod_precio")
@@ -1895,15 +1907,33 @@ def confirmar_carga_factura(request):
             count = 0
             for i in range(len(productos_nombres)):
                 nombre = productos_nombres[i].strip()
-                if not nombre: continue
+                if not nombre:
+                    continue
+                
+                # Conversión segura de cantidad y precio
+                try:
+                    c_str = str(cantidades[i]).replace(",", ".").strip() if i < len(cantidades) else "0"
+                    cant_val = float(c_str) if c_str else 0.0
+                except (ValueError, TypeError):
+                    cant_val = 0.0
+
+                try:
+                    p_str = str(precios[i]).replace(",", ".").strip() if i < len(precios) else "0"
+                    precio_val = float(p_str) if p_str else 0.0
+                except (ValueError, TypeError):
+                    precio_val = 0.0
+
+                unidad_val = unidades[i] if i < len(unidades) and unidades[i] else "UN"
+                categoria_val = categorias[i] if i < len(categorias) and categorias[i] else "OTRO"
+                venc_val = vencimientos[i] if i < len(vencimientos) and vencimientos[i] else (datetime.date.today() + datetime.timedelta(days=365)).isoformat()
                 
                 # Buscar o crear producto
                 producto, _ = Producto.objects.get_or_create(
                     nombre__iexact=nombre,
                     defaults={
                         "nombre": nombre, 
-                        "unidad_medida": unidades[i], 
-                        "categoria": categorias[i]
+                        "unidad_medida": unidad_val, 
+                        "categoria": categoria_val
                     }
                 )
                 
@@ -1912,18 +1942,29 @@ def confirmar_carga_factura(request):
                     producto=producto,
                     proveedor_id=proveedor_id if proveedor_id else None,
                     numero_guia=guia,
-                    cantidad=float(cantidades[i] or 0),
-                    precio_unitario=float(precios[i] or 0),
+                    cantidad=cant_val,
+                    precio_unitario=precio_val,
                     fecha_recepcion=fecha_rec,
-                    fecha_vencimiento=vencimientos[i] or (datetime.date.today() + datetime.timedelta(days=365)).isoformat(),
+                    fecha_vencimiento=venc_val,
                     ubicacion_actual=ubicacion,
                     responsable_registro=request.user.get_full_name() or str(request.user),
                     proceso="RECEPCION",
-                    observaciones=f"Cargado automáticamente desde factura {guia}"
+                    observaciones=f"Registro manual de factura {guia}" if es_modo_manual else f"Cargado automáticamente desde factura {guia}"
                 )
                 count += 1
             
-            messages.success(request, f"Se han registrado {count} productos de la factura {guia}.")
+            # Invalidar caché del dashboard de inventario
+            try:
+                from django.core.cache import cache
+                cache.delete("dashboard_inv_kpis")
+            except Exception:
+                pass
+
+            if count > 0:
+                messages.success(request, f"Se han registrado exitosamente {count} productos de la factura/guía '{guia or 'sin número'}'.")
+            else:
+                messages.warning(request, "No se registraron productos. Asegúrate de haber completado la descripción de al menos un producto.")
+
             return redirect("inventario_gestionar_facturas")
             
         except Exception as e:

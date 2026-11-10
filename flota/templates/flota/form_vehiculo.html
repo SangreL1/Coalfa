@@ -11,7 +11,7 @@
 </div>
 
 <div class="card" style="max-width: 800px; margin: 0 auto;">
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem;">
@@ -70,6 +70,19 @@
                 {{ form.observaciones }}
             </div>
 
+            <!-- FOTOS DEL VEHÍCULO -->
+            <div class="form-group" style="grid-column: 1 / -1; background: var(--bg-surface); padding: 1.25rem; border-radius: var(--radius-md); border: 1px dashed var(--border);">
+                <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
+                    <span>📸 Fotografías del Vehículo (Opcional - Varios Ángulos)</span>
+                    <span style="font-size: 0.75rem; color: var(--accent); font-weight: 500;">Frontal, Laterales, Trasera, Interior</span>
+                </label>
+                <input type="file" name="fotos" multiple accept="image/*" class="form-control" style="padding: 0.5rem;" onchange="previewFotos(event)">
+                <small style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 0.4rem;">
+                    💡 Puedes seleccionar una o varias fotos a la vez desde tu celular o computadora. Luego podrás clasificarlas por ángulo o elegir la foto principal en la ficha del móvil.
+                </small>
+                <div id="preview-container" style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem;"></div>
+            </div>
+
             <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;">
                 {{ form.activo }}
                 <label class="form-label" style="margin-bottom: 0;">Vehículo Activo en la Flota</label>
@@ -86,4 +99,32 @@
         </div>
     </form>
 </div>
+
+<script>
+function previewFotos(event) {
+    const container = document.getElementById('preview-container');
+    container.innerHTML = '';
+    const files = event.target.files;
+    if (files) {
+        Array.from(files).forEach((file, idx) => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const card = document.createElement('div');
+                    card.style.position = 'relative';
+                    card.style.width = '100px';
+                    card.style.height = '75px';
+                    card.style.borderRadius = '8px';
+                    card.style.overflow = 'hidden';
+                    card.style.border = '1px solid var(--border)';
+                    card.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;" alt="Preview ${idx+1}">`;
+                    container.appendChild(card);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+}
+</script>
 {% endblock %}
+

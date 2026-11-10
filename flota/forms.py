@@ -235,3 +235,4 @@ class ConfiguracionFlotaForm(forms.ModelForm):
             "asunto_alerta": forms.TextInput(attrs={"class": "form-control"}),
             "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
+

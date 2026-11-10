@@ -11,6 +11,12 @@ urlpatterns = [
     path("vehiculos/<int:pk>/", views.detalle_vehiculo, name="flota_detalle_vehiculo"),
     path("vehiculos/<int:pk>/editar/", views.editar_vehiculo, name="flota_editar_vehiculo"),
     path("vehiculos/<int:pk>/eliminar/", views.eliminar_vehiculo, name="flota_eliminar_vehiculo"),
+    path("vehiculos/<int:pk>/actualizar-km/", views.actualizar_km_rapido, name="flota_actualizar_km_rapido"),
+
+    # Fotos del vehículo
+    path("vehiculos/<int:vehiculo_id>/fotos/subir/", views.subir_foto_vehiculo, name="flota_subir_foto_vehiculo"),
+    path("fotos/<int:pk>/eliminar/", views.eliminar_foto_vehiculo, name="flota_eliminar_foto_vehiculo"),
+    path("fotos/<int:pk>/principal/", views.establecer_foto_principal, name="flota_foto_principal"),
 
     # Documentos con vencimiento
     path("documentos/nuevo/", views.agregar_documento, name="flota_agregar_documento"),
@@ -28,19 +34,10 @@ urlpatterns = [
     path("pautas/", views.pautas_mantencion, name="flota_pautas"),
     path("pautas/<int:pk>/eliminar/", views.eliminar_pauta, name="flota_eliminar_pauta"),
 
-    # Odómetro / Kilometraje
-    path("kilometraje/express/", views.registrar_kilometraje_express, name="flota_registro_km_express"),
-
     # Checklist pre-uso
     path("checklist/", views.checklist_preuso, name="flota_checklist_preuso"),
     path("vehiculos/<int:vehiculo_id>/checklist/", views.checklist_preuso, name="flota_checklist_preuso_vehiculo"),
     path("checklists/", views.lista_checklists, name="flota_lista_checklists"),
-
-    # Costos & Combustible
-    path("costos/", views.lista_costos, name="flota_lista_costos"),
-    path("costos/nuevo/", views.agregar_costo, name="flota_agregar_costo"),
-    path("vehiculos/<int:vehiculo_id>/costos/nuevo/", views.agregar_costo, name="flota_agregar_costo_vehiculo"),
-    path("costos/<int:pk>/eliminar/", views.eliminar_costo, name="flota_eliminar_costo"),
 
     # Alertas y Notificaciones por Correo
     path("alertas/", views.panel_alertas, name="flota_panel_alertas"),

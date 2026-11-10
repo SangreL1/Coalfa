@@ -102,8 +102,43 @@ class Vehiculo(models.Model):
         ]
 
     @property
-    def total_gastos(self):
-        return sum(c.monto for c in self.costos.all())
+    def foto_portada(self):
+        """Retorna la instancia FotoVehiculo principal (o la primera), no la URL."""
+        return self.fotos.filter(es_principal=True).first() or self.fotos.first()
+
+    @property
+    def total_fotos(self):
+        return self.fotos.count()
+
+
+class FotoVehiculo(models.Model):
+    ANGULO_CHOICES = [
+        ("FRONTAL", "Frontal"),
+        ("LATERAL_IZQ", "Lateral Izquierdo"),
+        ("LATERAL_DER", "Lateral Derecho"),
+        ("TRASERA", "Trasera"),
+        ("INTERIOR", "Interior / Tablero"),
+        ("GENERAL", "General / Otro"),
+    ]
+
+    vehiculo = models.ForeignKey(
+        Vehiculo, on_delete=models.CASCADE, related_name="fotos", verbose_name="Vehículo"
+    )
+    imagen = models.ImageField(upload_to="flota/vehiculos/", verbose_name="Fotografía")
+    angulo = models.CharField(
+        max_length=30, choices=ANGULO_CHOICES, default="GENERAL", verbose_name="Ángulo / Vista"
+    )
+    descripcion = models.CharField(max_length=150, blank=True, verbose_name="Descripción (Opcional)")
+    es_principal = models.BooleanField(default=False, verbose_name="Foto Principal de Portada")
+    subido_el = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Foto de Vehículo"
+        verbose_name_plural = "Fotos de Vehículos"
+        ordering = ["-es_principal", "-subido_el"]
+
+    def __str__(self):
+        return f"Foto {self.get_angulo_display()} - {self.vehiculo.patente}"
 
 
 class DocumentoVehiculo(models.Model):

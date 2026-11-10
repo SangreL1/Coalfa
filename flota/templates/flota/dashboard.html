@@ -14,9 +14,6 @@
         </p>
     </div>
     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-        <a href="{% url 'flota_registro_km_express' %}" class="btn btn-secondary btn-sm" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">
-            ⏱️ Cargar Km
-        </a>
         <a href="{% url 'flota_checklist_preuso' %}" class="btn btn-secondary btn-sm" style="background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3);">
             📋 Checklist Pre-Uso
         </a>
@@ -71,15 +68,6 @@
             Por kilometraje o fecha estimada
         </div>
         <div class="kpi-icon">🔧</div>
-    </div>
-
-    <div class="kpi-card">
-        <div class="kpi-label">Gasto del Mes (Flota)</div>
-        <div class="kpi-value" style="font-size: 1.5rem;">${{ costo_total_mes|intcomma }}</div>
-        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">
-            Combustible: ${{ costo_combustible_mes|intcomma }}
-        </div>
-        <div class="kpi-icon">⛽</div>
     </div>
 </div>
 
@@ -219,38 +207,48 @@
 
 <!-- DOS COLUMNAS: ACTIVIDAD RECIENTE -->
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
-    <!-- Últimos Kilometrajes -->
+    <!-- Vehículos con foto (los 5 más recientes) -->
     <div class="card">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <h2 class="card-title" style="margin: 0;">⏱️ Últimos Odómetros Registrados</h2>
-            <a href="{% url 'flota_registro_km_express' %}" class="btn btn-ghost btn-sm">➕ Cargar</a>
+            <h2 class="card-title" style="margin: 0;">🚙 Últimos Vehículos Registrados</h2>
+            <a href="{% url 'flota_lista_vehiculos' %}" class="btn btn-ghost btn-sm">Ver Todos →</a>
         </div>
         <div class="table-wrap">
             <table>
                 <thead>
                     <tr>
+                        <th style="width: 50px;"></th>
+                        <th>Patente</th>
                         <th>Vehículo</th>
-                        <th>Odómetro</th>
-                        <th>Fecha</th>
-                        <th>Responsable</th>
+                        <th>Estado</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for k in ultimos_km %}
+                    {% for v in ultimos_vehiculos %}
                     <tr>
-                        <td>
-                            <a href="{% url 'flota_detalle_vehiculo' k.vehiculo.pk %}" style="font-weight: 700; color: var(--accent); text-decoration: none;">
-                                {{ k.vehiculo.patente }}
-                            </a>
+                        <td style="padding: 0.4rem;">
+                            {% with v.foto_portada as fp %}
+                            {% if fp %}
+                            <img src="{{ fp.imagen.url }}" alt="{{ v.patente }}" style="width: 44px; height: 34px; object-fit: cover; border-radius: 5px; border: 1px solid var(--border);">
+                            {% else %}
+                            <div style="width: 44px; height: 34px; border-radius: 5px; border: 1px solid var(--border); background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: center;">🚗</div>
+                            {% endif %}
+                            {% endwith %}
                         </td>
-                        <td style="font-weight: 700;">{{ k.kilometraje|intcomma }} km</td>
-                        <td style="color: var(--text-muted); font-size: 0.8rem;">{{ k.fecha|date:"d/m/Y" }}</td>
-                        <td style="font-size: 0.8rem;">{{ k.conductor_o_responsable|default:"—" }}</td>
+                        <td>
+                            <a href="{% url 'flota_detalle_vehiculo' v.pk %}" style="font-weight: 700; color: var(--accent); text-decoration: none;">{{ v.patente }}</a>
+                        </td>
+                        <td style="font-size: 0.8rem; color: var(--text-muted);">{{ v.marca }} {{ v.modelo }}</td>
+                        <td>
+                            {% if v.estado == 'OPERATIVO' %}<span class="badge badge-activo" style="font-size: 0.7rem;">OPER.</span>
+                            {% elif v.estado == 'TALLER' %}<span class="badge badge-vacaciones" style="font-size: 0.7rem;">TALLER</span>
+                            {% else %}<span class="badge badge-licencia" style="font-size: 0.7rem;">F.S.</span>{% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
                         <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
-                            No hay registros de kilometraje aún.
+                            No hay vehículos registrados aún.
                         </td>
                     </tr>
                     {% endfor %}
@@ -322,11 +320,11 @@
             <div style="font-size: 0.75rem; color: var(--text-muted);">Servicios preventivos y talleres</div>
         </div>
     </a>
-    <a href="{% url 'flota_lista_costos' %}" class="card" style="text-decoration: none; display: flex; align-items: center; gap: 1rem; padding: 1.25rem; transition: transform 0.2s;">
-        <span style="font-size: 2rem;">⛽</span>
+    <a href="{% url 'flota_lista_checklists' %}" class="card" style="text-decoration: none; display: flex; align-items: center; gap: 1rem; padding: 1.25rem; transition: transform 0.2s;">
+        <span style="font-size: 2rem;">📋</span>
         <div>
-            <div style="font-weight: 700; color: var(--text);">Costos y Combustible</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted);">Control de gastos y litros</div>
+            <div style="font-weight: 700; color: var(--text);">Inspecciones Pre-Uso</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Control diario antes de salir</div>
         </div>
     </a>
     <a href="{% url 'flota_configuracion_alertas' %}" class="card" style="text-decoration: none; display: flex; align-items: center; gap: 1rem; padding: 1.25rem; transition: transform 0.2s;">
@@ -338,3 +336,4 @@
     </a>
 </div>
 {% endblock %}
+

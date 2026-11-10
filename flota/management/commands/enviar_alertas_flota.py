@@ -37,3 +37,4 @@ class Command(BaseCommand):
         else:
             motivo = resultado.get("motivo") or resultado.get("error") or "Sin alertas para despachar."
             self.stdout.write(self.style.WARNING(f"ℹ️ {motivo}"))
+

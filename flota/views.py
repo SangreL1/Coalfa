@@ -1,17 +1,16 @@
 import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.db.models import Sum, Q, Count
+from django.db.models import Q, Count
 from django.utils import timezone
 from coalfa.decorators import operacional_required, audit_read_only
 from .models import (
     Vehiculo,
+    FotoVehiculo,
     DocumentoVehiculo,
     PautaMantencion,
     RegistroMantencion,
-    RegistroKilometraje,
     ChecklistPreUso,
-    CostoVehiculo,
     ConfiguracionFlota,
     LogAlertaFlota,
 )
@@ -20,12 +19,10 @@ from .forms import (
     DocumentoVehiculoForm,
     PautaMantencionForm,
     RegistroMantencionForm,
-    RegistroKilometrajeForm,
     ChecklistPreUsoForm,
-    CostoVehiculoForm,
     ConfiguracionFlotaForm,
 )
-from .services import verificar_y_enviar_alertas
+from .services import verificar_y_enviar_alertas, enviar_correo_prueba_directo
 
 
 # ==========================================
@@ -35,10 +32,9 @@ from .services import verificar_y_enviar_alertas
 def dashboard_flota(request):
     hoy = datetime.date.today()
     limite_30 = hoy + datetime.timedelta(days=30)
-    limite_15 = hoy + datetime.timedelta(days=15)
     limite_7 = hoy + datetime.timedelta(days=7)
 
-    vehiculos = Vehiculo.objects.filter(activo=True)
+    vehiculos = Vehiculo.objects.filter(activo=True).prefetch_related("fotos", "documentos", "mantenciones")
     total_vehiculos = vehiculos.count()
     operativos = vehiculos.filter(estado="OPERATIVO").count()
     en_taller = vehiculos.filter(estado="TALLER").count()
@@ -53,31 +49,20 @@ def dashboard_flota(request):
     # Mantenciones que requieren atención por km o fecha
     mantenciones_pendientes = []
     config = ConfiguracionFlota.get_solo()
-    km_anticipacion = config.km_anticipacion_alerta or 1000
 
     for v in vehiculos:
-        # Última mantención con próximo vencimiento
         m = v.mantenciones.filter(Q(proximo_km__isnull=False) | Q(proxima_fecha__isnull=False)).first()
-        if m:
-            estado_alerta = m.estado_alerta
-            if estado_alerta in ("VENCIDA", "POR_VENCER"):
-                mantenciones_pendientes.append(m)
+        if m and m.estado_alerta in ("VENCIDA", "POR_VENCER"):
+            mantenciones_pendientes.append(m)
 
-    # Costos del mes actual
-    primer_dia_mes = hoy.replace(day=1)
-    costos_mes = CostoVehiculo.objects.filter(fecha__gte=primer_dia_mes).aggregate(
-        total=Sum("monto"),
-        combustible=Sum("monto", filter=Q(tipo="COMBUSTIBLE")),
-        mantenciones=Sum("monto", filter=Q(tipo__in=["MANTENCION", "REPARACION"])),
-    )
+    # Últimos checklists pre-uso
+    ultimos_checklists = ChecklistPreUso.objects.select_related("vehiculo").order_by("-fecha_hora")[:6]
 
-    # Kilometrajes recientes
-    ultimos_km = RegistroKilometraje.objects.select_related("vehiculo").order_by("-fecha", "-creado_el")[:5]
-
-    # Últimos checklists
-    ultimos_checklists = ChecklistPreUso.objects.select_related("vehiculo").order_by("-fecha_hora")[:5]
+    # Últimos vehículos (con foto portada precargada)
+    ultimos_vehiculos = Vehiculo.objects.filter(activo=True).prefetch_related("fotos").order_by("-creado_el")[:6]
 
     context = {
+        "vehiculos": vehiculos[:8],
         "total_vehiculos": total_vehiculos,
         "operativos": operativos,
         "en_taller": en_taller,
@@ -88,12 +73,12 @@ def dashboard_flota(request):
         "docs_aviso_30_count": docs_aviso_30.count(),
         "mantenciones_pendientes": mantenciones_pendientes[:6],
         "mantenciones_pendientes_count": len(mantenciones_pendientes),
-        "costo_total_mes": costos_mes["total"] or 0,
-        "costo_combustible_mes": costos_mes["combustible"] or 0,
-        "costo_mantenciones_mes": costos_mes["mantenciones"] or 0,
-        "ultimos_km": ultimos_km,
         "ultimos_checklists": ultimos_checklists,
+        "ultimos_vehiculos": ultimos_vehiculos,
         "config_flota": config,
+        # Costos se mantienen en 0 (módulo desactivado en UI)
+        "costo_total_mes": 0,
+        "costo_combustible_mes": 0,
     }
     return render(request, "flota/dashboard.html", context)
 
@@ -108,7 +93,7 @@ def lista_vehiculos(request):
     filtro_asignacion = request.GET.get("asignacion", "")
     filtro_tipo = request.GET.get("tipo", "")
 
-    vehiculos = Vehiculo.objects.all().prefetch_related("documentos", "mantenciones")
+    vehiculos = Vehiculo.objects.all().prefetch_related("fotos", "documentos", "mantenciones")
 
     if query:
         vehiculos = vehiculos.filter(
@@ -147,7 +132,21 @@ def crear_vehiculo(request):
         form = VehiculoForm(request.POST)
         if form.is_valid():
             vehiculo = form.save()
-            messages.success(request, f"Vehículo con patente {vehiculo.patente} registrado exitosamente.")
+
+            # Guardar múltiples fotos opcionales de varios ángulos
+            fotos = request.FILES.getlist("fotos")
+            for i, foto in enumerate(fotos):
+                FotoVehiculo.objects.create(
+                    vehiculo=vehiculo,
+                    imagen=foto,
+                    angulo="FRONTAL" if i == 0 else "GENERAL",
+                    es_principal=(i == 0),
+                )
+
+            messages.success(
+                request,
+                f"Vehículo {vehiculo.patente} ({vehiculo.marca} {vehiculo.modelo}) registrado con {len(fotos)} fotografía(s).",
+            )
             return redirect("flota_detalle_vehiculo", pk=vehiculo.pk)
     else:
         form = VehiculoForm()
@@ -163,6 +162,17 @@ def editar_vehiculo(request, pk):
         form = VehiculoForm(request.POST, instance=vehiculo)
         if form.is_valid():
             vehiculo = form.save()
+
+            # Nuevas fotos si se subieron
+            fotos = request.FILES.getlist("fotos")
+            for foto in fotos:
+                FotoVehiculo.objects.create(
+                    vehiculo=vehiculo,
+                    imagen=foto,
+                    angulo="GENERAL",
+                    es_principal=not vehiculo.fotos.exists(),
+                )
+
             messages.success(request, f"Vehículo {vehiculo.patente} actualizado correctamente.")
             return redirect("flota_detalle_vehiculo", pk=vehiculo.pk)
     else:
@@ -190,45 +200,104 @@ def eliminar_vehiculo(request, pk):
 @operacional_required
 def detalle_vehiculo(request, pk):
     vehiculo = get_object_or_404(
-        Vehiculo.objects.prefetch_related(
-            "documentos", "mantenciones", "kilometrajes", "checklists", "costos"
-        ),
+        Vehiculo.objects.prefetch_related("fotos", "documentos", "mantenciones", "checklists"),
         pk=pk,
     )
     hoy = datetime.date.today()
 
     documentos = vehiculo.documentos.all().order_by("fecha_vencimiento")
     mantenciones = vehiculo.mantenciones.all().order_by("-fecha")
-    kilometrajes = vehiculo.kilometrajes.all().order_by("-fecha", "-creado_el")[:20]
-    checklists = vehiculo.checklists.all().order_by("-fecha_hora")[:15]
-    costos = vehiculo.costos.all().order_by("-fecha", "-creado_el")[:20]
-
-    # Cálculos y estadísticas del vehículo
-    total_gastos = vehiculo.costos.aggregate(total=Sum("monto"))["total"] or 0
-    total_combustible = (
-        vehiculo.costos.filter(tipo="COMBUSTIBLE").aggregate(total=Sum("monto"))["total"] or 0
-    )
-    total_litros = (
-        vehiculo.costos.filter(tipo="COMBUSTIBLE").aggregate(litros=Sum("litros"))["litros"] or 0
-    )
+    checklists = vehiculo.checklists.all().order_by("-fecha_hora")[:20]
+    fotos = vehiculo.fotos.all()
 
     context = {
         "vehiculo": vehiculo,
         "documentos": documentos,
         "mantenciones": mantenciones,
-        "kilometrajes": kilometrajes,
         "checklists": checklists,
-        "costos": costos,
-        "total_gastos": total_gastos,
-        "total_combustible": total_combustible,
-        "total_litros": round(total_litros, 2),
+        "fotos": fotos,
+        "angulos": FotoVehiculo.ANGULO_CHOICES,
         "hoy": hoy,
     }
     return render(request, "flota/detalle_vehiculo.html", context)
 
 
 # ==========================================
-# 3. GESTIÓN DE DOCUMENTOS CON VENCIMIENTO
+# 3. FOTOGRAFÍAS Y ÁNGULOS DEL VEHÍCULO
+# ==========================================
+@operacional_required
+@audit_read_only
+def subir_foto_vehiculo(request, vehiculo_id):
+    vehiculo = get_object_or_404(Vehiculo, pk=vehiculo_id)
+    if request.method == "POST":
+        fotos = request.FILES.getlist("fotos")
+        angulo = request.POST.get("angulo", "GENERAL")
+        descripcion = request.POST.get("descripcion", "").strip()
+
+        count = 0
+        for f in fotos:
+            FotoVehiculo.objects.create(
+                vehiculo=vehiculo,
+                imagen=f,
+                angulo=angulo,
+                descripcion=descripcion,
+                es_principal=not vehiculo.fotos.exists(),
+            )
+            count += 1
+
+        if count > 0:
+            messages.success(request, f"Se agregaron {count} fotografía(s) a la ficha de {vehiculo.patente}.")
+        else:
+            messages.warning(request, "No se seleccionó ninguna imagen.")
+
+    return redirect("flota_detalle_vehiculo", pk=vehiculo.pk)
+
+
+@operacional_required
+@audit_read_only
+def eliminar_foto_vehiculo(request, pk):
+    foto = get_object_or_404(FotoVehiculo, pk=pk)
+    vehiculo_pk = foto.vehiculo.pk
+    if request.method == "POST":
+        foto.delete()
+        messages.success(request, "Fotografía eliminada de la galería.")
+    return redirect("flota_detalle_vehiculo", pk=vehiculo_pk)
+
+
+@operacional_required
+@audit_read_only
+def establecer_foto_principal(request, pk):
+    foto = get_object_or_404(FotoVehiculo, pk=pk)
+    vehiculo = foto.vehiculo
+    vehiculo.fotos.update(es_principal=False)
+    foto.es_principal = True
+    foto.save(update_fields=["es_principal"])
+    messages.success(request, f"Foto establecida como portada principal para {vehiculo.patente}.")
+    return redirect("flota_detalle_vehiculo", pk=vehiculo.pk)
+
+
+@operacional_required
+@audit_read_only
+def actualizar_km_rapido(request, pk):
+    """Permite actualizar el odómetro directamente desde la ficha del móvil sin pasos extras."""
+    vehiculo = get_object_or_404(Vehiculo, pk=pk)
+    if request.method == "POST":
+        try:
+            nuevo_km = int(request.POST.get("kilometraje", "").replace(".", "").replace(",", "").strip())
+            if nuevo_km >= 0:
+                vehiculo.kilometraje_actual = nuevo_km
+                vehiculo.fecha_actualizacion_km = datetime.date.today()
+                vehiculo.save(update_fields=["kilometraje_actual", "fecha_actualizacion_km"])
+                messages.success(request, f"Odómetro de {vehiculo.patente} actualizado a {nuevo_km:,} km.".replace(",", "."))
+            else:
+                messages.error(request, "El kilometraje no puede ser negativo.")
+        except (ValueError, TypeError):
+            messages.error(request, "Ingresa un número de kilometraje válido.")
+    return redirect("flota_detalle_vehiculo", pk=vehiculo.pk)
+
+
+# ==========================================
+# 4. GESTIÓN DE DOCUMENTOS CON VENCIMIENTO
 # ==========================================
 @operacional_required
 @audit_read_only
@@ -243,7 +312,7 @@ def agregar_documento(request, vehiculo_id=None):
             doc = form.save()
             messages.success(
                 request,
-                f"Documento '{doc.titulo_completo}' registrado para el vehículo {doc.vehiculo.patente}.",
+                f"Documento '{doc.titulo_completo}' registrado para {doc.vehiculo.patente}.",
             )
             return redirect("flota_detalle_vehiculo", pk=doc.vehiculo.pk)
     else:
@@ -291,7 +360,7 @@ def eliminar_documento(request, pk):
 
 
 # ==========================================
-# 4. GESTIÓN DE MANTENCIONES
+# 5. GESTIÓN DE MANTENCIONES
 # ==========================================
 @operacional_required
 def lista_mantenciones(request):
@@ -339,20 +408,6 @@ def agregar_mantencion(request, vehiculo_id=None):
                 mant.responsable = request.user.get_full_name() or str(request.user)
             mant.save()
 
-            # Registrar también automáticamente como costo si tiene valor > 0
-            if mant.costo and mant.costo > 0:
-                CostoVehiculo.objects.create(
-                    vehiculo=mant.vehiculo,
-                    tipo="MANTENCION" if mant.tipo_servicio == "PREVENTIVA" else "REPARACION",
-                    fecha=mant.fecha,
-                    monto=mant.costo,
-                    kilometraje=mant.kilometraje,
-                    proveedor=mant.taller,
-                    comprobante=mant.comprobante,
-                    observaciones=f"Generado automáticamente desde mantención: {mant.titulo}",
-                    responsable=mant.responsable,
-                )
-
             messages.success(
                 request,
                 f"Mantención '{mant.titulo}' registrada para {mant.vehiculo.patente}. Próximo km: {mant.proximo_km or 'No asignado'}.",
@@ -385,55 +440,7 @@ def eliminar_mantencion(request, pk):
 
 
 # ==========================================
-# 5. REGISTRO DE KILOMETRAJE RÁPIDO (EXPRESS / MÓVIL)
-# ==========================================
-@operacional_required
-@audit_read_only
-def registrar_kilometraje_express(request):
-    """
-    Formulario ultra rápido pensado para conductores o administradores desde el celular.
-    """
-    vehiculo_id = request.GET.get("vehiculo")
-    vehiculo_precargado = None
-    if vehiculo_id:
-        vehiculo_precargado = Vehiculo.objects.filter(pk=vehiculo_id, activo=True).first()
-
-    if request.method == "POST":
-        form = RegistroKilometrajeForm(request.POST)
-        if form.is_valid():
-            km_reg = form.save()
-            messages.success(
-                request,
-                f"✅ Odómetro actualizado: {km_reg.vehiculo.patente} a {km_reg.kilometraje:,} km.".replace(",", "."),
-            )
-            # Si vino con parámetro next, volver allí
-            next_url = request.POST.get("next") or request.GET.get("next")
-            if next_url:
-                return redirect(next_url)
-            return redirect("flota_dashboard")
-    else:
-        initial = {}
-        if vehiculo_precargado:
-            initial = {
-                "vehiculo": vehiculo_precargado,
-                "kilometraje": vehiculo_precargado.kilometraje_actual,
-                "conductor_o_responsable": vehiculo_precargado.conductor_habitual or (request.user.get_full_name() if request.user.is_authenticated else ""),
-            }
-        elif request.user.is_authenticated:
-            initial = {"conductor_o_responsable": request.user.get_full_name()}
-        form = RegistroKilometrajeForm(initial=initial)
-
-    ultimos = RegistroKilometraje.objects.select_related("vehiculo").order_by("-fecha", "-creado_el")[:10]
-
-    return render(
-        request,
-        "flota/registro_kilometraje.html",
-        {"form": form, "vehiculo_precargado": vehiculo_precargado, "ultimos": ultimos},
-    )
-
-
-# ==========================================
-# 6. CHECKLIST RÁPIDO PRE-USO (MÓVIL)
+# 6. CHECKLIST PRE-USO
 # ==========================================
 @operacional_required
 @audit_read_only
@@ -451,7 +458,7 @@ def checklist_preuso(request, vehiculo_id=None):
             else:
                 messages.warning(
                     request,
-                    f"⚠️ Checklist registrado: Vehículo {chk.vehiculo.patente} CON OBSERVACIONES / NO APTO. Revisar novedades.",
+                    f"⚠️ Checklist registrado: Vehículo {chk.vehiculo.patente} CON OBSERVACIONES. Requiere revisión.",
                 )
             return redirect("flota_detalle_vehiculo", pk=chk.vehiculo.pk)
     else:
@@ -480,93 +487,7 @@ def lista_checklists(request):
 
 
 # ==========================================
-# 7. COSTOS Y COMBUSTIBLE
-# ==========================================
-@operacional_required
-def lista_costos(request):
-    query = request.GET.get("q", "").strip()
-    tipo = request.GET.get("tipo", "")
-    vehiculo_id = request.GET.get("vehiculo", "")
-
-    costos = CostoVehiculo.objects.select_related("vehiculo").order_by("-fecha", "-creado_el")
-
-    if query:
-        costos = costos.filter(
-            Q(vehiculo__patente__icontains=query)
-            | Q(proveedor__icontains=query)
-            | Q(numero_documento__icontains=query)
-        )
-    if tipo:
-        costos = costos.filter(tipo=tipo)
-    if vehiculo_id:
-        costos = costos.filter(vehiculo_id=vehiculo_id)
-
-    # Totales
-    totales = costos.aggregate(
-        total=Sum("monto"),
-        combustible=Sum("monto", filter=Q(tipo="COMBUSTIBLE")),
-        mantenciones=Sum("monto", filter=Q(tipo__in=["MANTENCION", "REPARACION"])),
-        otros=Sum("monto", filter=~Q(tipo__in=["COMBUSTIBLE", "MANTENCION", "REPARACION"])),
-    )
-
-    context = {
-        "costos": costos,
-        "vehiculos": Vehiculo.objects.filter(activo=True),
-        "tipos": CostoVehiculo.TIPO_CHOICES,
-        "totales": totales,
-        "query": query,
-        "tipo_filtro": tipo,
-        "vehiculo_id": vehiculo_id,
-    }
-    return render(request, "flota/lista_costos.html", context)
-
-
-@operacional_required
-@audit_read_only
-def agregar_costo(request, vehiculo_id=None):
-    vehiculo = None
-    if vehiculo_id:
-        vehiculo = get_object_or_404(Vehiculo, pk=vehiculo_id)
-
-    if request.method == "POST":
-        form = CostoVehiculoForm(request.POST, request.FILES)
-        if form.is_valid():
-            costo = form.save(commit=False)
-            if not costo.responsable and request.user.is_authenticated:
-                costo.responsable = request.user.get_full_name() or str(request.user)
-            costo.save()
-            messages.success(
-                request,
-                f"Gasto de ${costo.monto:,} CLP registrado para {costo.vehiculo.patente} ({costo.get_tipo_display()}).".replace(",", "."),
-            )
-            return redirect("flota_detalle_vehiculo", pk=costo.vehiculo.pk)
-    else:
-        initial = {}
-        if vehiculo:
-            initial = {"vehiculo": vehiculo, "kilometraje": vehiculo.kilometraje_actual}
-        form = CostoVehiculoForm(initial=initial)
-
-    return render(
-        request,
-        "flota/form_costo.html",
-        {"form": form, "vehiculo": vehiculo, "titulo": "Registrar Gasto / Combustible"},
-    )
-
-
-@operacional_required
-@audit_read_only
-def eliminar_costo(request, pk):
-    costo = get_object_or_404(CostoVehiculo, pk=pk)
-    vehiculo_pk = costo.vehiculo.pk
-    if request.method == "POST":
-        costo.delete()
-        messages.success(request, "Registro de gasto eliminado correctamente.")
-        return redirect("flota_detalle_vehiculo", pk=vehiculo_pk)
-    return render(request, "flota/confirmar_eliminar.html", {"objeto": costo, "tipo": "Gasto"})
-
-
-# ==========================================
-# 8. PAUTAS DE MANTENCIÓN
+# 7. PAUTAS DE MANTENCIÓN
 # ==========================================
 @operacional_required
 def pautas_mantencion(request):
@@ -596,26 +517,23 @@ def eliminar_pauta(request, pk):
 
 
 # ==========================================
-# 9. PANEL DE ALERTAS Y CONFIGURACIÓN DE CORREOS
+# 8. PANEL DE ALERTAS Y CONFIGURACIÓN DE CORREOS
 # ==========================================
 @operacional_required
 def panel_alertas(request):
     hoy = datetime.date.today()
     config = ConfiguracionFlota.get_solo()
 
-    # Todos los documentos con semáforo
     docs = DocumentoVehiculo.objects.filter(vehiculo__activo=True).select_related("vehiculo").order_by("fecha_vencimiento")
     docs_vencidos = [d for d in docs if d.dias_restantes < 0]
     docs_urgentes_7 = [d for d in docs if 0 <= d.dias_restantes <= 7]
     docs_alerta_15 = [d for d in docs if 8 <= d.dias_restantes <= 15]
     docs_aviso_30 = [d for d in docs if 16 <= d.dias_restantes <= 30]
 
-    # Mantenciones
     mantenciones = RegistroMantencion.objects.filter(vehiculo__activo=True).select_related("vehiculo", "pauta")
     mant_vencidas = [m for m in mantenciones if m.estado_alerta == "VENCIDA"]
     mant_por_vencer = [m for m in mantenciones if m.estado_alerta == "POR_VENCER"]
 
-    # Historial de alertas enviadas
     logs = LogAlertaFlota.objects.select_related("vehiculo").order_by("-fecha_envio")[:25]
 
     context = {
@@ -641,7 +559,7 @@ def configuracion_alertas(request):
         form = ConfiguracionFlotaForm(request.POST, instance=config)
         if form.is_valid():
             form.save()
-            messages.success(request, "Configuración de alertas por correo guardada correctamente.")
+            messages.success(request, "Configuración de alertas por correo guardada correctamente. Esta lista queda fija en el sistema.")
             return redirect("flota_configuracion_alertas")
     else:
         form = ConfiguracionFlotaForm(instance=config)
@@ -660,9 +578,6 @@ def configuracion_alertas(request):
 @operacional_required
 @audit_read_only
 def disparar_alertas_ahora(request):
-    """
-    Ejecuta manualmente el chequeo y envío de alertas desde la interfaz web.
-    """
     if request.method == "POST":
         resultado = verificar_y_enviar_alertas(forzar=True)
         if resultado.get("enviado"):
@@ -673,7 +588,7 @@ def disparar_alertas_ahora(request):
             )
         else:
             motivo = resultado.get("motivo") or resultado.get("error") or "No se pudo realizar el envío."
-            messages.warning(request, f"ℹ️ Envío de alertas: {motivo}")
+            messages.info(request, f"ℹ️ {motivo}")
 
     return redirect("flota_panel_alertas")
 
@@ -682,7 +597,7 @@ def disparar_alertas_ahora(request):
 @audit_read_only
 def enviar_correo_prueba(request):
     """
-    Permite enviar un correo de prueba a una dirección específica para validar SMTP.
+    Envía un correo de prueba garantizado con formato completo para verificar SMTP.
     """
     if request.method == "POST":
         correo_test = request.POST.get("correo_prueba", "").strip()
@@ -690,11 +605,14 @@ def enviar_correo_prueba(request):
             messages.error(request, "Por favor indica un correo electrónico válido para la prueba.")
             return redirect("flota_configuracion_alertas")
 
-        resultado = verificar_y_enviar_alertas(forzar=True, correo_especifico=correo_test)
+        resultado = enviar_correo_prueba_directo(correo_test)
         if resultado.get("enviado"):
-            messages.success(request, f"✅ Correo de prueba enviado con éxito a '{correo_test}'. Revisa tu bandeja de entrada.")
+            messages.success(
+                request,
+                f"✅ ¡Correo de prueba enviado con éxito a '{correo_test}'! Revisa tu bandeja de entrada o spam para ver el diseño del reporte.",
+            )
         else:
-            err = resultado.get("error") or resultado.get("motivo") or "Error desconocido."
+            err = resultado.get("error", "Error al conectar con el servidor de correo.")
             messages.error(request, f"❌ No se pudo enviar el correo de prueba: {err}")
 
     return redirect("flota_configuracion_alertas")

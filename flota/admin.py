@@ -9,7 +9,13 @@ from .models import (
     CostoVehiculo,
     ConfiguracionFlota,
     LogAlertaFlota,
+    FotoVehiculo,
 )
+
+
+class FotoVehiculoInline(admin.TabularInline):
+    model = FotoVehiculo
+    extra = 1
 
 
 @admin.register(Vehiculo)
@@ -17,6 +23,14 @@ class VehiculoAdmin(admin.ModelAdmin):
     list_display = ("patente", "marca", "modelo", "anio", "tipo", "asignacion", "estado", "kilometraje_actual", "activo")
     list_filter = ("estado", "asignacion", "tipo", "activo")
     search_fields = ("patente", "marca", "modelo", "conductor_habitual")
+    inlines = [FotoVehiculoInline]
+
+
+@admin.register(FotoVehiculo)
+class FotoVehiculoAdmin(admin.ModelAdmin):
+    list_display = ("vehiculo", "angulo", "es_principal", "subido_el")
+    list_filter = ("angulo", "es_principal")
+    search_fields = ("vehiculo__patente", "descripcion")
 
 
 @admin.register(DocumentoVehiculo)

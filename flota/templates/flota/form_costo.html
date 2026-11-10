@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} — COALFA{% endblock %}
+{% block topbar_title %}{{ titulo }}{% endblock %}
+{% block nav_flota_costos %}active{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 2rem;">
+    <h1 class="page-title">{{ titulo }}</h1>
+    <p class="page-subtitle">
+        Registra cargas de combustible, mantenciones externas, peajes o reparaciones con su respaldo.
+    </p>
+</div>
+
+<div class="card" style="max-width: 750px; margin: 0 auto;">
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem;">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Vehículo <span style="color: var(--danger);">*</span></label>
+                {{ form.vehiculo }}
+                {% if form.vehiculo.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.vehiculo.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Tipo de Gasto <span style="color: var(--danger);">*</span></label>
+                {{ form.tipo }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Fecha del Gasto <span style="color: var(--danger);">*</span></label>
+                {{ form.fecha }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Monto Total en CLP ($) <span style="color: var(--danger);">*</span></label>
+                {{ form.monto }}
+                {% if form.monto.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.monto.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Litros Cargados (si aplica)</label>
+                {{ form.litros }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Kilometraje al Momento del Gasto</label>
+                {{ form.kilometraje }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Estación / Proveedor / Taller</label>
+                {{ form.proveedor }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Nº Boleta o Factura</label>
+                {{ form.numero_documento }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Registrado por / Conductor</label>
+                {{ form.responsable }}
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Comprobante Adjunto (Boleta, Factura, Vale)</label>
+                {{ form.comprobante }}
+                <small style="color: var(--text-muted); font-size: 0.75rem;">Sube la foto del voucher o PDF de la factura.</small>
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Observaciones</label>
+                {{ form.observaciones }}
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 1.25rem;">
+            {% if vehiculo %}
+            <a href="{% url 'flota_detalle_vehiculo' vehiculo.pk %}" class="btn btn-ghost">← Volver al Vehículo</a>
+            {% else %}
+            <a href="{% url 'flota_lista_costos' %}" class="btn btn-ghost">← Volver a Costos</a>
+            {% endif %}
+            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">
+                💾 Guardar Gasto
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

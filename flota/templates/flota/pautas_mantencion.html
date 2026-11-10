@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Pautas de Mantención — COALFA{% endblock %}
+{% block topbar_title %}Pautas Preventivas de Flota{% endblock %}
+{% block nav_flota_mantenciones %}active{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0; font-size: 1.8rem; font-weight: 800;">⚙️ Reglas y Pautas de Mantención</h1>
+        <p class="page-subtitle" style="margin: 0.35rem 0 0; color: var(--text-muted);">
+            Configura los intervalos estándar por kilometraje o meses para los servicios preventivos.
+        </p>
+    </div>
+    <a href="{% url 'flota_mantenciones' %}" class="btn btn-ghost btn-sm">
+        ← Volver a Mantenciones
+    </a>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+    <!-- LISTA DE PAUTAS -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title" style="margin: 0;">Pautas Activas</h2>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pauta / Servicio</th>
+                        <th>Intervalo Km</th>
+                        <th>Intervalo Meses</th>
+                        <th style="text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in pautas %}
+                    <tr>
+                        <td>
+                            <strong>{{ p.nombre }}</strong>
+                            {% if p.descripcion %}
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ p.descripcion }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if p.intervalo_km %}
+                            <span style="font-weight: 700; color: #38bdf8;">Cada {{ p.intervalo_km|intcomma }} km</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            {% if p.intervalo_meses %}
+                            <span style="font-weight: 700; color: #fbbf24;">Cada {{ p.intervalo_meses }} meses</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            {% if user.rol != 'AUDITOR' %}
+                            <a href="{% url 'flota_eliminar_pauta' p.pk %}" class="btn btn-ghost btn-sm" style="color: var(--danger);">🗑️</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            No hay pautas configuradas. Agrega una con el formulario.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- FORMULARIO CREAR PAUTA -->
+    {% if user.rol != 'AUDITOR' %}
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title" style="margin: 0;">➕ Crear Nueva Pauta</h2>
+        </div>
+        <form method="POST">
+            {% csrf_token %}
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label class="form-label">Nombre de la Mantención <span style="color: var(--danger);">*</span></label>
+                {{ form.nombre }}
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                    <label class="form-label">Cada cuántos Km</label>
+                    {{ form.intervalo_km }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cada cuántos Meses</label>
+                    {{ form.intervalo_meses }}
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label">Descripción / Instrucciones (Opcional)</label>
+                {{ form.descripcion }}
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">
+                💾 Guardar Pauta
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

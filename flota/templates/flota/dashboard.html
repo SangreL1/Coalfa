@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Flota y Vehículos — COALFA{% endblock %}
+{% block topbar_title %}Control y Gestión de Flota{% endblock %}
+{% block nav_flota %}active{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0; font-size: 1.8rem; font-weight: 800;">🚗 Centro de Control de Flota</h1>
+        <p class="page-subtitle" style="margin: 0.35rem 0 0; color: var(--text-muted);">
+            Supervisión integral de vehículos, alertas de vencimiento, mantenciones y costos operacionales.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <a href="{% url 'flota_registro_km_express' %}" class="btn btn-secondary btn-sm" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">
+            ⏱️ Cargar Km
+        </a>
+        <a href="{% url 'flota_checklist_preuso' %}" class="btn btn-secondary btn-sm" style="background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3);">
+            📋 Checklist Pre-Uso
+        </a>
+        {% if user.rol != 'AUDITOR' %}
+        <a href="{% url 'flota_crear_vehiculo' %}" class="btn btn-primary btn-sm">
+            ➕ Nuevo Vehículo
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- TARJETAS KPI -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    <div class="kpi-card">
+        <div class="kpi-label">Vehículos en Flota</div>
+        <div class="kpi-value">{{ total_vehiculos }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">
+            <span style="color: var(--success); font-weight: 700;">{{ operativos }}</span> Operativos &bull; 
+            <span style="color: var(--warning); font-weight: 700;">{{ en_taller }}</span> En Taller
+        </div>
+        <div class="kpi-icon">🚙</div>
+    </div>
+
+    <div class="kpi-card" style="border-left-color: {% if docs_vencidos_count > 0 %}var(--danger){% else %}var(--success){% endif %};">
+        <div class="kpi-label">Documentos Vencidos</div>
+        <div class="kpi-value" style="color: {% if docs_vencidos_count > 0 %}var(--danger){% else %}var(--success){% endif %};">
+            {{ docs_vencidos_count }}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">
+            {% if docs_vencidos_count > 0 %}
+            🚨 Requieren regularización urgente
+            {% else %}
+            ✅ Toda la documentación al día
+            {% endif %}
+        </div>
+        <div class="kpi-icon">⚠️</div>
+    </div>
+
+    <div class="kpi-card" style="border-left-color: var(--warning);">
+        <div class="kpi-label">Por Vencer (30 Días)</div>
+        <div class="kpi-value" style="color: var(--warning);">{{ docs_aviso_30_count }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">
+            Revisión técnica, SOAP, Permiso
+        </div>
+        <div class="kpi-icon">⏳</div>
+    </div>
+
+    <div class="kpi-card" style="border-left-color: var(--indigo);">
+        <div class="kpi-label">Mantenciones Pendientes</div>
+        <div class="kpi-value" style="color: var(--indigo);">{{ mantenciones_pendientes_count }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">
+            Por kilometraje o fecha estimada
+        </div>
+        <div class="kpi-icon">🔧</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-label">Gasto del Mes (Flota)</div>
+        <div class="kpi-value" style="font-size: 1.5rem;">${{ costo_total_mes|intcomma }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.4rem;">
+            Combustible: ${{ costo_combustible_mes|intcomma }}
+        </div>
+        <div class="kpi-icon">⛽</div>
+    </div>
+</div>
+
+<!-- SECCIÓN DE ALERTAS CRÍTICAS INMEDIATAS -->
+{% if docs_vencidos or docs_urgentes_7 or mantenciones_pendientes %}
+<div class="card" style="margin-bottom: 2rem; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.04);">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 1.5rem;">🚨</span>
+            <div>
+                <h2 class="card-title" style="margin: 0; color: #fca5a5;">Atención Requerida: Documentos y Servicios Críticos</h2>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">
+                    Se envían avisos automáticos a: <strong>{{ config_flota.get_lista_correos|join:", "|default:"Sin correos configurados" }}</strong>
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="{% url 'flota_panel_alertas' %}" class="btn btn-ghost btn-sm" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.4);">
+                Ver Todas las Alertas →
+            </a>
+            <form method="POST" action="{% url 'flota_disparar_alertas' %}" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-primary" style="background: #ef4444;" title="Envía un correo ahora mismo con este resumen">
+                    ✉️ Notificar por Correo Ahora
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Vehículo / Patente</th>
+                    <th>Elemento Crítico</th>
+                    <th>Vencimiento / Límite</th>
+                    <th>Días / Km Restantes</th>
+                    <th>Estado</th>
+                    <th style="text-align: right;">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in docs_vencidos %}
+                <tr>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' d.vehiculo.pk %}" style="font-weight: 700; color: var(--accent); text-decoration: none;">
+                            {{ d.vehiculo.patente }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ d.vehiculo.marca }} {{ d.vehiculo.modelo }} ({{ d.vehiculo.get_asignacion_display }})</div>
+                    </td>
+                    <td>
+                        <strong>{{ d.titulo_completo }}</strong>
+                    </td>
+                    <td style="color: var(--danger); font-weight: 600;">
+                        {{ d.fecha_vencimiento|date:"d/m/Y" }}
+                    </td>
+                    <td>
+                        <span style="color: var(--danger); font-weight: 700;">Vencido hace {{ d.dias_restantes|stringformat:"+d"|slice:"1:" }} días</span>
+                    </td>
+                    <td>
+                        <span class="badge badge-licencia">VENCIDO</span>
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'flota_editar_documento' d.pk %}" class="btn btn-ghost btn-sm">Renovar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% for d in docs_urgentes_7 %}
+                <tr>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' d.vehiculo.pk %}" style="font-weight: 700; color: var(--accent); text-decoration: none;">
+                            {{ d.vehiculo.patente }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ d.vehiculo.marca }} {{ d.vehiculo.modelo }}</div>
+                    </td>
+                    <td>
+                        <strong>{{ d.titulo_completo }}</strong>
+                    </td>
+                    <td style="color: var(--warning); font-weight: 600;">
+                        {{ d.fecha_vencimiento|date:"d/m/Y" }}
+                    </td>
+                    <td>
+                        <span style="color: var(--warning); font-weight: 700;">Vence en {{ d.dias_restantes }} día(s)</span>
+                    </td>
+                    <td>
+                        <span class="badge badge-vacaciones">URGENTE (7 DÍAS)</span>
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'flota_editar_documento' d.pk %}" class="btn btn-ghost btn-sm">Gestionar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% for m in mantenciones_pendientes %}
+                <tr>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' m.vehiculo.pk %}" style="font-weight: 700; color: var(--accent); text-decoration: none;">
+                            {{ m.vehiculo.patente }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Odómetro: {{ m.vehiculo.kilometraje_actual|intcomma }} km</div>
+                    </td>
+                    <td>
+                        <strong>🔧 {{ m.titulo }}</strong>
+                    </td>
+                    <td>
+                        {% if m.proxima_fecha %}{{ m.proxima_fecha|date:"d/m/Y" }}{% else %}Por kilometraje{% endif %}
+                    </td>
+                    <td>
+                        {% if m.km_restantes is not None %}
+                            {% if m.km_restantes <= 0 %}
+                            <span style="color: var(--danger); font-weight: 700;">Excedido por {{ m.km_restantes|stringformat:"+d"|slice:"1:" }} km</span>
+                            {% else %}
+                            <span style="color: var(--warning); font-weight: 700;">Faltan {{ m.km_restantes|intcomma }} km</span>
+                            {% endif %}
+                        {% elif m.dias_restantes_fecha is not None %}
+                            {{ m.dias_restantes_fecha }} días
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if m.estado_alerta == 'VENCIDA' %}
+                        <span class="badge badge-licencia">MANTENCIÓN VENCIDA</span>
+                        {% else %}
+                        <span class="badge badge-vacaciones">POR VENCER</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'flota_agregar_mantencion_vehiculo' m.vehiculo.pk %}" class="btn btn-ghost btn-sm">Registrar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- DOS COLUMNAS: ACTIVIDAD RECIENTE -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+    <!-- Últimos Kilometrajes -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 class="card-title" style="margin: 0;">⏱️ Últimos Odómetros Registrados</h2>
+            <a href="{% url 'flota_registro_km_express' %}" class="btn btn-ghost btn-sm">➕ Cargar</a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Vehículo</th>
+                        <th>Odómetro</th>
+                        <th>Fecha</th>
+                        <th>Responsable</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for k in ultimos_km %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'flota_detalle_vehiculo' k.vehiculo.pk %}" style="font-weight: 700; color: var(--accent); text-decoration: none;">
+                                {{ k.vehiculo.patente }}
+                            </a>
+                        </td>
+                        <td style="font-weight: 700;">{{ k.kilometraje|intcomma }} km</td>
+                        <td style="color: var(--text-muted); font-size: 0.8rem;">{{ k.fecha|date:"d/m/Y" }}</td>
+                        <td style="font-size: 0.8rem;">{{ k.conductor_o_responsable|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                            No hay registros de kilometraje aún.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Últimos Checklists Pre-Uso -->
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 class="card-title" style="margin: 0;">📋 Inspecciones Pre-Uso Recientes</h2>
+            <a href="{% url 'flota_checklist_preuso' %}" class="btn btn-ghost btn-sm">➕ Nuevo</a>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Vehículo</th>
+                        <th>Fecha / Hora</th>
+                        <th>Conductor</th>
+                        <th>Resultado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in ultimos_checklists %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'flota_detalle_vehiculo' c.vehiculo.pk %}" style="font-weight: 700; color: var(--accent); text-decoration: none;">
+                                {{ c.vehiculo.patente }}
+                            </a>
+                        </td>
+                        <td style="color: var(--text-muted); font-size: 0.8rem;">{{ c.fecha_hora|date:"d/m/Y H:i" }}</td>
+                        <td style="font-size: 0.8rem;">{{ c.conductor }}</td>
+                        <td>
+                            {% if c.aprobado_para_circular %}
+                            <span class="badge badge-activo">APTO</span>
+                            {% else %}
+                            <span class="badge badge-licencia">OBSERVADO</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                            No se han registrado checklists pre-uso.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ACCESO RÁPIDO A MÓDULOS -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
+    <a href="{% url 'flota_lista_vehiculos' %}" class="card" style="text-decoration: none; display: flex; align-items: center; gap: 1rem; padding: 1.25rem; transition: transform 0.2s;">
+        <span style="font-size: 2rem;">🚙</span>
+        <div>
+            <div style="font-weight: 700; color: var(--text);">Todos los Vehículos</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Fichas, documentos y estado</div>
+        </div>
+    </a>
+    <a href="{% url 'flota_mantenciones' %}" class="card" style="text-decoration: none; display: flex; align-items: center; gap: 1rem; padding: 1.25rem; transition: transform 0.2s;">
+        <span style="font-size: 2rem;">🔧</span>
+        <div>
+            <div style="font-weight: 700; color: var(--text);">Mantenciones y Pautas</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Servicios preventivos y talleres</div>
+        </div>
+    </a>
+    <a href="{% url 'flota_lista_costos' %}" class="card" style="text-decoration: none; display: flex; align-items: center; gap: 1rem; padding: 1.25rem; transition: transform 0.2s;">
+        <span style="font-size: 2rem;">⛽</span>
+        <div>
+            <div style="font-weight: 700; color: var(--text);">Costos y Combustible</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Control de gastos y litros</div>
+        </div>
+    </a>
+    <a href="{% url 'flota_configuracion_alertas' %}" class="card" style="text-decoration: none; display: flex; align-items: center; gap: 1rem; padding: 1.25rem; transition: transform 0.2s;">
+        <span style="font-size: 2rem;">⚙️</span>
+        <div>
+            <div style="font-weight: 700; color: var(--text);">Configurar Correos</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Destinatarios y reglas de aviso</div>
+        </div>
+    </a>
+</div>
+{% endblock %}

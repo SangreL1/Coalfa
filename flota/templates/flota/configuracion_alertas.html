@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuración de Alertas por Correo — COALFA{% endblock %}
+{% block topbar_title %}Configuración de Notificaciones Automáticas{% endblock %}
+{% block nav_flota_alertas %}active{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0; font-size: 1.8rem; font-weight: 800;">⚙️ Configuración de Alertas por Correo</h1>
+        <p class="page-subtitle" style="margin: 0.35rem 0 0; color: var(--text-muted);">
+            Define quiénes recibirán los avisos de vencimientos y mantenciones y cómo deben escalarse.
+        </p>
+    </div>
+    <a href="{% url 'flota_panel_alertas' %}" class="btn btn-ghost btn-sm">
+        ← Volver al Panel de Alertas
+    </a>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+    <!-- FORMULARIO PRINCIPAL DE CONFIGURACIÓN -->
+    <div class="card">
+        <div class="card-header" style="border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1.25rem;">
+            <h2 class="card-title" style="margin: 0;">📬 Correos Destinatarios y Reglas de Envío</h2>
+        </div>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="form-label" style="font-weight: 800; font-size: 0.95rem; color: var(--accent);">
+                    Correos que recibirán las alertas automáticas <span style="color: var(--danger);">*</span>
+                </label>
+                {{ form.correos_notificacion }}
+                <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.35rem;">
+                    Escribe los correos de las personas que deben enterarse de los vencimientos. Puedes colocar varios separados por comas o saltos de línea (ej: <code>jefe.taller@coalfa.cl, admin@coalfa.cl</code>). <strong>Esta lista se guarda y queda fija en el sistema.</strong>
+                </small>
+            </div>
+
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 0.95rem; font-weight: 700; margin: 0 0 1rem; color: #f8fafc;">
+                    Escalamiento y Frecuencia de Alertas
+                </h3>
+
+                <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                        {{ form.alertar_30_dias }}
+                        <div>
+                            <span style="font-weight: 600; font-size: 0.875rem;">Aviso Preventivo a 30 Días</span>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Informa con 1 mes de anticipación para planificar trámites.</div>
+                        </div>
+                    </label>
+
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                        {{ form.alertar_15_dias }}
+                        <div>
+                            <span style="font-weight: 600; font-size: 0.875rem;">Aviso de Atención a 15 Días</span>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Recordatorio cuando quedan dos semanas.</div>
+                        </div>
+                    </label>
+
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                        {{ form.alertar_7_dias }}
+                        <div>
+                            <span style="font-weight: 600; font-size: 0.875rem; color: #fb923c;">Aviso Crítico a 7 Días</span>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Alerta urgente de última semana antes de vencer.</div>
+                        </div>
+                    </label>
+
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                        {{ form.alertar_vencidos }}
+                        <div>
+                            <span style="font-weight: 600; font-size: 0.875rem; color: #f87171;">Aviso Diario cuando ya está Vencido</span>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Envía reporte diario mientras un vehículo circule o tenga un documento vencido.</div>
+                        </div>
+                    </label>
+
+                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                        {{ form.alertar_km }}
+                        <div>
+                            <span style="font-weight: 600; font-size: 0.875rem; color: #38bdf8;">Alertas de Mantención por Kilometraje</span>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Notifica cuando el odómetro se acerque o sobrepase el próximo servicio programado.</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Anticipación en Km para Mantención</label>
+                    {{ form.km_anticipacion_alerta }}
+                    <small style="color: var(--text-muted); font-size: 0.7rem;">Avisar cuando falten X km (por defecto 1.000 km).</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Asunto de los Correos</label>
+                    {{ form.asunto_alerta }}
+                </div>
+            </div>
+
+            <div style="background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                {{ form.activo }}
+                <div>
+                    <label style="font-weight: 700; margin: 0; cursor: pointer;">Habilitar Sistema de Envío Automático</label>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Si desmarcas esta casilla, se pausarán los correos automáticos.</div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.85rem; font-size: 1rem; font-weight: 700;">
+                💾 Guardar Configuración de Correos
+            </button>
+        </form>
+    </div>
+
+    <!-- COLUMNA LATERAL: PRUEBA DE ENVÍO Y TAREAS PROGRAMADAS -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <!-- ENVIAR CORREO DE PRUEBA -->
+        <div class="card" style="border-color: rgba(56, 189, 248, 0.3);">
+            <div class="card-header">
+                <h3 class="card-title" style="margin: 0; font-size: 1.1rem; color: #38bdf8;">
+                    🧪 Probar Envío de Correo Inmediato
+                </h3>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                Ingresa tu correo para verificar que el servidor pueda despachar mensajes correctamente y comprobar cómo se ven las alertas en tu bandeja.
+            </p>
+            <form method="POST" action="{% url 'flota_probar_correo' %}">
+                {% csrf_token %}
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <input type="email" name="correo_prueba" class="form-control" placeholder="tu.correo@ejemplo.com" required style="font-weight: 600;">
+                </div>
+                <button type="submit" class="btn btn-secondary" style="width: 100%; padding: 0.75rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">
+                    📨 Enviar Correo de Prueba
+                </button>
+            </form>
+        </div>
+
+        <!-- CÓMO FUNCIONA EL ENVÍO AUTOMÁTICO EN PYTHONANYWHERE -->
+        <div class="card" style="background: rgba(16, 25, 45, 0.5);">
+            <div class="card-header">
+                <h3 class="card-title" style="margin: 0; font-size: 1.1rem;">
+                    ⏰ Automatización en PythonAnywhere
+                </h3>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                Para que el sistema revise y envíe las alertas todos los días automáticamente sin que nadie tenga que entrar a la web:
+            </p>
+            <ol style="font-size: 0.8rem; color: var(--text-muted); padding-left: 1.25rem; line-height: 1.8;">
+                <li>Entra a la pestaña <strong>Tasks</strong> de tu cuenta de PythonAnywhere.</li>
+                <li>Crea una nueva <strong>Scheduled Task</strong> (ej: a las <code>08:00 UTC</code> o según convenga).</li>
+                <li>Ingresa el siguiente comando:
+                    <div style="background: #0b1120; padding: 0.6rem 0.8rem; border-radius: 6px; font-family: monospace; color: var(--accent); margin: 0.4rem 0; word-break: break-all; border: 1px solid var(--border);">
+                        cd ~/Coalfa && python manage.py enviar_alertas_flota
+                    </div>
+                </li>
+                <li>¡Listo! El comando evaluará la lista de correos guardados y enviará el correo consolidado solo si hay vencimientos o mantenciones pertinentes.</li>
+            </ol>
+        </div>
+
+        <!-- LISTA ACTUAL GUARDADA -->
+        <div class="card">
+            <h3 style="font-size: 0.95rem; font-weight: 700; margin: 0 0 0.5rem;">
+                📋 Destinatarios Activos Guardados ({{ lista_correos|length }})
+            </h3>
+            <ul style="font-size: 0.85rem; color: #38bdf8; padding-left: 1.25rem; margin: 0;">
+                {% for email in lista_correos %}
+                <li style="margin-bottom: 0.25rem;"><strong>{{ email }}</strong></li>
+                {% empty %}
+                <li style="color: var(--text-muted);">Sin destinatarios guardados todavía.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

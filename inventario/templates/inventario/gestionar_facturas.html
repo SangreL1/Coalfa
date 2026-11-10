@@ -9,17 +9,20 @@
 <div class="header-section">
     <div>
         <h1 class="page-title">Buzón de Facturas</h1>
-        <p class="page-subtitle" style="margin-bottom: 0;">Administra y registra facturas pendientes de ingresar al inventario.</p>
+        <p class="page-subtitle" style="margin-bottom: 0;">Administra y registra facturas pendientes de ingresar al
+            inventario.</p>
     </div>
     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; width: 100%;">
-        <div class="kpi-card" style="padding: 0.75rem 1.5rem; flex-direction: row; align-items: center; gap: 1rem; min-width: 140px; flex: 1;">
+        <div class="kpi-card"
+            style="padding: 0.75rem 1.5rem; flex-direction: row; align-items: center; gap: 1rem; min-width: 140px; flex: 1;">
             <div style="font-size: 1.5rem;">📂</div>
             <div>
                 <div class="kpi-label">Total Archivos</div>
                 <div class="kpi-value" style="font-size: 1.25rem;">{{ total }}</div>
             </div>
         </div>
-        <div class="kpi-card" style="padding: 0.75rem 1.5rem; flex-direction: row; align-items: center; gap: 1rem; min-width: 140px; flex: 1;">
+        <div class="kpi-card"
+            style="padding: 0.75rem 1.5rem; flex-direction: row; align-items: center; gap: 1rem; min-width: 140px; flex: 1;">
             <div style="font-size: 1.5rem; color: var(--success);">✅</div>
             <div>
                 <div class="kpi-label">Procesadas</div>
@@ -30,11 +33,14 @@
 </div>
 
 <!-- Formulario para subir nuevas facturas -->
-<div class="card" style="margin-bottom: 2rem; border-color: rgba(249, 115, 22, 0.25); background: rgba(249, 115, 22, 0.02);">
-    <div class="card-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+<div class="card"
+    style="margin-bottom: 2rem; border-color: rgba(249, 115, 22, 0.25); background: rgba(249, 115, 22, 0.02);">
+    <div class="card-header"
+        style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
         <h2 class="card-title" style="margin: 0;">📤 Cargar Nueva Factura PDF</h2>
         {% if user.rol != 'AUDITOR' %}
-        <a href="{% url 'inventario_factura_manual' %}" class="btn btn-ghost btn-sm" style="border: 1px dashed var(--accent); color: var(--accent);">
+        <a href="{% url 'inventario_factura_manual' %}" class="btn btn-ghost btn-sm"
+            style="border: 1px dashed var(--accent); color: var(--accent);">
             ➕ Nueva Factura Manual (Sin PDF)
         </a>
         {% endif %}
@@ -44,7 +50,8 @@
         🔒 Tu cuenta tiene el rol Auditor (Solo Lectura). No tienes permisos para subir nuevas facturas.
     </div>
     {% else %}
-    <form method="POST" enctype="multipart/form-data" action="{% url 'inventario_gestionar_facturas' %}" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; width: 100%;">
+    <form method="POST" enctype="multipart/form-data" action="{% url 'inventario_gestionar_facturas' %}"
+        style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; width: 100%;">
         {% csrf_token %}
         <div style="flex: 1; min-width: 260px;">
             <input type="file" name="factura_pdf" accept=".pdf" class="form-control" required style="width: 100%;">
@@ -57,15 +64,21 @@
 </div>
 
 <div class="card">
-    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+    <div class="card-header"
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
         <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
             <h2 class="card-title" style="margin-bottom: 0;">Facturas en Carpeta (FACTURAS INVENTARIO)</h2>
-            <span class="badge badge-vacaciones" style="background: rgba(251, 191, 36, 0.1); color: #fbbf24;">Pendientes: {{ total|add:procesadas|add:"-0" }}</span>
+            <span class="badge badge-vacaciones"
+                style="background: rgba(251, 191, 36, 0.1); color: #fbbf24;">Pendientes: {{
+                total|add:procesadas|add:"-0" }}</span>
         </div>
         {% if total > 0 %}
-        <form method="POST" action="{% url 'inventario_eliminar_todas_facturas' %}" onsubmit="return confirm('¿Estás seguro de que deseas eliminar TODAS las facturas del buzón? Esta acción no se puede deshacer.')" style="margin: 0;">
+        <form method="POST" action="{% url 'inventario_eliminar_todas_facturas' %}"
+            onsubmit="return confirm('¿Estás seguro de que deseas eliminar TODAS las facturas del buzón? Esta acción no se puede deshacer.')"
+            style="margin: 0;">
             {% csrf_token %}
-            <button type="submit" class="btn btn-sm btn-ghost" style="color: var(--danger); border-color: var(--danger); font-size: 0.75rem; padding: 0.4rem 0.8rem;">
+            <button type="submit" class="btn btn-sm btn-ghost"
+                style="color: var(--danger); border-color: var(--danger); font-size: 0.75rem; padding: 0.4rem 0.8rem;">
                 🗑️ Limpiar Buzón (Eliminar Todas)
             </button>
         </form>
@@ -100,7 +113,8 @@
                         </div>
                     </td>
                     <td>
-                        <code style="background: var(--coal-mid); padding: 0.2rem 0.5rem; border-radius: 4px; color: var(--accent);">{{ f.guia }}</code>
+                        <code
+                            style="background: var(--coal-mid); padding: 0.2rem 0.5rem; border-radius: 4px; color: var(--accent);">{{ f.guia }}</code>
                     </td>
                     <td style="color: var(--text-muted); font-size: 0.8rem;">
                         {{ f.fecha_mod|date:"d/m/Y H:i" }}
@@ -108,20 +122,28 @@
                     <td style="text-align: right;">
                         <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
                             {% if not f.procesada %}
-                            <a href="{% url 'inventario_procesar_factura_pdf' filename=f.nombre %}" class="btn btn-primary btn-sm btn-carga-inteligente" style="background: #8b5cf6;" title="Escanear y extraer productos del PDF automáticamente">
+                            <a href="{% url 'inventario_procesar_factura_pdf' filename=f.nombre %}"
+                                class="btn btn-primary btn-sm btn-carga-inteligente" style="background: #8b5cf6;"
+                                title="Escanear y extraer productos del PDF automáticamente">
                                 ⚡ Carga Inteligente
                             </a>
-                            <a href="{% url 'inventario_procesar_factura_pdf' filename=f.nombre %}?manual=1" class="btn btn-ghost btn-sm" title="Abrir formulario para escribir los productos manualmente sin esperar">
+                            <a href="{% url 'inventario_procesar_factura_pdf' filename=f.nombre %}?manual=1"
+                                class="btn btn-ghost btn-sm"
+                                title="Abrir formulario para escribir los productos manualmente sin esperar">
                                 ➕ Registro Manual
                             </a>
                             {% endif %}
-                            <a href="{% url 'inventario_ver_factura_pdf' filename=f.nombre %}" class="btn btn-ghost btn-sm" target="_blank">
+                            <a href="{% url 'inventario_ver_factura_pdf' filename=f.nombre %}"
+                                class="btn btn-ghost btn-sm" target="_blank">
                                 👁️ Ver PDF
                             </a>
                             {% if user.rol != 'AUDITOR' %}
-                            <form method="POST" action="{% url 'inventario_eliminar_factura_pdf' filename=f.nombre %}" onsubmit="return confirm('¿Estás seguro de que deseas eliminar esta factura?')" style="display: inline; margin: 0;">
+                            <form method="POST" action="{% url 'inventario_eliminar_factura_pdf' filename=f.nombre %}"
+                                onsubmit="return confirm('¿Estás seguro de que deseas eliminar esta factura?')"
+                                style="display: inline; margin: 0;">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--danger); padding: 0.35rem 0.6rem;" title="Eliminar factura">
+                                <button type="submit" class="btn btn-ghost btn-sm"
+                                    style="color: var(--danger); padding: 0.35rem 0.6rem;" title="Eliminar factura">
                                     🗑️
                                 </button>
                             </form>
@@ -147,19 +169,23 @@
         <div>
             <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">¿Cómo funciona esto?</h3>
             <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
-                Puedes subir tus facturas PDF directamente con el botón <strong>"Subir y Analizar"</strong> de arriba, o colocarlas en la carpeta <code>FACTURAS INVENTARIO</code> del servidor. Si el nombre del archivo PDF (ej: <code>12345.pdf</code>) ya coincide con un Número de Guía en algún lote registrado, la factura se marcará automáticamente como <strong>Procesada</strong>. Esto evita duplicaciones y te ayuda a rastrear lo que falta por ingresar.
+                Puedes subir tus facturas PDF directamente con el botón <strong>"Subir y Analizar"</strong> de arriba, o
+                colocarlas en la carpeta <code>FACTURAS INVENTARIO</code> del servidor. Si el nombre del archivo PDF
+                (ej: <code>12345.pdf</code>) ya coincide con un Número de Guía en algún lote registrado, la factura se
+                marcará automáticamente como <strong>Procesada</strong>. Esto evita duplicaciones y te ayuda a rastrear
+                lo que falta por ingresar.
             </p>
         </div>
     </div>
 </div>
 
 <script>
-document.querySelectorAll('.btn-carga-inteligente').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-        this.innerHTML = '⏳ Leyendo PDF...';
-        this.style.pointerEvents = 'none';
-        this.style.opacity = '0.75';
+    document.querySelectorAll('.btn-carga-inteligente').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            this.innerHTML = '⏳ Leyendo PDF...';
+            this.style.pointerEvents = 'none';
+            this.style.opacity = '0.75';
+        });
     });
-});
 </script>
 {% endblock %}

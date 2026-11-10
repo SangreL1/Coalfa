@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirmar Eliminación — COALFA{% endblock %}
+{% block topbar_title %}Eliminar {{ tipo }}{% endblock %}
+{% block nav_flota_vehiculos %}active{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 3rem auto; text-align: center; border-color: rgba(239, 68, 68, 0.4);">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+    <h1 style="font-size: 1.35rem; font-weight: 800; color: #f87171; margin-bottom: 0.75rem;">
+        ¿Estás seguro de eliminar este {{ tipo }}?
+    </h1>
+    <p style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+        Estás a punto de eliminar: <strong style="color: var(--text);">{{ objeto }}</strong>.<br>
+        Esta acción no se puede deshacer.
+    </p>
+
+    <form method="POST" style="display: flex; gap: 1rem; justify-content: center;">
+        {% csrf_token %}
+        <a href="javascript:history.back()" class="btn btn-ghost" style="padding: 0.75rem 1.5rem;">
+            ✕ Cancelar
+        </a>
+        <button type="submit" class="btn btn-primary" style="background: var(--danger); padding: 0.75rem 1.75rem;">
+            🗑️ Confirmar y Eliminar
+        </button>
+    </form>
+</div>
+{% endblock %}

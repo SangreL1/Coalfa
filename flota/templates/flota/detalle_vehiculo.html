@@ -1,0 +1,516 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ vehiculo.patente }} — Ficha de Vehículo — COALFA{% endblock %}
+{% block topbar_title %}Ficha Técnica de Vehículo{% endblock %}
+{% block nav_flota_vehiculos %}active{% endblock %}
+
+{% block content %}
+<!-- ENCABEZADO DEL VEHÍCULO -->
+<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%); border-color: rgba(249, 115, 22, 0.3);">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1.5rem;">
+        <div style="display: flex; align-items: center; gap: 1.25rem;">
+            <div style="font-size: 3rem; background: rgba(249, 115, 22, 0.15); width: 80px; height: 80px; border-radius: 16px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(249, 115, 22, 0.3); flex-shrink: 0;">
+                🚗
+            </div>
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                    <span style="font-size: 2rem; font-weight: 800; letter-spacing: 1px; color: var(--accent); background: #0f172a; padding: 0.2rem 0.8rem; border-radius: 8px; border: 2px solid var(--accent);">
+                        {{ vehiculo.patente }}
+                    </span>
+                    {% if vehiculo.estado == 'OPERATIVO' %}
+                    <span class="badge badge-activo" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">OPERATIVO</span>
+                    {% elif vehiculo.estado == 'TALLER' %}
+                    <span class="badge badge-vacaciones" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">EN TALLER</span>
+                    {% else %}
+                    <span class="badge badge-licencia" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">FUERA DE SERVICIO</span>
+                    {% endif %}
+                    <span class="badge badge-bodega" style="font-size: 0.8rem;">{{ vehiculo.get_asignacion_display }}</span>
+                </div>
+                <h1 style="font-size: 1.35rem; font-weight: 700; margin: 0.5rem 0 0.2rem;">
+                    {{ vehiculo.marca }} {{ vehiculo.modelo }} (Año {{ vehiculo.anio }}) &bull; {{ vehiculo.get_tipo_display }}
+                </h1>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">
+                    Conductor / Responsable: <strong>{{ vehiculo.conductor_habitual|default:"Sin asignar" }}</strong>
+                    {% if vehiculo.observaciones %} &bull; <em>{{ vehiculo.observaciones }}</em>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ACCIONES RÁPIDAS -->
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <a href="{% url 'flota_registro_km_express' %}?vehiculo={{ vehiculo.pk }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary btn-sm">
+                ⏱️ Actualizar Km
+            </a>
+            <a href="{% url 'flota_checklist_preuso_vehiculo' vehiculo.pk %}" class="btn btn-secondary btn-sm">
+                📋 Checklist Pre-Uso
+            </a>
+            <a href="{% url 'flota_agregar_documento_vehiculo' vehiculo.pk %}" class="btn btn-ghost btn-sm">
+                📄 Subir Doc
+            </a>
+            <a href="{% url 'flota_agregar_mantencion_vehiculo' vehiculo.pk %}" class="btn btn-ghost btn-sm">
+                🔧 Mantención
+            </a>
+            {% if user.rol != 'AUDITOR' %}
+            <a href="{% url 'flota_editar_vehiculo' vehiculo.pk %}" class="btn btn-ghost btn-sm" title="Editar datos">
+                ✏️ Editar
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- STATS STRIP DEL VEHÍCULO -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Kilometraje Odómetro</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: #38bdf8;">{{ vehiculo.kilometraje_actual|intcomma }} km</div>
+            <div style="font-size: 0.7rem; color: var(--text-muted);">Última actualización: {{ vehiculo.fecha_actualizacion_km|date:"d/m/Y" }}</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Estado Documentos</div>
+            <div style="font-size: 1.25rem; font-weight: 700;">
+                {% if vehiculo.documentos_vencidos %}
+                <span style="color: var(--danger);">🚨 {{ vehiculo.documentos_vencidos|length }} Vencido(s)</span>
+                {% elif vehiculo.documentos_por_vencer_30 %}
+                <span style="color: var(--warning);">⏳ {{ vehiculo.documentos_por_vencer_30|length }} Por Vencer</span>
+                {% else %}
+                <span style="color: var(--success);">✅ Todos Vigentes</span>
+                {% endif %}
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-muted);">{{ documentos|length }} documentos registrados</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Gasto Total Registrado</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: var(--text);">${{ total_gastos|intcomma }}</div>
+            <div style="font-size: 0.7rem; color: var(--text-muted);">Combustible: ${{ total_combustible|intcomma }} ({{ total_litros }} L)</div>
+        </div>
+        <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Inspecciones Pre-Uso</div>
+            <div style="font-size: 1.5rem; font-weight: 800; color: #34d399;">{{ checklists|length }}</div>
+            <div style="font-size: 0.7rem; color: var(--text-muted);">Último: {% if checklists %}{{ checklists.0.fecha_hora|date:"d/m/Y" }}{% else %}Ninguno{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+<!-- NAVEGACIÓN POR PESTAÑAS (TABS) -->
+<div style="display: flex; gap: 0.5rem; border-bottom: 2px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 0.25rem;">
+    <button type="button" class="tab-btn active" onclick="cambiarTab(event, 'tab-documentos');">
+        📄 Documentación Legal ({% if vehiculo.documentos_vencidos %}<span style="color: var(--danger);">!</span>{% endif %}{{ documentos|length }})
+    </button>
+    <button type="button" class="tab-btn" onclick="cambiarTab(event, 'tab-mantenciones');">
+        🔧 Historial Mantenciones ({{ mantenciones|length }})
+    </button>
+    <button type="button" class="tab-btn" onclick="cambiarTab(event, 'tab-odometro');">
+        ⏱️ Registro de Km ({{ kilometrajes|length }})
+    </button>
+    <button type="button" class="tab-btn" onclick="cambiarTab(event, 'tab-checklists');">
+        📋 Checklists Pre-Uso ({{ checklists|length }})
+    </button>
+    <button type="button" class="tab-btn" onclick="cambiarTab(event, 'tab-costos');">
+        ⛽ Costos y Combustible (${{ total_gastos|intcomma }})
+    </button>
+</div>
+
+<style>
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+}
+.tab-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+}
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom: 3px solid var(--accent);
+    background: rgba(249, 115, 22, 0.08);
+}
+.tab-pane {
+    display: none;
+}
+.tab-pane.active {
+    display: block;
+}
+</style>
+
+<!-- TAB 1: DOCUMENTACIÓN LEGAL -->
+<div id="tab-documentos" class="tab-pane active">
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+                <h2 class="card-title" style="margin: 0;">📄 Documentación Obligatoria y Vencimientos</h2>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Revisión técnica, SOAP, Permiso de Circulación, Certificado de Emisiones y Seguros</div>
+            </div>
+            {% if user.rol != 'AUDITOR' %}
+            <a href="{% url 'flota_agregar_documento_vehiculo' vehiculo.pk %}" class="btn btn-primary btn-sm">
+                ➕ Agregar Documento
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Documento</th>
+                        <th>Nº Certificado / Póliza</th>
+                        <th>Emisor</th>
+                        <th>Fecha Vencimiento</th>
+                        <th>Días Restantes</th>
+                        <th>Estado</th>
+                        <th>Adjunto</th>
+                        <th style="text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documentos %}
+                    <tr>
+                        <td>
+                            <strong>{{ doc.titulo_completo }}</strong>
+                            {% if doc.observaciones %}
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ doc.observaciones }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ doc.numero_documento_o_poliza|default:"—" }}</td>
+                        <td>{{ doc.entidad_emisora|default:"—" }}</td>
+                        <td style="font-weight: 700;">{{ doc.fecha_vencimiento|date:"d/m/Y" }}</td>
+                        <td>
+                            {% if doc.dias_restantes < 0 %}
+                            <span style="color: var(--danger); font-weight: 700;">Vencido hace {{ doc.dias_restantes|stringformat:"+d"|slice:"1:" }} días</span>
+                            {% elif doc.dias_restantes <= 7 %}
+                            <span style="color: var(--danger); font-weight: 700;">{{ doc.dias_restantes }} día(s) restante(s)</span>
+                            {% elif doc.dias_restantes <= 30 %}
+                            <span style="color: var(--warning); font-weight: 700;">{{ doc.dias_restantes }} días</span>
+                            {% else %}
+                            <span style="color: var(--success);">{{ doc.dias_restantes }} días</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {{ doc.badge_class }}">
+                                {{ doc.estado_alerta }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if doc.archivo %}
+                            <a href="{{ doc.archivo.url }}" target="_blank" class="btn btn-ghost btn-sm" style="color: #38bdf8;" title="Ver archivo adjunto">
+                                📎 Ver PDF/Foto
+                            </a>
+                            {% else %}
+                            <span style="color: var(--text-muted); font-size: 0.8rem;">Sin adjunto</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            {% if user.rol != 'AUDITOR' %}
+                            <a href="{% url 'flota_editar_documento' doc.pk %}" class="btn btn-ghost btn-sm">✏️</a>
+                            <a href="{% url 'flota_eliminar_documento' doc.pk %}" class="btn btn-ghost btn-sm" style="color: var(--danger);">🗑️</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                            No hay documentos registrados para este vehículo. Pulsa "Agregar Documento" para registrar Revisión Técnica, SOAP, Permiso, etc.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 2: MANTENCIONES -->
+<div id="tab-mantenciones" class="tab-pane">
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+                <h2 class="card-title" style="margin: 0;">🔧 Historial y Próximas Mantenciones</h2>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Servicios preventivos y reparaciones ejecutadas</div>
+            </div>
+            {% if user.rol != 'AUDITOR' %}
+            <a href="{% url 'flota_agregar_mantencion_vehiculo' vehiculo.pk %}" class="btn btn-primary btn-sm">
+                ➕ Registrar Mantención
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Servicio / Detalle</th>
+                        <th>Kilometraje</th>
+                        <th>Taller</th>
+                        <th>Costo (CLP)</th>
+                        <th>Próximo Km</th>
+                        <th>Próxima Fecha</th>
+                        <th>Comprobante</th>
+                        <th style="text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in mantenciones %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ m.fecha|date:"d/m/Y" }}</td>
+                        <td>
+                            {% if m.tipo_servicio == 'PREVENTIVA' %}
+                            <span class="badge badge-bodega">PREVENTIVA</span>
+                            {% else %}
+                            <span class="badge badge-vacaciones">CORRECTIVA</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ m.titulo }}</strong>
+                            {% if m.observaciones %}
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ m.observaciones }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ m.kilometraje|intcomma }} km</td>
+                        <td>{{ m.taller|default:"—" }}</td>
+                        <td style="font-weight: 700;">${{ m.costo|intcomma }}</td>
+                        <td>
+                            {% if m.proximo_km %}
+                                <div style="font-weight: 700;">{{ m.proximo_km|intcomma }} km</div>
+                                {% if m.km_restantes is not None %}
+                                    {% if m.km_restantes <= 0 %}
+                                    <div style="font-size: 0.7rem; color: var(--danger); font-weight: 700;">¡Excedido por {{ m.km_restantes|stringformat:"+d"|slice:"1:" }} km!</div>
+                                    {% else %}
+                                    <div style="font-size: 0.7rem; color: var(--text-muted);">Faltan {{ m.km_restantes|intcomma }} km</div>
+                                    {% endif %}
+                                {% endif %}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            {% if m.proxima_fecha %}
+                                <div>{{ m.proxima_fecha|date:"d/m/Y" }}</div>
+                                {% if m.dias_restantes_fecha is not None %}
+                                    {% if m.dias_restantes_fecha <= 0 %}
+                                    <div style="font-size: 0.7rem; color: var(--danger); font-weight: 700;">¡Vencida!</div>
+                                    {% else %}
+                                    <div style="font-size: 0.7rem; color: var(--text-muted);">En {{ m.dias_restantes_fecha }} días</div>
+                                    {% endif %}
+                                {% endif %}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            {% if m.comprobante %}
+                            <a href="{{ m.comprobante.url }}" target="_blank" class="btn btn-ghost btn-sm" style="color: #38bdf8;">
+                                📎 Factura
+                            </a>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            {% if user.rol != 'AUDITOR' %}
+                            <a href="{% url 'flota_eliminar_mantencion' m.pk %}" class="btn btn-ghost btn-sm" style="color: var(--danger);">🗑️</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                            No hay mantenciones registradas para este vehículo.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 3: REGISTRO DE KILOMETRAJE -->
+<div id="tab-odometro" class="tab-pane">
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+                <h2 class="card-title" style="margin: 0;">⏱️ Historial de Odómetro y Kilometraje</h2>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Evolución del kilometraje del vehículo</div>
+            </div>
+            <a href="{% url 'flota_registro_km_express' %}?vehiculo={{ vehiculo.pk }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary btn-sm">
+                ➕ Registrar Odómetro
+            </a>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Kilometraje Odómetro</th>
+                        <th>Conductor / Registrado por</th>
+                        <th>Ruta / Destino</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for k in kilometrajes %}
+                    <tr>
+                        <td>{{ k.fecha|date:"d/m/Y" }}</td>
+                        <td style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">{{ k.kilometraje|intcomma }} km</td>
+                        <td>{{ k.conductor_o_responsable }}</td>
+                        <td>{{ k.origen_destino|default:"—" }}</td>
+                        <td style="color: var(--text-muted); font-size: 0.8rem;">{{ k.observaciones|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                            No hay registros de kilometraje específicos.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 4: CHECKLISTS PRE-USO -->
+<div id="tab-checklists" class="tab-pane">
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+                <h2 class="card-title" style="margin: 0;">📋 Inspecciones Rápidas Pre-Uso</h2>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Control diario de seguridad y estado antes de iniciar turno</div>
+            </div>
+            <a href="{% url 'flota_checklist_preuso_vehiculo' vehiculo.pk %}" class="btn btn-primary btn-sm">
+                ➕ Realizar Checklist
+            </a>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha y Hora</th>
+                        <th>Conductor</th>
+                        <th>Odómetro</th>
+                        <th>Luces</th>
+                        <th>Neumáticos</th>
+                        <th>Fluidos</th>
+                        <th>Frenos</th>
+                        <th>Seguridad</th>
+                        <th>Dictamen</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in checklists %}
+                    <tr>
+                        <td>{{ c.fecha_hora|date:"d/m/Y H:i" }}</td>
+                        <td><strong>{{ c.conductor }}</strong></td>
+                        <td>{{ c.kilometraje|intcomma }} km</td>
+                        <td>{% if c.luces_ok %}✅{% else %}❌{% endif %}</td>
+                        <td>{% if c.neumaticos_ok %}✅{% else %}❌{% endif %}</td>
+                        <td>{% if c.fluidos_ok %}✅{% else %}❌{% endif %}</td>
+                        <td>{% if c.frenos_ok %}✅{% else %}❌{% endif %}</td>
+                        <td>{% if c.seguridad_ok %}✅{% else %}❌{% endif %}</td>
+                        <td>
+                            {% if c.aprobado_para_circular %}
+                            <span class="badge badge-activo">APTO</span>
+                            {% else %}
+                            <span class="badge badge-licencia">OBSERVADO</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size: 0.8rem; color: var(--text-muted);">{{ c.observaciones|default:"Sin observaciones" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                            No hay checklists registrados aún para este vehículo.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 5: COSTOS Y COMBUSTIBLE -->
+<div id="tab-costos" class="tab-pane">
+    <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+                <h2 class="card-title" style="margin: 0;">⛽ Control de Gastos y Combustible</h2>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Combustible, mantenciones, peajes, reparaciones y seguros</div>
+            </div>
+            {% if user.rol != 'AUDITOR' %}
+            <a href="{% url 'flota_agregar_costo_vehiculo' vehiculo.pk %}" class="btn btn-primary btn-sm">
+                ➕ Registrar Gasto
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo de Gasto</th>
+                        <th>Monto (CLP)</th>
+                        <th>Litros</th>
+                        <th>Km Carga</th>
+                        <th>Proveedor / Estación</th>
+                        <th>Nº Boleta/Factura</th>
+                        <th>Adjunto</th>
+                        <th style="text-align: right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in costos %}
+                    <tr>
+                        <td>{{ c.fecha|date:"d/m/Y" }}</td>
+                        <td>
+                            <span class="badge badge-bodega">{{ c.get_tipo_display }}</span>
+                        </td>
+                        <td style="font-weight: 700; color: var(--success);">${{ c.monto|intcomma }}</td>
+                        <td>{% if c.litros %}{{ c.litros }} L{% else %}—{% endif %}</td>
+                        <td>{% if c.kilometraje %}{{ c.kilometraje|intcomma }} km{% else %}—{% endif %}</td>
+                        <td>{{ c.proveedor|default:"—" }}</td>
+                        <td>{{ c.numero_documento|default:"—" }}</td>
+                        <td>
+                            {% if c.comprobante %}
+                            <a href="{{ c.comprobante.url }}" target="_blank" class="btn btn-ghost btn-sm" style="color: #38bdf8;">
+                                📎 Ver
+                            </a>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            {% if user.rol != 'AUDITOR' %}
+                            <a href="{% url 'flota_eliminar_costo' c.pk %}" class="btn btn-ghost btn-sm" style="color: var(--danger);">🗑️</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                            No hay gastos ni cargas de combustible registradas para este vehículo.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function cambiarTab(evt, tabId) {
+    document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    evt.currentTarget.classList.add('active');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} — COALFA{% endblock %}
+{% block topbar_title %}{{ titulo }}{% endblock %}
+{% block nav_flota_mantenciones %}active{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 2rem;">
+    <h1 class="page-title">{{ titulo }}</h1>
+    <p class="page-subtitle">
+        Registra servicios preventivos (aceite, filtros, frenos, correas) o reparaciones de taller.
+    </p>
+</div>
+
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem;">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Vehículo <span style="color: var(--danger);">*</span></label>
+                {{ form.vehiculo }}
+                {% if form.vehiculo.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.vehiculo.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Pauta Asociada (Opcional)</label>
+                {{ form.pauta }}
+                <small style="color: var(--text-muted); font-size: 0.75rem;">Si seleccionas una pauta, se calcula el próximo km y fecha automáticamente.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Tipo de Servicio</label>
+                {{ form.tipo_servicio }}
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Título / Detalle de la Mantención <span style="color: var(--danger);">*</span></label>
+                {{ form.titulo }}
+                {% if form.titulo.errors %}<div style="color: var(--danger); font-size: 0.8rem;">{{ form.titulo.errors }}</div>{% endif %}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Fecha de Realización <span style="color: var(--danger);">*</span></label>
+                {{ form.fecha }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Kilometraje al Realizar <span style="color: var(--danger);">*</span></label>
+                {{ form.kilometraje }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Taller / Mecánico</label>
+                {{ form.taller }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Costo Total (CLP)</label>
+                {{ form.costo }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Próximo Kilometraje Estimado</label>
+                {{ form.proximo_km }}
+                <small style="color: var(--text-muted); font-size: 0.75rem;">Para alertar cuando el móvil alcance este km.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Próxima Fecha Estimada</label>
+                {{ form.proxima_fecha }}
+                <small style="color: var(--text-muted); font-size: 0.75rem;">Para alertar cuando se cumpla el plazo por meses.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Comprobante / Factura / OT (PDF o Foto)</label>
+                {{ form.comprobante }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Responsable / Registrado por</label>
+                {{ form.responsable }}
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label">Observaciones / Trabajos Realizados</label>
+                {{ form.observaciones }}
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 1.25rem;">
+            {% if vehiculo %}
+            <a href="{% url 'flota_detalle_vehiculo' vehiculo.pk %}" class="btn btn-ghost">← Volver al Vehículo</a>
+            {% else %}
+            <a href="{% url 'flota_mantenciones' %}" class="btn btn-ghost">← Volver al Historial</a>
+            {% endif %}
+            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">
+                💾 Guardar Mantención
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

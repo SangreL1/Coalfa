@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Panel de Vencimientos y Alertas — COALFA{% endblock %}
+{% block topbar_title %}Alertas y Vencimientos de Flota{% endblock %}
+{% block nav_flota_alertas %}active{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0; font-size: 1.8rem; font-weight: 800;">🔔 Panel de Vencimientos y Alertas</h1>
+        <p class="page-subtitle" style="margin: 0.35rem 0 0; color: var(--text-muted);">
+            Semáforo de control preventivo: Revisión técnica, SOAP, Permiso, Emisiones y Mantenciones por km.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <a href="{% url 'flota_configuracion_alertas' %}" class="btn btn-secondary btn-sm" style="border: 1px dashed var(--accent); color: var(--accent);">
+            ⚙️ Configurar Correos de Notificación
+        </a>
+        <form method="POST" action="{% url 'flota_disparar_alertas' %}" style="margin: 0;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary btn-sm" style="background: #f97316;">
+                🚀 Enviar Alertas por Correo Ahora
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- RESUMEN DE DESTINATARIOS ACTIVOS -->
+<div class="card" style="margin-bottom: 2rem; background: rgba(249, 115, 22, 0.05); border-color: rgba(249, 115, 22, 0.25);">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="font-size: 2rem;">📬</div>
+            <div>
+                <div style="font-weight: 700; font-size: 0.95rem;">Destinatarios configurados para recibir alertas automáticas:</div>
+                <div style="font-size: 0.85rem; color: #38bdf8; font-weight: 600; margin-top: 0.2rem;">
+                    {{ config.get_lista_correos|join:", "|default:"Sin correos configurados. Haz clic en 'Configurar Correos de Notificación' para agregarlos." }}
+                </div>
+            </div>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-align: right;">
+            Estado del envío: {% if config.activo %}<span class="badge badge-activo">ACTIVO</span>{% else %}<span class="badge badge-licencia">PAUSADO</span>{% endif %}<br>
+            Último envío: {% if config.ultimo_envio %}{{ config.ultimo_envio|date:"d/m/Y H:i" }}{% else %}Aún no realizado{% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- SEMÁFORO DE ALERTAS -->
+
+<!-- 1. DOCUMENTOS YA VENCIDOS (ROJO) -->
+<div class="card" style="margin-bottom: 1.5rem; border-color: rgba(239, 68, 68, 0.4);">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 class="card-title" style="margin: 0; color: #f87171; display: flex; align-items: center; gap: 0.5rem;">
+            🚨 Documentos Vencidos ({{ docs_vencidos|length }})
+        </h2>
+        <span class="badge badge-licencia">ACCIÓN INMEDIATA REQUERIDA</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Vehículo</th>
+                    <th>Documento</th>
+                    <th>Fecha de Vencimiento</th>
+                    <th>Días Excedido</th>
+                    <th>Adjunto Actual</th>
+                    <th style="text-align: right;">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in docs_vencidos %}
+                <tr>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' d.vehiculo.pk %}" style="font-weight: 800; color: var(--accent); text-decoration: none;">
+                            {{ d.vehiculo.patente }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ d.vehiculo.marca }} {{ d.vehiculo.modelo }} ({{ d.vehiculo.get_asignacion_display }})</div>
+                    </td>
+                    <td><strong>{{ d.titulo_completo }}</strong></td>
+                    <td style="color: var(--danger); font-weight: 700;">{{ d.fecha_vencimiento|date:"d/m/Y" }}</td>
+                    <td style="color: var(--danger); font-weight: 700;">Vencido hace {{ d.dias_restantes|stringformat:"+d"|slice:"1:" }} días</td>
+                    <td>
+                        {% if d.archivo %}<a href="{{ d.archivo.url }}" target="_blank" class="btn btn-ghost btn-sm" style="color: #38bdf8;">📎 Ver</a>{% else %}—{% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'flota_editar_documento' d.pk %}" class="btn btn-primary btn-sm" style="background: var(--danger);">Renovar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: var(--success); font-weight: 600;">
+                        ✅ Excelente: No hay documentos vencidos en toda la flota.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 2. DOCUMENTOS POR VENCER EN 7 DÍAS (NARANJO / URGENTE) -->
+<div class="card" style="margin-bottom: 1.5rem; border-color: rgba(249, 115, 22, 0.4);">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 class="card-title" style="margin: 0; color: #fb923c; display: flex; align-items: center; gap: 0.5rem;">
+            ⚠️ Vencen en 7 Días o Menos ({{ docs_urgentes_7|length }})
+        </h2>
+        <span class="badge badge-vacaciones">URGENTE</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Vehículo</th>
+                    <th>Documento</th>
+                    <th>Fecha de Vencimiento</th>
+                    <th>Días Restantes</th>
+                    <th>Adjunto</th>
+                    <th style="text-align: right;">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in docs_urgentes_7 %}
+                <tr>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' d.vehiculo.pk %}" style="font-weight: 800; color: var(--accent); text-decoration: none;">
+                            {{ d.vehiculo.patente }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ d.vehiculo.modelo }}</div>
+                    </td>
+                    <td><strong>{{ d.titulo_completo }}</strong></td>
+                    <td style="color: #fb923c; font-weight: 700;">{{ d.fecha_vencimiento|date:"d/m/Y" }}</td>
+                    <td style="color: #fb923c; font-weight: 700;">{{ d.dias_restantes }} día(s)</td>
+                    <td>
+                        {% if d.archivo %}<a href="{{ d.archivo.url }}" target="_blank" class="btn btn-ghost btn-sm" style="color: #38bdf8;">📎 Ver</a>{% else %}—{% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'flota_editar_documento' d.pk %}" class="btn btn-ghost btn-sm">Renovar</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                        No hay documentos que venzan en los próximos 7 días.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 3. MANTENCIONES POR KM O FECHA (PÚRPURA / INDIGO) -->
+<div class="card" style="margin-bottom: 1.5rem; border-color: rgba(129, 140, 248, 0.4);">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 class="card-title" style="margin: 0; color: #a5b4fc; display: flex; align-items: center; gap: 0.5rem;">
+            🔧 Mantenciones Pendientes por Kilometraje o Plazo ({{ mant_vencidas|length|add:mant_por_vencer|length }})
+        </h2>
+        <span class="badge badge-bodega">MANTENCIÓN PREVENTIVA</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Vehículo</th>
+                    <th>Servicio Programado</th>
+                    <th>Odómetro Actual</th>
+                    <th>Km Objetivo</th>
+                    <th>Diferencia Km</th>
+                    <th>Fecha Estimada</th>
+                    <th>Estado</th>
+                    <th style="text-align: right;">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in mant_vencidas %}
+                <tr style="background: rgba(239, 68, 68, 0.05);">
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' m.vehiculo.pk %}" style="font-weight: 800; color: var(--accent); text-decoration: none;">
+                            {{ m.vehiculo.patente }}
+                        </a>
+                    </td>
+                    <td><strong>{{ m.titulo }}</strong></td>
+                    <td style="font-weight: 700;">{{ m.vehiculo.kilometraje_actual|intcomma }} km</td>
+                    <td>{{ m.proximo_km|default:"—"|intcomma }} km</td>
+                    <td style="color: var(--danger); font-weight: 800;">
+                        {% if m.km_restantes is not None and m.km_restantes <= 0 %}
+                        Excedido por {{ m.km_restantes|stringformat:"+d"|slice:"1:" }} km
+                        {% else %}
+                        Plazo vencido
+                        {% endif %}
+                    </td>
+                    <td>{{ m.proxima_fecha|date:"d/m/Y"|default:"—" }}</td>
+                    <td><span class="badge badge-licencia">VENCIDA</span></td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'flota_agregar_mantencion_vehiculo' m.vehiculo.pk %}" class="btn btn-primary btn-sm">Ejecutar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% for m in mant_por_vencer %}
+                <tr>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' m.vehiculo.pk %}" style="font-weight: 800; color: var(--accent); text-decoration: none;">
+                            {{ m.vehiculo.patente }}
+                        </a>
+                    </td>
+                    <td><strong>{{ m.titulo }}</strong></td>
+                    <td>{{ m.vehiculo.kilometraje_actual|intcomma }} km</td>
+                    <td>{{ m.proximo_km|default:"—"|intcomma }} km</td>
+                    <td style="color: var(--warning); font-weight: 700;">
+                        {% if m.km_restantes is not None %}Faltan {{ m.km_restantes|intcomma }} km{% else %}—{% endif %}
+                    </td>
+                    <td>{{ m.proxima_fecha|date:"d/m/Y"|default:"—" }}</td>
+                    <td><span class="badge badge-vacaciones">POR VENCER</span></td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'flota_agregar_mantencion_vehiculo' m.vehiculo.pk %}" class="btn btn-ghost btn-sm">Programar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% if not mant_vencidas and not mant_por_vencer %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 1.5rem; color: var(--success); font-weight: 600;">
+                        ✅ Todas las mantenciones por kilometraje y fecha se encuentran al día.
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 4. DOCUMENTOS CON AVISO PREVENTIVO (15 Y 30 DÍAS) -->
+<div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header">
+        <h2 class="card-title" style="margin: 0; color: #38bdf8;">
+            📅 Próximos Vencimientos Preventivos (15 a 30 días)
+        </h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Vehículo</th>
+                    <th>Documento</th>
+                    <th>Fecha de Vencimiento</th>
+                    <th>Días Restantes</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in docs_alerta_15 %}
+                <tr>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' d.vehiculo.pk %}" style="font-weight: 800; color: var(--accent); text-decoration: none;">
+                            {{ d.vehiculo.patente }}
+                        </a>
+                    </td>
+                    <td><strong>{{ d.titulo_completo }}</strong></td>
+                    <td>{{ d.fecha_vencimiento|date:"d/m/Y" }}</td>
+                    <td style="font-weight: 700; color: var(--warning);">{{ d.dias_restantes }} días</td>
+                    <td><span class="badge badge-vacaciones">Aviso 15 Días</span></td>
+                </tr>
+                {% endfor %}
+
+                {% for d in docs_aviso_30 %}
+                <tr>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' d.vehiculo.pk %}" style="font-weight: 800; color: var(--accent); text-decoration: none;">
+                            {{ d.vehiculo.patente }}
+                        </a>
+                    </td>
+                    <td><strong>{{ d.titulo_completo }}</strong></td>
+                    <td>{{ d.fecha_vencimiento|date:"d/m/Y" }}</td>
+                    <td style="font-weight: 700; color: #38bdf8;">{{ d.dias_restantes }} días</td>
+                    <td><span class="badge badge-bodega">Aviso 30 Días</span></td>
+                </tr>
+                {% endfor %}
+
+                {% if not docs_alerta_15 and not docs_aviso_30 %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 1.5rem; color: var(--text-muted);">
+                        No hay documentos adicionales por vencer en el mes.
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- HISTORIAL DE LOGS DE ALERTAS ENVIADAS -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title" style="margin: 0; font-size: 1rem;">📜 Historial Reciente de Envíos de Correo</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha / Hora Envío</th>
+                    <th>Tipo</th>
+                    <th>Etapa</th>
+                    <th>Vehículo</th>
+                    <th>Destinatarios</th>
+                    <th>Detalle Reportado</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in logs %}
+                <tr>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">{{ l.fecha_envio|date:"d/m/Y H:i" }}</td>
+                    <td>{{ l.tipo }}</td>
+                    <td><span class="badge badge-bodega">{{ l.etapa }}</span></td>
+                    <td><strong>{% if l.vehiculo %}{{ l.vehiculo.patente }}{% else %}Flota Global{% endif %}</strong></td>
+                    <td style="font-size: 0.75rem; color: var(--text-muted);">{{ l.destinatarios|truncatechars:40 }}</td>
+                    <td style="font-size: 0.8rem;">{{ l.resumen_items|truncatewords:6 }}</td>
+                    <td>
+                        {% if l.exitoso %}
+                        <span class="badge badge-activo">ENVIADO</span>
+                        {% else %}
+                        <span class="badge badge-licencia" title="{{ l.error_mensaje }}">FALLIDO</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                        Aún no se han enviado notificaciones automáticas.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

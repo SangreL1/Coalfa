@@ -15,6 +15,7 @@ urlpatterns = [
     path("", include("coalfa.urls")),
     path("rrhh/", include("rrhh.urls")),
     path("inventario/", include("inventario.urls")),
+    path("flota/", include("flota.urls")),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Historial de Checklists Pre-Uso — COALFA{% endblock %}
+{% block topbar_title %}Inspecciones de Seguridad{% endblock %}
+{% block nav_flota_checklist %}active{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0; font-size: 1.8rem; font-weight: 800;">📋 Historial de Checklists Pre-Uso</h1>
+        <p class="page-subtitle" style="margin: 0.35rem 0 0; color: var(--text-muted);">
+            Registro de inspecciones preventivas realizadas por los conductores antes de iniciar operaciones.
+        </p>
+    </div>
+    <a href="{% url 'flota_checklist_preuso' %}" class="btn btn-primary btn-sm">
+        ➕ Realizar Inspección
+    </a>
+</div>
+
+<div class="card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha / Hora</th>
+                    <th>Vehículo</th>
+                    <th>Conductor</th>
+                    <th>Odómetro</th>
+                    <th>Luces</th>
+                    <th>Neumáticos</th>
+                    <th>Fluidos</th>
+                    <th>Frenos</th>
+                    <th>Seguridad</th>
+                    <th>Dictamen</th>
+                    <th>Observaciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in checklists %}
+                <tr>
+                    <td>{{ c.fecha_hora|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' c.vehiculo.pk %}" style="font-weight: 800; color: var(--accent); text-decoration: none;">
+                            {{ c.vehiculo.patente }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ c.vehiculo.modelo }}</div>
+                    </td>
+                    <td><strong>{{ c.conductor }}</strong></td>
+                    <td>{{ c.kilometraje|intcomma }} km</td>
+                    <td>{% if c.luces_ok %}✅{% else %}❌{% endif %}</td>
+                    <td>{% if c.neumaticos_ok %}✅{% else %}❌{% endif %}</td>
+                    <td>{% if c.fluidos_ok %}✅{% else %}❌{% endif %}</td>
+                    <td>{% if c.frenos_ok %}✅{% else %}❌{% endif %}</td>
+                    <td>{% if c.seguridad_ok %}✅{% else %}❌{% endif %}</td>
+                    <td>
+                        {% if c.aprobado_para_circular %}
+                        <span class="badge badge-activo">APTO</span>
+                        {% else %}
+                        <span class="badge badge-licencia">CON OBSERVACIONES</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">
+                        {{ c.observaciones|default:"Sin observaciones"|truncatewords:8 }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        No hay inspecciones pre-uso registradas.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Actualizar Odómetro — COALFA{% endblock %}
+{% block topbar_title %}Carga Rápida de Kilometraje{% endblock %}
+{% block nav_flota_km %}active{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    <div class="header-section" style="margin-bottom: 1.5rem; text-align: center;">
+        <h1 class="page-title" style="font-size: 1.8rem; font-weight: 800;">⏱️ Actualizar Odómetro (Km)</h1>
+        <p class="page-subtitle" style="font-size: 0.9rem;">
+            Ingresa el kilometraje actual que marca el tablero del vehículo. Esto mantiene al día las alertas preventivas de mantención.
+        </p>
+    </div>
+
+    <div class="card" style="box-shadow: 0 10px 30px rgba(0,0,0,0.5); border-color: rgba(56, 189, 248, 0.3);">
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.GET.next }}">
+
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="form-label" style="font-weight: 700; font-size: 0.95rem;">
+                    🚗 Seleccionar Vehículo <span style="color: var(--danger);">*</span>
+                </label>
+                {{ form.vehiculo }}
+                {% if vehiculo_precargado %}
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.4rem;">
+                    Último kilometraje registrado: <strong style="color: #38bdf8;">{{ vehiculo_precargado.kilometraje_actual|intcomma }} km</strong>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.5rem; background: rgba(56, 189, 248, 0.05); padding: 1.25rem; border-radius: 12px; border: 1px dashed rgba(56, 189, 248, 0.3);">
+                <label class="form-label" style="font-weight: 800; font-size: 1rem; color: #38bdf8;">
+                    🔢 Kilometraje Actual del Tablero (Km) <span style="color: var(--danger);">*</span>
+                </label>
+                {{ form.kilometraje }}
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
+                    Escribe solo números (ej: 54300).
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Fecha de Lectura</label>
+                    {{ form.fecha }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="font-weight: 600;">Conductor / Responsable <span style="color: var(--danger);">*</span></label>
+                    {{ form.conductor_o_responsable }}
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label">Ruta o Destino (Opcional)</label>
+                {{ form.origen_destino }}
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.75rem;">
+                <label class="form-label">Observaciones (Opcional)</label>
+                {{ form.observaciones }}
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; font-size: 1.1rem; font-weight: 700; border-radius: 10px; box-shadow: 0 4px 15px var(--accent-glow);">
+                ✅ Guardar Kilometraje
+            </button>
+        </form>
+    </div>
+
+    <!-- REGISTROS RECIENTES -->
+    {% if ultimos %}
+    <div class="card" style="margin-top: 2rem;">
+        <div class="card-header">
+            <h3 class="card-title" style="font-size: 0.95rem; margin: 0;">Últimas lecturas cargadas recientemente</h3>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Vehículo</th>
+                        <th>Odómetro</th>
+                        <th>Fecha</th>
+                        <th>Registrado por</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in ultimos %}
+                    <tr>
+                        <td><strong>{{ u.vehiculo.patente }}</strong></td>
+                        <td style="font-weight: 700; color: #38bdf8;">{{ u.kilometraje|intcomma }} km</td>
+                        <td style="font-size: 0.8rem; color: var(--text-muted);">{{ u.fecha|date:"d/m/Y" }}</td>
+                        <td style="font-size: 0.8rem;">{{ u.conductor_o_responsable }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

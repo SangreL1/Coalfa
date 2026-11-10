@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Costos y Combustible — COALFA{% endblock %}
+{% block topbar_title %}Costos de Flota{% endblock %}
+{% block nav_flota_costos %}active{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0; font-size: 1.8rem; font-weight: 800;">⛽ Costos y Combustible</h1>
+        <p class="page-subtitle" style="margin: 0.35rem 0 0; color: var(--text-muted);">
+            Control financiero de combustible, mantenciones, peajes, reparaciones y seguros por vehículo.
+        </p>
+    </div>
+    {% if user.rol != 'AUDITOR' %}
+    <a href="{% url 'flota_agregar_costo' %}" class="btn btn-primary btn-sm">
+        ➕ Registrar Gasto
+    </a>
+    {% endif %}
+</div>
+
+<!-- TARJETAS DE TOTALES -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="kpi-card">
+        <div class="kpi-label">Total Gastos Filtrados</div>
+        <div class="kpi-value">${{ totales.total|default:0|intcomma }}</div>
+        <div class="kpi-icon">💰</div>
+    </div>
+    <div class="kpi-card" style="border-left-color: #38bdf8;">
+        <div class="kpi-label">Gasto en Combustible</div>
+        <div class="kpi-value" style="color: #38bdf8;">${{ totales.combustible|default:0|intcomma }}</div>
+        <div class="kpi-icon">⛽</div>
+    </div>
+    <div class="kpi-card" style="border-left-color: var(--indigo);">
+        <div class="kpi-label">Mantenciones y Taller</div>
+        <div class="kpi-value" style="color: var(--indigo);">${{ totales.mantenciones|default:0|intcomma }}</div>
+        <div class="kpi-icon">🔧</div>
+    </div>
+    <div class="kpi-card" style="border-left-color: var(--warning);">
+        <div class="kpi-label">Otros (Peajes, Lavados)</div>
+        <div class="kpi-value" style="color: var(--warning);">${{ totales.otros|default:0|intcomma }}</div>
+        <div class="kpi-icon">🧾</div>
+    </div>
+</div>
+
+<!-- FILTROS -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+    <form method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 2; min-width: 200px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; margin-bottom: 0.3rem;">Buscar por Patente, Proveedor o N° Documento</label>
+            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Ej: ABCD12, Copec, Factura 451...">
+        </div>
+
+        <div style="flex: 1; min-width: 160px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; margin-bottom: 0.3rem;">Vehículo</label>
+            <select name="vehiculo" class="form-control">
+                <option value="">Todos los Vehículos</option>
+                {% for v in vehiculos %}
+                <option value="{{ v.id }}" {% if vehiculo_id == v.id|stringformat:"s" %}selected{% endif %}>{{ v.patente }} - {{ v.modelo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 160px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; margin-bottom: 0.3rem;">Tipo de Gasto</label>
+            <select name="tipo" class="form-control">
+                <option value="">Todos los Tipos</option>
+                {% for key, val in tipos %}
+                <option value="{{ key }}" {% if tipo_filtro == key %}selected{% endif %}>{{ val }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.25rem;">
+                🔍 Filtrar
+            </button>
+            {% if query or vehiculo_id or tipo_filtro %}
+            <a href="{% url 'flota_lista_costos' %}" class="btn btn-ghost" style="padding: 0.65rem 1rem;">
+                ✕ Limpiar
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- TABLA DE COSTOS -->
+<div class="card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Vehículo</th>
+                    <th>Tipo</th>
+                    <th>Monto (CLP)</th>
+                    <th>Litros</th>
+                    <th>Km Carga</th>
+                    <th>Proveedor / Estación</th>
+                    <th>Nº Boleta/Factura</th>
+                    <th>Comprobante</th>
+                    <th>Responsable</th>
+                    <th style="text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in costos %}
+                <tr>
+                    <td style="font-weight: 600;">{{ c.fecha|date:"d/m/Y" }}</td>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' c.vehiculo.pk %}" style="font-weight: 800; color: var(--accent); text-decoration: none;">
+                            {{ c.vehiculo.patente }}
+                        </a>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ c.vehiculo.modelo }}</div>
+                    </td>
+                    <td>
+                        <span class="badge badge-bodega">{{ c.get_tipo_display }}</span>
+                    </td>
+                    <td style="font-weight: 800; color: var(--success);">${{ c.monto|intcomma }}</td>
+                    <td>{% if c.litros %}{{ c.litros }} L{% else %}—{% endif %}</td>
+                    <td>{% if c.kilometraje %}{{ c.kilometraje|intcomma }} km{% else %}—{% endif %}</td>
+                    <td>{{ c.proveedor|default:"—" }}</td>
+                    <td>{{ c.numero_documento|default:"—" }}</td>
+                    <td>
+                        {% if c.comprobante %}
+                        <a href="{{ c.comprobante.url }}" target="_blank" class="btn btn-ghost btn-sm" style="color: #38bdf8;">
+                            📎 Ver Adjunto
+                        </a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">{{ c.responsable|default:"—" }}</td>
+                    <td style="text-align: right;">
+                        {% if user.rol != 'AUDITOR' %}
+                        <a href="{% url 'flota_eliminar_costo' c.pk %}" class="btn btn-ghost btn-sm" style="color: var(--danger);">🗑️</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        No hay registros de costos ni combustible bajo los filtros seleccionados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

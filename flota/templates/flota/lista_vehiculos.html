@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Inventario de Vehículos — COALFA{% endblock %}
+{% block topbar_title %}Flota de Vehículos{% endblock %}
+{% block nav_flota_vehiculos %}active{% endblock %}
+
+{% block content %}
+<div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 class="page-title" style="margin: 0; font-size: 1.8rem; font-weight: 800;">🚙 Catálogo de Vehículos</h1>
+        <p class="page-subtitle" style="margin: 0.35rem 0 0; color: var(--text-muted);">
+            Listado completo de vehículos asignados a casinos, faenas y administración.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{% url 'flota_registro_km_express' %}" class="btn btn-secondary btn-sm">
+            ⏱️ Actualizar Km
+        </a>
+        {% if user.rol != 'AUDITOR' %}
+        <a href="{% url 'flota_crear_vehiculo' %}" class="btn btn-primary btn-sm">
+            ➕ Agregar Vehículo
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- FILTROS Y BÚSQUEDA -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+    <form method="GET" style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end;">
+        <div style="flex: 2; min-width: 220px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; margin-bottom: 0.3rem;">Buscar por Patente, Marca o Modelo</label>
+            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Ej: ABCD12, Hilux, Toyota...">
+        </div>
+
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; margin-bottom: 0.3rem;">Estado</label>
+            <select name="estado" class="form-control">
+                <option value="">Todos los Estados</option>
+                {% for key, val in estados %}
+                <option value="{{ key }}" {% if filtro_estado == key %}selected{% endif %}>{{ val }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; margin-bottom: 0.3rem;">Asignación</label>
+            <select name="asignacion" class="form-control">
+                <option value="">Todas las Asignaciones</option>
+                {% for key, val in asignaciones %}
+                <option value="{{ key }}" {% if filtro_asignacion == key %}selected{% endif %}>{{ val }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="flex: 1; min-width: 150px;">
+            <label class="form-label" style="font-size: 0.75rem; font-weight: 700; margin-bottom: 0.3rem;">Tipo</label>
+            <select name="tipo" class="form-control">
+                <option value="">Todos los Tipos</option>
+                {% for key, val in tipos %}
+                <option value="{{ key }}" {% if filtro_tipo == key %}selected{% endif %}>{{ val }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.25rem;">
+                🔍 Filtrar
+            </button>
+            {% if query or filtro_estado or filtro_asignacion or filtro_tipo %}
+            <a href="{% url 'flota_lista_vehiculos' %}" class="btn btn-ghost" style="padding: 0.65rem 1rem;">
+                ✕ Limpiar
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- TABLA DE VEHÍCULOS -->
+<div class="card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Patente</th>
+                    <th>Vehículo / Marca & Modelo</th>
+                    <th>Tipo</th>
+                    <th>Asignación</th>
+                    <th>Estado</th>
+                    <th>Odómetro (Km)</th>
+                    <th>Documentos</th>
+                    <th style="text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vehiculos %}
+                <tr>
+                    <td>
+                        <a href="{% url 'flota_detalle_vehiculo' v.pk %}" style="font-weight: 800; font-size: 1rem; color: var(--accent); text-decoration: none; background: rgba(249, 115, 22, 0.1); padding: 0.25rem 0.6rem; border-radius: 6px; border: 1px solid rgba(249, 115, 22, 0.25); display: inline-block;">
+                            {{ v.patente }}
+                        </a>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600;">{{ v.marca }} {{ v.modelo }}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Año {{ v.anio }}{% if v.conductor_habitual %} &bull; Conductor: {{ v.conductor_habitual }}{% endif %}</div>
+                    </td>
+                    <td>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">{{ v.get_tipo_display }}</span>
+                    </td>
+                    <td>
+                        <span class="badge badge-bodega">{{ v.get_asignacion_display }}</span>
+                    </td>
+                    <td>
+                        {% if v.estado == 'OPERATIVO' %}
+                        <span class="badge badge-activo">OPERATIVO</span>
+                        {% elif v.estado == 'TALLER' %}
+                        <span class="badge badge-vacaciones">EN TALLER</span>
+                        {% else %}
+                        <span class="badge badge-licencia">FUERA SERVICIO</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="font-weight: 700;">{{ v.kilometraje_actual|intcomma }} km</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">
+                            Act: {{ v.fecha_actualizacion_km|date:"d/m/Y" }}
+                        </div>
+                    </td>
+                    <td>
+                        {% if v.documentos_vencidos %}
+                        <span class="badge badge-licencia" title="{{ v.documentos_vencidos|length }} documento(s) vencido(s)">
+                            🚨 {{ v.documentos_vencidos|length }} Vencido(s)
+                        </span>
+                        {% elif v.documentos_por_vencer_30 %}
+                        <span class="badge badge-vacaciones" title="{{ v.documentos_por_vencer_30|length }} por vencer en 30 días">
+                            ⏳ {{ v.documentos_por_vencer_30|length }} Por Vencer
+                        </span>
+                        {% else %}
+                        <span class="badge badge-activo">Al Día</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: flex; gap: 0.35rem; justify-content: flex-end;">
+                            <a href="{% url 'flota_detalle_vehiculo' v.pk %}" class="btn btn-ghost btn-sm" title="Ver ficha completa">
+                                👁️ Ficha
+                            </a>
+                            <a href="{% url 'flota_registro_km_express' %}?vehiculo={{ v.pk }}&next={{ request.get_full_path|urlencode }}" class="btn btn-ghost btn-sm" title="Cargar odómetro">
+                                ⏱️ Km
+                            </a>
+                            {% if user.rol != 'AUDITOR' %}
+                            <a href="{% url 'flota_editar_vehiculo' v.pk %}" class="btn btn-ghost btn-sm" title="Editar datos">
+                                ✏️
+                            </a>
+                            <a href="{% url 'flota_eliminar_vehiculo' v.pk %}" class="btn btn-ghost btn-sm" style="color: var(--danger);" title="Eliminar vehículo">
+                                🗑️
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                        No se encontraron vehículos registrados con los criterios seleccionados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

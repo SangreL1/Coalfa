@@ -22,7 +22,7 @@ from .forms import (
     ChecklistPreUsoForm,
     ConfiguracionFlotaForm,
 )
-from .services import verificar_y_enviar_alertas, enviar_correo_prueba_directo
+from .services import verificar_y_enviar_alertas, enviar_correo_prueba_directo, alertar_documento_inmediato
 
 
 # ==========================================
@@ -310,6 +310,11 @@ def agregar_documento(request, vehiculo_id=None):
         form = DocumentoVehiculoForm(request.POST, request.FILES)
         if form.is_valid():
             doc = form.save()
+            # Alerta inmediata si el documento vence pronto (≤ 30 días) o ya venció
+            try:
+                alertar_documento_inmediato(doc)
+            except Exception:
+                pass  # No bloquear el guardado por errores de correo
             messages.success(
                 request,
                 f"Documento '{doc.titulo_completo}' registrado para {doc.vehiculo.patente}.",
@@ -334,6 +339,11 @@ def editar_documento(request, pk):
         form = DocumentoVehiculoForm(request.POST, request.FILES, instance=doc)
         if form.is_valid():
             doc = form.save()
+            # Alerta inmediata si el documento vence pronto (≤ 30 días) o ya venció
+            try:
+                alertar_documento_inmediato(doc)
+            except Exception:
+                pass
             messages.success(request, f"Documento de {doc.vehiculo.patente} actualizado.")
             return redirect("flota_detalle_vehiculo", pk=doc.vehiculo.pk)
     else:

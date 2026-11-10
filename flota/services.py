@@ -545,3 +545,180 @@ def _construir_html_alerta(documentos, mantenciones):
     </body>
     </html>
     """
+
+
+# ============================================================
+# ALERTA INMEDIATA AL GUARDAR UN DOCUMENTO CON VENCIMIENTO
+# ============================================================
+
+def _color_urgencia(dias):
+    if dias < 0:
+        return "#ef4444", "VENCIDO"
+    elif dias <= 7:
+        return "#f97316", f"Vence en {dias} día(s) — URGENTE"
+    elif dias <= 15:
+        return "#fbbf24", f"Vence en {dias} días"
+    else:
+        return "#38bdf8", f"Vence en {dias} días"
+
+
+def alertar_documento_inmediato(documento):
+    """
+    Envía correo inmediato a los destinatarios configurados cuando se guarda
+    un documento con vencimiento ≤ 30 días (o ya vencido).
+    No envía nada si el documento vence en más de 30 días.
+    """
+    import datetime
+    hoy = datetime.date.today()
+    dias = (documento.fecha_vencimiento - hoy).days
+
+    # Solo alertar si es urgente (≤ 30 días o vencido)
+    if dias > 30:
+        return
+
+    config = ConfiguracionFlota.get_solo()
+    destinatarios = config.get_lista_correos()
+    if not destinatarios:
+        logger.warning("alertar_documento_inmediato: sin destinatarios configurados.")
+        return
+
+    vehiculo = documento.vehiculo
+    color, etiqueta = _color_urgencia(dias)
+
+    if dias < 0:
+        titulo_alerta = f"🚨 [VENCIDO] Documento vencido — {vehiculo.patente}"
+        encabezado_color = "#ef4444"
+        encabezado_texto = "🚨 Documento Vencido — Acción Requerida"
+    elif dias <= 7:
+        titulo_alerta = f"⚠️ [URGENTE] Documento por vencer en {dias} día(s) — {vehiculo.patente}"
+        encabezado_color = "#f97316"
+        encabezado_texto = f"⚠️ Documento Urgente — Vence en {dias} día(s)"
+    else:
+        titulo_alerta = f"📋 Documento por vencer en {dias} días — {vehiculo.patente}"
+        encabezado_color = "#fbbf24"
+        encabezado_texto = f"📋 Aviso de Vencimiento — {dias} días restantes"
+
+    fecha_venc_str = documento.fecha_vencimiento.strftime("%d/%m/%Y")
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:24px 0;background:#0b1120;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:620px;margin:0 auto;background:#11192d;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);">
+
+    <!-- Cabecera -->
+    <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:24px 32px;border-bottom:3px solid {encabezado_color};">
+      <div style="font-size:22px;font-weight:800;color:#f97316;">COALFA</div>
+      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-top:2px;">
+        Control de Flota &bull; Alerta Automática de Vencimiento
+      </div>
+    </div>
+
+    <!-- Cuerpo -->
+    <div style="padding:28px 32px;">
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-left:4px solid {encabezado_color};border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:700;color:#f8fafc;">{encabezado_texto}</div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:4px;">Se acaba de registrar o actualizar este documento en el sistema.</div>
+      </div>
+
+      <!-- Datos del vehículo -->
+      <table style="width:100%;border-collapse:collapse;background:#0f172a;border-radius:8px;overflow:hidden;border:1px solid #1e293b;margin-bottom:20px;">
+        <tr style="background:#1e293b;">
+          <td colspan="2" style="padding:10px 16px;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;font-weight:700;">
+            🚗 Vehículo
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 16px;color:#94a3b8;font-size:13px;width:40%;">Patente</td>
+          <td style="padding:12px 16px;color:#f97316;font-weight:800;font-size:16px;">{vehiculo.patente}</td>
+        </tr>
+        <tr style="border-top:1px solid #1e293b;">
+          <td style="padding:12px 16px;color:#94a3b8;font-size:13px;">Vehículo</td>
+          <td style="padding:12px 16px;color:#f8fafc;font-size:14px;">{vehiculo.marca} {vehiculo.modelo} — Año {vehiculo.anio}</td>
+        </tr>
+        <tr style="border-top:1px solid #1e293b;">
+          <td style="padding:12px 16px;color:#94a3b8;font-size:13px;">Asignación</td>
+          <td style="padding:12px 16px;color:#f8fafc;font-size:14px;">{vehiculo.get_asignacion_display()}</td>
+        </tr>
+        {"<tr style='border-top:1px solid #1e293b;'><td style='padding:12px 16px;color:#94a3b8;font-size:13px;'>Responsable</td><td style='padding:12px 16px;color:#f8fafc;font-size:14px;'>" + vehiculo.conductor_habitual + "</td></tr>" if vehiculo.conductor_habitual else ""}
+      </table>
+
+      <!-- Datos del documento -->
+      <table style="width:100%;border-collapse:collapse;background:#0f172a;border-radius:8px;overflow:hidden;border:1px solid #1e293b;">
+        <tr style="background:#1e293b;">
+          <td colspan="2" style="padding:10px 16px;font-size:11px;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px;font-weight:700;">
+            📄 Documento
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 16px;color:#94a3b8;font-size:13px;width:40%;">Tipo</td>
+          <td style="padding:12px 16px;color:#f8fafc;font-weight:600;font-size:14px;">{documento.titulo_completo}</td>
+        </tr>
+        <tr style="border-top:1px solid #1e293b;">
+          <td style="padding:12px 16px;color:#94a3b8;font-size:13px;">Vencimiento</td>
+          <td style="padding:12px 16px;color:#f8fafc;font-weight:700;font-size:14px;">{fecha_venc_str}</td>
+        </tr>
+        <tr style="border-top:1px solid #1e293b;">
+          <td style="padding:12px 16px;color:#94a3b8;font-size:13px;">Estado</td>
+          <td style="padding:12px 16px;">
+            <span style="display:inline-block;padding:5px 12px;border-radius:9999px;font-size:12px;font-weight:700;color:#fff;background:{color};">
+              {etiqueta}
+            </span>
+          </td>
+        </tr>
+      </table>
+
+      <div style="margin-top:28px;text-align:center;">
+        <a href="https://coalfa.pythonanywhere.com/flota/vehiculos/{vehiculo.pk}/"
+           style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:14px;">
+          🚗 Ver Ficha del Vehículo
+        </a>
+      </div>
+    </div>
+
+    <!-- Pie -->
+    <div style="background:#0f172a;padding:16px 32px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:#64748b;">
+      COALFA — Sistema de Control de Flota &bull; Aviso generado el {timezone.now().strftime('%d/%m/%Y %H:%M')}
+    </div>
+  </div>
+</body>
+</html>"""
+
+    texto_plano = (
+        f"{encabezado_texto}\n"
+        f"{'=' * 50}\n"
+        f"Vehículo: {vehiculo.patente} — {vehiculo.marca} {vehiculo.modelo}\n"
+        f"Documento: {documento.titulo_completo}\n"
+        f"Vencimiento: {fecha_venc_str} ({etiqueta})\n"
+        f"Ver ficha: https://coalfa.pythonanywhere.com/flota/vehiculos/{vehiculo.pk}/\n"
+    )
+
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "alertas-flota@coalfa.cl")
+    try:
+        msg = EmailMultiAlternatives(
+            subject=titulo_alerta,
+            body=texto_plano,
+            from_email=from_email,
+            to=destinatarios,
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=False)
+
+        LogAlertaFlota.objects.create(
+            tipo="DOCUMENTO",
+            etapa="INMEDIATA",
+            destinatarios=", ".join(destinatarios),
+            resumen_items=f"{vehiculo.patente} — {documento.titulo_completo} — {etiqueta}",
+            exitoso=True,
+        )
+        logger.info(f"Alerta inmediata enviada: {vehiculo.patente} / {documento.titulo_completo}")
+
+    except Exception as e:
+        logger.error(f"Error enviando alerta inmediata: {e}")
+        LogAlertaFlota.objects.create(
+            tipo="DOCUMENTO",
+            etapa="INMEDIATA",
+            destinatarios=", ".join(destinatarios),
+            resumen_items=f"ERROR: {e}",
+            exitoso=False,
+        )

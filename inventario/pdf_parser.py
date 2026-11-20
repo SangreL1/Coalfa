@@ -3,21 +3,35 @@ import os
 import re
 import traceback
 import shutil
-import pdfplumber
-import pytesseract
-from pdf2image import convert_from_path
+
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
+
+try:
+    import pytesseract
+except ImportError:
+    pytesseract = None
+
+try:
+    from pdf2image import convert_from_path
+except ImportError:
+    convert_from_path = None
 
 # Determinar si estamos en Windows
 IS_WINDOWS = sys.platform.startswith('win')
 
-if IS_WINDOWS:
-    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    POPPLER_PATH = r"C:\Users\Coalfa\AppData\Local\Microsoft\WinGet\Packages\oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe\poppler-25.07.0\Library\bin"
-    TESSERACT_AVAILABLE = os.path.exists(pytesseract.pytesseract.tesseract_cmd)
-else:
-    # En Linux / PythonAnywhere, dejamos que busque 'tesseract' y 'pdftoppm' en el PATH del sistema
-    POPPLER_PATH = None
-    TESSERACT_AVAILABLE = shutil.which('tesseract') is not None
+TESSERACT_AVAILABLE = False
+POPPLER_PATH = None
+
+if pytesseract is not None:
+    if IS_WINDOWS:
+        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+        POPPLER_PATH = r"C:\Users\Coalfa\AppData\Local\Microsoft\WinGet\Packages\oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe\poppler-25.07.0\Library\bin"
+        TESSERACT_AVAILABLE = os.path.exists(pytesseract.pytesseract.tesseract_cmd)
+    else:
+        TESSERACT_AVAILABLE = shutil.which('tesseract') is not None
 
 
 def extraer_datos_factura(pdf_path):
@@ -38,6 +52,8 @@ def extraer_datos_factura(pdf_path):
 
 def _extraer_con_pdfplumber(pdf_path):
     """Extrae datos de PDF con texto real (no escaneado)."""
+    if not pdfplumber:
+        return []
     productos = []
     try:
         with pdfplumber.open(pdf_path) as pdf:
@@ -73,6 +89,8 @@ def _extraer_con_pdfplumber(pdf_path):
 
 def _extraer_con_ocr(pdf_path):
     """Convierte el PDF a imagen y aplica OCR con Tesseract."""
+    if not convert_from_path or not pytesseract:
+        return []
     productos = []
     try:
         # DPI=100 y máximo 2 páginas para ejecución rápida y bajo consumo de memoria

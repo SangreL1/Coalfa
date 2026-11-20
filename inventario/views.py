@@ -1854,21 +1854,13 @@ def procesar_factura_pdf(request, filename="manual"):
             return redirect("inventario_gestionar_facturas")
 
     items = []
-    # Solo ejecutar la lectura del PDF si NO estamos en modo manual
+    # Solo intentar lectura previa si NO estamos en modo manual
     if not es_manual and path_pdf and os.path.exists(path_pdf):
-        from .pdf_parser import extraer_datos_factura, TESSERACT_AVAILABLE
         try:
+            from .pdf_parser import extraer_datos_factura, TESSERACT_AVAILABLE
             items = extraer_datos_factura(path_pdf)
         except Exception as e:
-            messages.warning(request, f"No se pudo extraer texto del PDF ({e}). Puedes agregar los productos manualmente.")
             items = []
-            
-        if not items and not TESSERACT_AVAILABLE:
-            messages.warning(
-                request,
-                "No se detectó texto nativo en este PDF y el OCR no está activo en este servidor. "
-                "Puedes ingresar los productos manualmente a continuación."
-            )
     
     return render(request, "inventario/previsualizar_factura.html", {
         "items": items,

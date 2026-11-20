@@ -1,13 +1,17 @@
 """
-ai_parser.py — Análisis de facturas con Gemini Vision API (REST nativo).
-Extrae productos, cantidades, precios y categorías desde PDF o imagen de factura.
+ai_parser.py — Análisis inteligente de facturas para casinos y bodegas con Gemini Vision.
+Convierte formatos de proveedores (cajas, paquetes, bidones) a unidades operativas reales:
+- Huevos: siempre en UNIDADES ('UN') calculando el total de huevos por caja (ej: 180 UN).
+- Carnes/Aves/Pescados: siempre en KILOGRAMOS ('KG') con precio por kilo.
+- Pastas/Lasañas/Platos preparados: en UNIDADES ('UN') por porción o bandeja.
+- Granel/Abarrotes: en 'KG'.
+- Soporta instrucciones interactivas del usuario para correcciones inmediatas.
 """
 import base64
 import json
 import logging
 import os
 import re
-import tempfile
 import urllib.request
 import urllib.error
 
@@ -27,36 +31,76 @@ MODELOS_GEMINI = [
     "gemini-flash-latest",
 ]
 
-PROMPT_FACTURA = """Eres un asistente experto en análisis de facturas y guías de despacho de proveedores de alimentos y suministros en Chile.
 
-Analiza el documento adjunto y extrae TODOS los productos con sus cantidades, unidades y precios.
+def _construir_prompt(instrucciones_usuario="", catalogo=None):
+    prompt = """Eres un asistente experto en auditoría de facturas y control de existencias de casinos de alimentación institucional en Chile (COALFA).
 
-Responde ÚNICAMENTE con un JSON válido con esta estructura exacta (sin texto previo ni posterior, sin markdown adicional):
+Tu tarea es analizar el documento adjunto (factura o guía) y extraer TODOS los productos convirtiéndolos a las UNIDADES OPERATIVAS DE BODEGA reales para su consumo en cocina:
+
+REGLAS DE CONVERSIÓN OBLIGATORIAS POR TIPO DE ALIMENTO:
+
+1. HUEVOS:
+   - Se controlan SIEMPRE en UNIDADES ('UN'). Nunca registres 'caja' de huevo si puedes saber las unidades.
+   - Si la factura indica cajas o bandejas, calcula el TOTAL DE HUEVOS (en Chile una caja estándar trae 180 huevos = 6 bandejas de 30, o 360 si es doble). Si la descripción dice ej: 'Huevo bandeja 30un' o 'Caja huevo 180un', multiplica cantidad de cajas * unidades por caja.
+   - Cantidad = Total de huevos (ej: 5 cajas de 180 = 900 UN).
+   - Precio unitario = Precio por cada huevo individual (Precio total neto o con IVA / Cantidad de huevos).
+
+2. CARNES, POLLOS, PAVO, CERDO, VACUNO, PESCADOS Y CECINAS:
+   - Se controlan SIEMPRE en KILOGRAMOS ('KG').
+   - Cantidad = Kilos netos totales despachados (revisa el pesaje o kilos reales indicados).
+   - Precio unitario = Valor por KILO ($/KG).
+
+3. PASTAS RELLENAS, LASAÑAS, PIZZAS, EMPANADAS Y PLATOS PREPARADOS CONGELADOS:
+   - Se controlan en UNIDADES ('UN') individuales para costeo por porción (ej: por bandeja de lasaña, por unidad de pizza o empanada).
+   - Si la factura dice 'Caja Lasaña 12 unidades', Cantidad = 12 UN, y Precio unitario = Precio total / 12.
+   - Si es pasta seca tradicional (fideos, espagueti en bolsa), va en 'KG' sumando el peso total.
+
+4. ABARROTES A GRANEL (Arroz, Fideos, Harina, Legumbres, Sal, Azúcar):
+   - Se controlan en 'KG'. Multiplica bultos por peso (ej: '4 cajas de 10 bolsas de 1kg' = 40 KG).
+
+5. LÍQUIDOS, BEBIDAS Y ACEITES:
+   - Botellas o latas individuales: en 'UN'.
+   - Aceite a granel/bidón, vinagre, salsa en balde: en 'L' (litros).
+
+6. CONSISTENCIA MATEMÁTICA:
+   - Siempre: Precio Total = Cantidad * Precio Unitario.
+   - Si la factura trae precio con IVA, puedes mantener los precios finales.
+"""
+
+    if catalogo and len(catalogo) > 0:
+        prompt += "\nCATÁLOGO CONOCIDO EN EL SISTEMA (Usa estas unidades preferentes si coinciden):\n"
+        for prod in catalogo[:50]:
+            prompt += f"- {prod.get('nombre')}: Unidad '{prod.get('unidad_medida')}', Categoría '{prod.get('categoria')}'\n"
+
+    if instrucciones_usuario and instrucciones_usuario.strip():
+        prompt += f"\n⚠️ INSTRUCCIONES / CORRECCIONES DEL USUARIO (MÁXIMA PRIORIDAD):\n{instrucciones_usuario.strip()}\n"
+        prompt += "Aplica obligatoriamente estas correcciones sobre los productos que correspondan.\n"
+
+    prompt += """
+Responde ÚNICAMENTE con un JSON válido con esta estructura exacta (sin texto previo ni posterior):
 {
   "proveedor": "Nombre del proveedor o emisor",
   "numero_factura": "Número de factura o guía",
   "fecha": "YYYY-MM-DD",
   "productos": [
     {
-      "nombre": "Nombre completo y descriptivo del producto",
-      "cantidad": 10.0,
-      "unidad": "KG",
-      "precio_unitario": 1500.0,
+      "nombre": "Nombre descriptivo del producto",
+      "cantidad": 100.0,
+      "unidad": "UN",
+      "precio_unitario": 150.0,
       "precio_total": 15000.0,
-      "categoria": "ABARROTES",
+      "categoria": "LACTEOS",
       "fecha_vencimiento": "YYYY-MM-DD"
     }
   ]
 }
 
-Reglas importantes:
-- "unidad" DEBE ser una de: KG, G, L, ML, UN, CAJA
-- "categoria" DEBE ser una de: ABARROTES, CARNES, PESCADOS, LACTEOS, FRUTAS, CONGELADOS, BEBIDAS, LIMPIEZA, VESTUARIO, EPP, OTRO
-- "precio_unitario" es el valor por unidad o kilo (precio final o con IVA si viene indicado así)
-- Para empaques múltiples tipo "7 cajas de 2 bolsas de 5kg", la cantidad total es 70 y la unidad es "KG"
+- 'unidad' debe ser una de: KG, G, L, ML, UN, CAJA
+- 'categoria' debe ser una de: ABARROTES, CARNES, PESCADOS, LACTEOS, FRUTAS, CONGELADOS, BEBIDAS, LIMPIEZA, VESTUARIO, EPP, OTRO
 - Si la fecha de vencimiento no aparece, deja "" (cadena vacía)
 - Extrae TODOS los productos de la lista
 """
+    return prompt
 
 
 def _get_gemini_api_key():
@@ -65,47 +109,13 @@ def _get_gemini_api_key():
     return key.strip()
 
 
-def _pdf_a_imagen_base64(pdf_path):
-    imagenes_b64 = []
-    try:
-        from pdf2image import convert_from_path
-        import sys
-        kwargs = {"dpi": 140, "first_page": 1, "last_page": 3}
-        if sys.platform.startswith("win"):
-            poppler_win = r"C:\Users\Coalfa\AppData\Local\Microsoft\WinGet\Packages\oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe\poppler-25.07.0\Library\bin"
-            if os.path.exists(poppler_win):
-                kwargs["poppler_path"] = poppler_win
-        images = convert_from_path(pdf_path, **kwargs)
-        for img in images:
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-                img.save(tmp.name, "JPEG", quality=85)
-                with open(tmp.name, "rb") as f:
-                    imagenes_b64.append(base64.b64encode(f.read()).decode("utf-8"))
-                try:
-                    os.unlink(tmp.name)
-                except Exception:
-                    pass
-    except Exception as e:
-        logger.warning(f"pdf2image falló: {e}. Intentando PyMuPDF...")
-        try:
-            import fitz
-            doc = fitz.open(pdf_path)
-            for page_num in range(min(3, len(doc))):
-                pix = doc[page_num].get_pixmap(matrix=fitz.Matrix(2, 2))
-                imagenes_b64.append(base64.b64encode(pix.tobytes("jpeg")).decode("utf-8"))
-            doc.close()
-        except Exception as e2:
-            logger.error(f"PyMuPDF también falló: {e2}")
-    return imagenes_b64
-
-
 def _imagen_a_base64(imagen_path):
     with open(imagen_path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
 
-def _llamar_gemini_rest(api_key, imagenes_b64, mime_type):
-    parts = [{"text": PROMPT_FACTURA}]
+def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt):
+    parts = [{"text": prompt}]
     for b64 in imagenes_b64:
         parts.append({
             "inlineData": {
@@ -164,8 +174,8 @@ def _parsear_respuesta_gemini(raw_text):
     mapeo_unidades = {
         "KILOGRAMO": "KG", "KILOS": "KG", "KILO": "KG",
         "LITRO": "L", "LITROS": "L", "MILILITROS": "ML",
-        "GRAMOS": "G", "GRAMO": "G", "UNIDAD": "UN",
-        "CAJAS": "CAJA", "BOTELLA": "UN", "PAQUETE": "UN",
+        "GRAMOS": "G", "GRAMO": "G", "UNIDAD": "UN", "UNIDADES": "UN",
+        "BANDEJA": "UN", "CAJAS": "CAJA", "BOTELLA": "UN", "PAQUETE": "UN",
     }
 
     for p in data.get("productos", []):
@@ -224,10 +234,10 @@ def _parsear_respuesta_gemini(raw_text):
     }
 
 
-def analizar_factura_con_ia(archivo_path):
+def analizar_factura_con_ia(archivo_path, instrucciones="", catalogo=None):
     """
-    Analiza una factura (PDF, JPG, PNG) enviándola directamente a Gemini Vision.
-    Soporta PDF de forma nativa sin requerir poppler, pdf2image ni OCR externo.
+    Punto de entrada: analiza una factura aplicando reglas de conversión gastronómicas,
+    catálogo de productos del casino e instrucciones interactivas del usuario.
     """
     api_key = _get_gemini_api_key()
     if not api_key:
@@ -261,4 +271,5 @@ def analizar_factura_con_ia(archivo_path):
     if not imagenes_b64:
         return {"exitoso": False, "error": "El archivo está vacío o no se pudo leer."}
 
-    return _llamar_gemini_rest(api_key, imagenes_b64, mime_type)
+    prompt = _construir_prompt(instrucciones_usuario=instrucciones, catalogo=catalogo)
+    return _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt=prompt)

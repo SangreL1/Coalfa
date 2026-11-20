@@ -2020,6 +2020,7 @@ def analizar_factura_ia(request):
     # Puede recibir un archivo subido (nuevo) o el nombre de uno ya guardado en FACTURAS INVENTARIO
     archivo = request.FILES.get("archivo")
     filename_existente = request.POST.get("filename", "").strip()
+    instrucciones = request.POST.get("instrucciones", "").strip()
 
     ruta_archivo = None
     ruta_tmp = None
@@ -2043,8 +2044,18 @@ def analizar_factura_ia(request):
         else:
             return JsonResponse({"exitoso": False, "error": "No se recibió ningún archivo."})
 
-        # ── Llamar a la IA ────────────────────────────────────────────────────
-        resultado = analizar_factura_con_ia(ruta_archivo)
+        # Obtener catálogo de productos existentes para orientar a la IA
+        try:
+            catalogo = list(Producto.objects.values("nombre", "unidad_medida", "categoria")[:60])
+        except Exception:
+            catalogo = []
+
+        # ── Llamar a la IA con reglas gastronómicas y correcciones del usuario ───
+        resultado = analizar_factura_con_ia(
+            ruta_archivo,
+            instrucciones=instrucciones,
+            catalogo=catalogo
+        )
 
     finally:
         if ruta_tmp and os.path.exists(ruta_tmp):

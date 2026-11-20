@@ -60,6 +60,23 @@
         </div>
     </div>
 
+    <!-- Caja interactiva de instrucciones/correcciones para la IA -->
+    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(139, 92, 246, 0.2);">
+        <label class="form-label" style="font-size: 0.8rem; font-weight: 700; color: #c4b5fd; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.25rem;">
+            <span>💬 ¿Quieres darle indicaciones o correcciones a la IA? (Opcional):</span>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">Ej: "Huevos en unidades (180 por caja), lasañas en unidades, carnes en kilos"</span>
+        </label>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <input type="text" id="ia-instrucciones" class="form-control" 
+                   placeholder="Escribe aquí si necesitas corregir algo (ej: las cajas de huevo son de 180 unidades, carnes en kilos)..."
+                   style="flex: 1; min-width: 250px; background: rgba(15, 23, 42, 0.7); border-color: rgba(139, 92, 246, 0.4); font-size: 0.85rem;"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault(); analizarConIA();}">
+            <button type="button" onclick="analizarConIA()" class="btn btn-secondary btn-sm" style="background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.5); color: #c4b5fd; white-space: nowrap; padding: 0.5rem 1rem;">
+                🔄 Aplicar y Re-analizar
+            </button>
+        </div>
+    </div>
+
     <!-- Estado de análisis -->
     <div id="ia-status" style="display: none; margin-top: 1.25rem; padding: 1rem; border-radius: 8px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3);">
         <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -347,10 +364,13 @@ function mostrarError(msg) {
 }
 
 async function analizarConIA() {
-    mostrarCargando('Enviando PDF a Gemini IA... Esto tarda entre 5 y 20 segundos...');
+    const inst = document.getElementById('ia-instrucciones')?.value.trim() || '';
+    const msg = inst ? 'Aplicando correcciones con Gemini IA...' : 'Analizando factura con Gemini IA...';
+    mostrarCargando(msg);
     const formData = new FormData();
     formData.append('csrfmiddlewaretoken', CSRF_TOKEN);
     if (FILENAME_EXISTENTE) formData.append('filename', FILENAME_EXISTENTE);
+    if (inst) formData.append('instrucciones', inst);
 
     try {
         const resp = await fetch(URL_ANALIZAR_IA, { method: 'POST', body: formData });
@@ -365,10 +385,12 @@ async function analizarConIA() {
 async function analizarArchivoSubido(input) {
     if (!input.files.length) return;
     const archivo = input.files[0];
-    mostrarCargando(`Enviando "${archivo.name}" a Gemini IA... Esto puede tardar hasta 20 segundos...`);
+    const inst = document.getElementById('ia-instrucciones')?.value.trim() || '';
+    mostrarCargando(`Enviando "${archivo.name}" a Gemini IA...`);
     const formData = new FormData();
     formData.append('csrfmiddlewaretoken', CSRF_TOKEN);
     formData.append('archivo', archivo);
+    if (inst) formData.append('instrucciones', inst);
 
     try {
         const resp = await fetch(URL_ANALIZAR_IA, { method: 'POST', body: formData });

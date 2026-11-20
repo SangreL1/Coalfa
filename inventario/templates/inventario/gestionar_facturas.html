@@ -32,17 +32,21 @@
     </div>
 </div>
 
-<!-- Formulario para subir nuevas facturas -->
+<!-- Formulario para subir nuevas facturas / Análisis con IA -->
 <div class="card"
-    style="margin-bottom: 2rem; border-color: rgba(249, 115, 22, 0.25); background: rgba(249, 115, 22, 0.02);">
+    style="margin-bottom: 2rem; border-color: rgba(139, 92, 246, 0.35); background: linear-gradient(135deg, rgba(139, 92, 246, 0.06) 0%, rgba(16, 25, 45, 0.8) 100%);">
     <div class="card-header"
         style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-        <h2 class="card-title" style="margin: 0;">📤 Cargar Nueva Factura PDF</h2>
+        <h2 class="card-title" style="margin: 0; color: #a78bfa; display: flex; align-items: center; gap: 0.5rem;">
+            🤖 Carga y Análisis de Facturas con IA
+        </h2>
         {% if user.rol != 'AUDITOR' %}
-        <a href="{% url 'inventario_factura_manual' %}" class="btn btn-ghost btn-sm"
-            style="border: 1px dashed var(--accent); color: var(--accent);">
-            ➕ Nueva Factura Manual (Sin PDF)
-        </a>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <a href="{% url 'inventario_factura_manual' %}" class="btn btn-ghost btn-sm"
+                style="border: 1px dashed var(--accent); color: var(--accent);">
+                ✍️ Registro Manual (Sin Archivo)
+            </a>
+        </div>
         {% endif %}
     </div>
     {% if user.rol == 'AUDITOR' %}
@@ -54,12 +58,20 @@
         style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; width: 100%;">
         {% csrf_token %}
         <div style="flex: 1; min-width: 260px;">
+            <label class="form-label" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">
+                Sube tu factura en PDF para el buzón:
+            </label>
             <input type="file" name="factura_pdf" accept=".pdf" class="form-control" required style="width: 100%;">
         </div>
-        <button type="submit" class="btn btn-primary" style="padding: 0.7rem 1.5rem; flex-shrink: 0;">
-            Subir Factura PDF
-        </button>
+        <div style="display: flex; gap: 0.5rem; align-self: flex-end;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.7rem 1.5rem; flex-shrink: 0;">
+                📤 Subir Factura PDF
+            </button>
+        </div>
     </form>
+    <div style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+        <span>💡 Al subir el PDF o al hacer clic en <strong>"⚡ Carga Inteligente"</strong> en la lista de abajo, podrás analizarlo con Gemini IA y registrar los productos automáticamente.</span>
+    </div>
     {% endif %}
 </div>
 
@@ -123,14 +135,14 @@
                         <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
                             {% if not f.procesada %}
                             <a href="{% url 'inventario_procesar_factura_pdf' filename=f.nombre %}"
-                                class="btn btn-primary btn-sm btn-carga-inteligente" style="background: #8b5cf6;"
-                                title="Escanear y extraer productos del PDF automáticamente">
-                                ⚡ Carga Inteligente
+                                class="btn btn-primary btn-sm btn-carga-inteligente" style="background: linear-gradient(135deg, #7c3aed, #a855f7); border: none; font-weight: 600;"
+                                title="Escanear y extraer productos del PDF automáticamente con Gemini IA">
+                                ✨ Carga con IA
                             </a>
                             <a href="{% url 'inventario_procesar_factura_pdf' filename=f.nombre %}?manual=1"
                                 class="btn btn-ghost btn-sm"
-                                title="Abrir formulario para escribir los productos manualmente sin esperar">
-                                ➕ Registro Manual
+                                title="Abrir formulario para escribir los productos manualmente">
+                                ✍️ Manual
                             </a>
                             {% endif %}
                             <a href="{% url 'inventario_ver_factura_pdf' filename=f.nombre %}"

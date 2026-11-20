@@ -225,25 +225,40 @@ def _parsear_respuesta_gemini(raw_text):
 
 
 def analizar_factura_con_ia(archivo_path):
+    """
+    Analiza una factura (PDF, JPG, PNG) enviándola directamente a Gemini Vision.
+    Soporta PDF de forma nativa sin requerir poppler, pdf2image ni OCR externo.
+    """
     api_key = _get_gemini_api_key()
     if not api_key:
-        return {"exitoso": False, "error": "No hay GEMINI_API_KEY configurada en settings.py"}
+        return {"exitoso": False, "error": "No hay GEMINI_API_KEY configurada en .env o settings"}
 
     ext = os.path.splitext(archivo_path)[1].lower()
 
     if ext == ".pdf":
-        imagenes_b64 = _pdf_a_imagen_base64(archivo_path)
-        mime_type = "image/jpeg"
+        try:
+            with open(archivo_path, "rb") as f:
+                pdf_bytes = f.read()
+            imagenes_b64 = [base64.b64encode(pdf_bytes).decode("utf-8")]
+            mime_type = "application/pdf"
+        except Exception as e:
+            return {"exitoso": False, "error": f"Error leyendo archivo PDF: {str(e)}"}
     elif ext in (".jpg", ".jpeg"):
-        imagenes_b64 = [_imagen_a_base64(archivo_path)]
-        mime_type = "image/jpeg"
+        try:
+            imagenes_b64 = [_imagen_a_base64(archivo_path)]
+            mime_type = "image/jpeg"
+        except Exception as e:
+            return {"exitoso": False, "error": f"Error leyendo imagen: {str(e)}"}
     elif ext == ".png":
-        imagenes_b64 = [_imagen_a_base64(archivo_path)]
-        mime_type = "image/png"
+        try:
+            imagenes_b64 = [_imagen_a_base64(archivo_path)]
+            mime_type = "image/png"
+        except Exception as e:
+            return {"exitoso": False, "error": f"Error leyendo imagen: {str(e)}"}
     else:
         return {"exitoso": False, "error": f"Formato no soportado: {ext}. Solo PDF, JPG o PNG."}
 
     if not imagenes_b64:
-        return {"exitoso": False, "error": "No se pudo convertir el archivo para análisis de imagen."}
+        return {"exitoso": False, "error": "El archivo está vacío o no se pudo leer."}
 
     return _llamar_gemini_rest(api_key, imagenes_b64, mime_type)

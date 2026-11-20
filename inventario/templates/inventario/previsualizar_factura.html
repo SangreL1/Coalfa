@@ -380,11 +380,16 @@ async function analizarArchivoSubido(input) {
     }
 }
 
-// Al cargar: si no hay filas, crear una vacía
+// Al cargar la página
 document.addEventListener('DOMContentLoaded', () => {
     const tbody = document.getElementById('tbody-productos');
     if (tbody && tbody.querySelectorAll('tr.fila-producto').length === 0) agregarFilaProducto();
     actualizarContador();
+
+    {% if filename and not es_manual %}
+    // Si viene de Carga con IA desde el buzón, auto-iniciar el análisis
+    analizarConIA();
+    {% endif %}
 });
 </script>
 {% endblock %}

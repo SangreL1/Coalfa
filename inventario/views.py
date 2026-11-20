@@ -1840,7 +1840,7 @@ def ver_factura_pdf(request, filename):
 
 @operacional_required
 def procesar_factura_pdf(request, filename="manual"):
-    """Lee el PDF y muestra una previsualización de los productos detectados, o abre el formulario en modo manual inmediato."""
+    """Carga instantánea de la interfaz para previsualizar y analizar con Gemini IA (sin demoras ni timeouts)."""
     es_manual = request.GET.get("manual") == "1" or request.GET.get("modo") == "manual" or filename == "manual"
     
     path_pdf = None
@@ -1853,17 +1853,8 @@ def procesar_factura_pdf(request, filename="manual"):
             messages.error(request, "El archivo ya no existe en la carpeta.")
             return redirect("inventario_gestionar_facturas")
 
-    items = []
-    # Solo intentar lectura previa si NO estamos en modo manual
-    if not es_manual and path_pdf and os.path.exists(path_pdf):
-        try:
-            from .pdf_parser import extraer_datos_factura, TESSERACT_AVAILABLE
-            items = extraer_datos_factura(path_pdf)
-        except Exception as e:
-            items = []
-    
     return render(request, "inventario/previsualizar_factura.html", {
-        "items": items,
+        "items": [],
         "filename": filename if filename != "manual" else None,
         "guia": num_guia,
         "hoy": datetime.date.today().isoformat(),

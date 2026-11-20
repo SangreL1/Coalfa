@@ -139,3 +139,6 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("true", "1")
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "coalfatranp@gmail.com")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "hprwakwgeuukjlot")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Alertas Coalfa <coalfatranp@gmail.com>")
+
+# Gemini AI — Análisis de facturas con visión artificial
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")

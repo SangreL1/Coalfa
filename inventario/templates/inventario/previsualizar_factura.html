@@ -1,31 +1,22 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}{% if es_manual %}Registro Manual de Factura{% else %}Previsualizar Factura{% endif %} - San Lucas{% endblock %}
-
-{% block topbar_title %}{% if es_manual %}Registro Manual de Factura{% else %}Confirmación de Carga de Factura{% endif %}{% endblock %}
+{% block title %}{% if es_manual %}Registro Manual de Factura{% else %}Previsualizar Factura{% endif %} - Coalfa{% endblock %}
+{% block topbar_title %}{% if es_manual %}Registro Manual / IA de Factura{% else %}Confirmación de Carga de Factura{% endif %}{% endblock %}
 
 {% block content %}
 <div class="header-section" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
     <div>
         <h1 class="page-title">
-            {% if es_manual %}
-            ✍️ Registro Manual de Factura {% if guia %}({{ guia }}){% endif %}
-            {% else %}
-            ⚡ Previsualización de Factura: {{ guia }}
-            {% endif %}
+            {% if es_manual %}✍️ Registro de Factura{% else %}⚡ Previsualización: {{ guia }}{% endif %}
         </h1>
         <p class="page-subtitle" style="margin-bottom: 0;">
-            {% if es_manual %}
-            Ingresa los productos directamente en las casillas a continuación. Puedes añadir tantas filas como necesites.
-            {% else %}
-            Revisa los datos extraídos del PDF. Puedes editar cualquier casilla o presionar <strong>"Añadir Producto"</strong> para agregar más casillas.
-            {% endif %}
+            Usa <strong>✨ Analizar con IA</strong> para que Gemini lea la factura automáticamente, o carga manualmente.
         </p>
     </div>
-    <div style="display: flex; gap: 0.5rem; align-items: center;">
+    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
         {% if filename and filename != 'manual' %}
-        <a href="{% url 'inventario_ver_factura_pdf' filename=filename %}" class="btn btn-ghost btn-sm" target="_blank" title="Abrir archivo PDF en una pestaña para consultarlo">
-            👁️ Ver PDF en otra pestaña
+        <a href="{% url 'inventario_ver_factura_pdf' filename=filename %}" class="btn btn-ghost btn-sm" target="_blank">
+            👁️ Ver PDF
         </a>
         {% endif %}
         <a href="{% url 'inventario_gestionar_facturas' %}" class="btn btn-ghost btn-sm">
@@ -34,21 +25,78 @@
     </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════
+     PANEL DE ANÁLISIS CON IA
+═══════════════════════════════════════════════════════════ -->
+<div class="card" id="panel-ia" style="margin-bottom: 1.5rem; border-color: rgba(139, 92, 246, 0.4); background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(16, 25, 45, 0.9) 100%);">
+    <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;">
+        <div style="font-size: 2.5rem; flex-shrink: 0;">🤖</div>
+        <div style="flex: 1; min-width: 200px;">
+            <div style="font-size: 1.1rem; font-weight: 700; color: #a78bfa; margin-bottom: 0.25rem;">
+                ✨ Análisis Automático con Gemini IA
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);">
+                {% if filename and filename != 'manual' %}
+                Pulsa el botón para que la IA analice el PDF <strong style="color: var(--text);">{{ filename }}</strong> y llene el formulario automáticamente.
+                {% else %}
+                Sube una foto o PDF de la factura y la IA extraerá todos los productos, cantidades y precios.
+                {% endif %}
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; flex-shrink: 0;">
+            {% if filename and filename != 'manual' %}
+            <!-- Analizar el PDF ya subido -->
+            <button type="button" id="btn-analizar-ia" onclick="analizarConIA()" class="btn btn-primary"
+                    style="background: linear-gradient(135deg, #7c3aed, #a855f7); border: none; padding: 0.75rem 1.5rem; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span id="btn-ia-icon">✨</span>
+                <span id="btn-ia-texto">Analizar con IA</span>
+            </button>
+            {% endif %}
+            <!-- Subir nueva factura para analizar -->
+            <label class="btn btn-secondary" style="cursor: pointer; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.25rem;">
+                📎 Subir Factura para IA
+                <input type="file" id="input-archivo-ia" accept=".pdf,.jpg,.jpeg,.png" style="display: none;" onchange="analizarArchivoSubido(this)">
+            </label>
+        </div>
+    </div>
+
+    <!-- Estado de análisis -->
+    <div id="ia-status" style="display: none; margin-top: 1.25rem; padding: 1rem; border-radius: 8px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3);">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div id="ia-spinner" style="width: 20px; height: 20px; border: 3px solid rgba(139, 92, 246, 0.3); border-top-color: #a855f7; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+            <span id="ia-status-texto" style="color: #a78bfa; font-weight: 600;">Enviando factura a Gemini IA...</span>
+        </div>
+    </div>
+
+    <!-- Resultado de IA -->
+    <div id="ia-resultado" style="display: none; margin-top: 1.25rem; padding: 1rem; border-radius: 8px; background: rgba(52, 211, 153, 0.07); border: 1px solid rgba(52, 211, 153, 0.3);">
+        <div style="font-weight: 700; color: #34d399; margin-bottom: 0.5rem;" id="ia-resultado-titulo">✅ IA detectó productos</div>
+        <div id="ia-resultado-info" style="font-size: 0.85rem; color: var(--text-muted);"></div>
+    </div>
+    <div id="ia-error" style="display: none; margin-top: 1.25rem; padding: 1rem; border-radius: 8px; background: rgba(239, 68, 68, 0.07); border: 1px solid rgba(239, 68, 68, 0.3);">
+        <div style="font-weight: 700; color: var(--danger);">❌ <span id="ia-error-texto"></span></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FORMULARIO PRINCIPAL
+═══════════════════════════════════════════════════════════ -->
 <form method="POST" action="{% url 'inventario_confirmar_carga_factura' %}" id="form-factura">
     {% csrf_token %}
     <input type="hidden" name="modo_manual" value="{% if es_manual %}1{% else %}0{% endif %}">
 
-    <!-- Datos Generales de la Factura -->
-    <div class="card" style="margin-bottom: 2rem; background: var(--accent-soft); border-color: rgba(139, 92, 246, 0.25);">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+    <!-- Datos Generales -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <div style="font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.5px;">📋 Datos de la Factura</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem;">
             <div class="form-group">
                 <label class="form-label" style="font-weight: 700;">Nº Guía / Factura <span style="color: var(--danger);">*</span></label>
-                <input type="text" name="guia" class="form-control" value="{{ guia }}" required placeholder="Ej: 104523" style="font-weight: 600;">
+                <input type="text" name="guia" id="campo-guia" class="form-control" value="{{ guia }}" required placeholder="Ej: 104523" style="font-weight: 600;">
             </div>
             <div class="form-group">
                 <label class="form-label" style="font-weight: 700;">Proveedor</label>
-                <select name="proveedor" class="form-control">
-                    <option value="">-- Seleccionar Proveedor (Opcional) --</option>
+                <select name="proveedor" id="campo-proveedor" class="form-control">
+                    <option value="">-- Seleccionar Proveedor --</option>
                     {% for p in proveedores %}
                     <option value="{{ p.id }}">{{ p.nombre }}</option>
                     {% endfor %}
@@ -56,7 +104,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label" style="font-weight: 700;">Fecha Recepción <span style="color: var(--danger);">*</span></label>
-                <input type="date" name="fecha_recepcion" class="form-control" value="{{ hoy }}" required>
+                <input type="date" name="fecha_recepcion" id="campo-fecha" class="form-control" value="{{ hoy }}" required>
             </div>
             <div class="form-group">
                 <label class="form-label" style="font-weight: 700;">Ubicación Destino <span style="color: var(--danger);">*</span></label>
@@ -69,71 +117,69 @@
         </div>
     </div>
 
-    <!-- Tabla Dinámica de Productos -->
+    <!-- Tabla de Productos -->
     <div class="card">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem;">
             <div>
                 <h2 class="card-title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-                    📦 Productos a Registrar 
+                    📦 Productos a Registrar
                     <span class="badge badge-activo" id="contador-productos" style="font-size: 0.8rem; background: var(--accent); color: white;">
                         {{ items|length }}
                     </span>
                 </h2>
                 <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
-                    Completa la información de los productos. Puedes usar el botón de la derecha para añadir más filas.
+                    Revisa y edita los datos. Puedes añadir o eliminar filas.
                 </div>
             </div>
-            <button type="button" class="btn btn-primary btn-sm" onclick="agregarFilaProducto();" style="background: var(--accent); display: flex; align-items: center; gap: 0.35rem;">
-                ➕ Añadir Casilla de Producto
+            <button type="button" class="btn btn-ghost btn-sm" onclick="agregarFilaProducto();" style="border: 1px solid var(--accent); color: var(--accent);">
+                ➕ Añadir Fila Manual
             </button>
         </div>
 
         <div class="table-wrap">
-            <table class="table-enterprise" style="width: 100%;">
+            <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr>
-                        <th style="min-width: 250px;">Descripción del Producto <span style="color: var(--danger);">*</span></th>
-                        <th width="120">Cantidad <span style="color: var(--danger);">*</span></th>
-                        <th width="120">Unidad</th>
-                        <th width="130">Precio Unit. ($)</th>
-                        <th width="160">Categoría</th>
-                        <th width="150">Vencimiento</th>
-                        <th width="50" style="text-align: center;">Acción</th>
+                        <th style="min-width: 240px; padding: 0.75rem; background: var(--bg-surface); text-align: left; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Descripción del Producto <span style="color: var(--danger);">*</span></th>
+                        <th style="width: 110px; padding: 0.75rem; background: var(--bg-surface); text-align: left; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Cantidad</th>
+                        <th style="width: 110px; padding: 0.75rem; background: var(--bg-surface); text-align: left; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Unidad</th>
+                        <th style="width: 130px; padding: 0.75rem; background: var(--bg-surface); text-align: left; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Precio Unit. ($)</th>
+                        <th style="width: 160px; padding: 0.75rem; background: var(--bg-surface); text-align: left; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Categoría</th>
+                        <th style="width: 150px; padding: 0.75rem; background: var(--bg-surface); text-align: left; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Vencimiento</th>
+                        <th style="width: 46px; padding: 0.75rem; background: var(--bg-surface); text-align: center; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">✕</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-productos">
                     {% for item in items %}
-                    <tr class="fila-producto">
-                        <td>
-                            <input type="text" name="prod_nombre" value="{{ item.producto }}" class="form-control input-nombre" placeholder="Nombre del producto..." required style="font-size: 0.9rem;">
+                    <tr class="fila-producto" style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 0.5rem;">
+                            <input type="text" name="prod_nombre" value="{{ item.producto|default:item.nombre }}" class="form-control input-nombre" placeholder="Nombre del producto..." required style="font-size: 0.9rem;">
                         </td>
-                        <td>
+                        <td style="padding: 0.5rem;">
                             <input type="number" step="0.01" name="prod_cantidad" value="{{ item.cantidad }}" class="form-control" placeholder="0" required style="font-weight: 700; text-align: center;">
                         </td>
-                        <td>
+                        <td style="padding: 0.5rem;">
                             <select name="prod_unidad" class="form-control">
                                 {% for u_key, u_val in unidades %}
-                                <option value="{{ u_key }}" {% if u_key == 'UN' %}selected{% endif %}>{{ u_val }}</option>
+                                <option value="{{ u_key }}" {% if u_key == item.unidad %}selected{% elif not item.unidad and u_key == 'UN' %}selected{% endif %}>{{ u_val }}</option>
                                 {% endfor %}
                             </select>
                         </td>
-                        <td>
-                            <input type="number" step="0.01" name="prod_precio" value="{{ item.precio }}" class="form-control" placeholder="0" style="color: var(--success); font-weight: 700;">
+                        <td style="padding: 0.5rem;">
+                            <input type="number" step="0.01" name="prod_precio" value="{{ item.precio|default:item.precio_unitario }}" class="form-control" placeholder="0" style="color: var(--success); font-weight: 700;">
                         </td>
-                        <td>
+                        <td style="padding: 0.5rem;">
                             <select name="prod_categoria" class="form-control">
                                 {% for c_key, c_val in categorias %}
-                                <option value="{{ c_key }}">{{ c_val }}</option>
+                                <option value="{{ c_key }}" {% if c_key == item.categoria %}selected{% endif %}>{{ c_val }}</option>
                                 {% endfor %}
                             </select>
                         </td>
-                        <td>
-                            <input type="date" name="prod_vencimiento" class="form-control">
+                        <td style="padding: 0.5rem;">
+                            <input type="date" name="prod_vencimiento" value="{{ item.fecha_vencimiento }}" class="form-control">
                         </td>
-                        <td style="text-align: center;">
-                            <button type="button" class="btn btn-ghost btn-sm" onclick="eliminarFila(this);" style="color: var(--danger); padding: 5px;" title="Eliminar este producto">
-                                🗑️
-                            </button>
+                        <td style="padding: 0.5rem; text-align: center;">
+                            <button type="button" class="btn btn-ghost btn-sm" onclick="eliminarFila(this);" style="color: var(--danger); padding: 5px;" title="Eliminar">🗑️</button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -141,118 +187,203 @@
             </table>
         </div>
 
-        <!-- Botón accesible para añadir más casillas -->
         <div style="margin-top: 1rem;">
-            <button type="button" class="btn btn-ghost" onclick="agregarFilaProducto();" style="border: 2px dashed var(--accent); color: var(--accent); width: 100%; padding: 0.85rem; font-weight: 600; font-size: 0.95rem; border-radius: 8px; background: rgba(139, 92, 246, 0.05);">
-                ➕ Añadir otra casilla para más productos
+            <button type="button" onclick="agregarFilaProducto();" style="border: 2px dashed var(--accent); color: var(--accent); width: 100%; padding: 0.85rem; font-weight: 600; font-size: 0.95rem; border-radius: 8px; background: rgba(249, 115, 22, 0.04); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(249,115,22,0.1)'" onmouseout="this.style.background='rgba(249,115,22,0.04)'">
+                ➕ Añadir otra casilla de producto
             </button>
         </div>
 
-        <div style="margin-top: 2.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
-            <a href="{% url 'inventario_gestionar_facturas' %}" class="btn btn-ghost">
-                ❌ Cancelar y Volver
-            </a>
+        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <a href="{% url 'inventario_gestionar_facturas' %}" class="btn btn-ghost">❌ Cancelar</a>
             <button type="submit" class="btn btn-primary" style="padding: 1rem 3rem; font-size: 1.1rem; box-shadow: 0 10px 20px var(--accent-glow);">
-                🚀 Confirmar y Cargar Inventario
+                🚀 Confirmar y Registrar en Inventario
             </button>
         </div>
     </div>
 </form>
 
-<!-- Plantilla oculta para añadir nuevas filas dinámicamente -->
+<!-- Plantilla de fila vacía -->
 <template id="fila-producto-template">
-    <tr class="fila-producto">
-        <td>
-            <input type="text" name="prod_nombre" class="form-control input-nombre" placeholder="Nombre o descripción del producto..." required style="font-size: 0.9rem;">
+    <tr class="fila-producto" style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 0.5rem;">
+            <input type="text" name="prod_nombre" class="form-control input-nombre" placeholder="Nombre del producto..." required style="font-size: 0.9rem;">
         </td>
-        <td>
+        <td style="padding: 0.5rem;">
             <input type="number" step="0.01" name="prod_cantidad" class="form-control" placeholder="0" required style="font-weight: 700; text-align: center;">
         </td>
-        <td>
+        <td style="padding: 0.5rem;">
             <select name="prod_unidad" class="form-control">
                 {% for u_key, u_val in unidades %}
                 <option value="{{ u_key }}" {% if u_key == 'UN' %}selected{% endif %}>{{ u_val }}</option>
                 {% endfor %}
             </select>
         </td>
-        <td>
+        <td style="padding: 0.5rem;">
             <input type="number" step="0.01" name="prod_precio" class="form-control" placeholder="0" style="color: var(--success); font-weight: 700;">
         </td>
-        <td>
+        <td style="padding: 0.5rem;">
             <select name="prod_categoria" class="form-control">
                 {% for c_key, c_val in categorias %}
                 <option value="{{ c_key }}">{{ c_val }}</option>
                 {% endfor %}
             </select>
         </td>
-        <td>
+        <td style="padding: 0.5rem;">
             <input type="date" name="prod_vencimiento" class="form-control">
         </td>
-        <td style="text-align: center;">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="eliminarFila(this);" style="color: var(--danger); padding: 5px;" title="Eliminar fila">
-                🗑️
-            </button>
+        <td style="padding: 0.5rem; text-align: center;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="eliminarFila(this);" style="color: var(--danger); padding: 5px;">🗑️</button>
         </td>
     </tr>
 </template>
 
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+.fila-nueva { animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+
 <script>
+const URL_ANALIZAR_IA = "{% url 'inventario_analizar_ia' %}";
+const CSRF_TOKEN = "{{ csrf_token }}";
+const FILENAME_EXISTENTE = "{{ filename|default:'' }}";
+
+// ── Funciones de tabla ────────────────────────────────────────────────────────
 function actualizarContador() {
     const tbody = document.getElementById('tbody-productos');
-    const filas = tbody.querySelectorAll('tr.fila-producto');
     const badge = document.getElementById('contador-productos');
-    if (badge) {
-        badge.textContent = filas.length;
-    }
+    if (badge) badge.textContent = tbody.querySelectorAll('tr.fila-producto').length;
 }
 
 function agregarFilaProducto(datos = null) {
     const template = document.getElementById('fila-producto-template');
     const clon = template.content.cloneNode(true);
     const tr = clon.querySelector('tr');
+    tr.classList.add('fila-nueva');
 
     if (datos) {
-        if (datos.nombre) tr.querySelector('[name="prod_nombre"]').value = datos.nombre;
-        if (datos.cantidad) tr.querySelector('[name="prod_cantidad"]').value = datos.cantidad;
-        if (datos.unidad) tr.querySelector('[name="prod_unidad"]').value = datos.unidad;
-        if (datos.precio) tr.querySelector('[name="prod_precio"]').value = datos.precio;
-        if (datos.categoria) tr.querySelector('[name="prod_categoria"]').value = datos.categoria;
-        if (datos.vencimiento) tr.querySelector('[name="prod_vencimiento"]').value = datos.vencimiento;
+        const setVal = (name, val) => {
+            const el = tr.querySelector(`[name="${name}"]`);
+            if (el && val !== undefined && val !== null && val !== '') el.value = val;
+        };
+        setVal('prod_nombre', dados => datos.nombre);
+        // Fix: usar función directamente
+        const n = tr.querySelector('[name="prod_nombre"]'); if (n && datos.nombre) n.value = datos.nombre;
+        const c = tr.querySelector('[name="prod_cantidad"]'); if (c && datos.cantidad) c.value = datos.cantidad;
+        const u = tr.querySelector('[name="prod_unidad"]'); if (u && datos.unidad) u.value = datos.unidad;
+        const p = tr.querySelector('[name="prod_precio"]'); if (p && datos.precio_unitario) p.value = datos.precio_unitario;
+        const cat = tr.querySelector('[name="prod_categoria"]'); if (cat && datos.categoria) cat.value = datos.categoria;
+        const v = tr.querySelector('[name="prod_vencimiento"]'); if (v && datos.fecha_vencimiento) v.value = datos.fecha_vencimiento;
     }
 
-    const tbody = document.getElementById('tbody-productos');
-    tbody.appendChild(tr);
+    document.getElementById('tbody-productos').appendChild(tr);
     actualizarContador();
-
-    // Si fue agregada manualmente por el usuario, dar foco al campo de nombre
-    if (!datos) {
-        const inputNombre = tr.querySelector('.input-nombre');
-        if (inputNombre) {
-            inputNombre.focus();
-        }
-    }
+    if (!datos) tr.querySelector('.input-nombre')?.focus();
 }
 
 function eliminarFila(btn) {
-    const fila = btn.closest('tr');
-    if (fila) {
-        fila.remove();
-        actualizarContador();
-        
-        // Si no queda ninguna fila, asegurar que haya al menos una para escribir
-        const tbody = document.getElementById('tbody-productos');
-        if (tbody.querySelectorAll('tr.fila-producto').length === 0) {
-            agregarFilaProducto();
+    btn.closest('tr')?.remove();
+    actualizarContador();
+    const tbody = document.getElementById('tbody-productos');
+    if (tbody.querySelectorAll('tr.fila-producto').length === 0) agregarFilaProducto();
+}
+
+// ── Análisis con IA ───────────────────────────────────────────────────────────
+function mostrarCargando(msg) {
+    document.getElementById('ia-status').style.display = 'block';
+    document.getElementById('ia-status-texto').textContent = msg || 'Analizando con Gemini IA...';
+    document.getElementById('ia-resultado').style.display = 'none';
+    document.getElementById('ia-error').style.display = 'none';
+    const btn = document.getElementById('btn-analizar-ia');
+    if (btn) { btn.disabled = true; document.getElementById('btn-ia-icon').textContent = '⏳'; document.getElementById('btn-ia-texto').textContent = 'Analizando...'; }
+}
+
+function ocultarCargando() {
+    document.getElementById('ia-status').style.display = 'none';
+    const btn = document.getElementById('btn-analizar-ia');
+    if (btn) { btn.disabled = false; document.getElementById('btn-ia-icon').textContent = '✨'; document.getElementById('btn-ia-texto').textContent = 'Analizar con IA'; }
+}
+
+function mostrarResultado(data) {
+    ocultarCargando();
+    document.getElementById('ia-resultado').style.display = 'block';
+    document.getElementById('ia-resultado-titulo').textContent = `✅ IA detectó ${data.productos.length} producto(s)`;
+    let info = [];
+    if (data.proveedor) info.push(`Proveedor: ${data.proveedor}`);
+    if (data.numero_factura) {
+        info.push(`Factura N°: ${data.numero_factura}`);
+        const g = document.getElementById('campo-guia');
+        if (g && !g.value) g.value = data.numero_factura;
+    }
+    if (data.fecha) info.push(`Fecha: ${data.fecha}`);
+    document.getElementById('ia-resultado-info').textContent = info.join(' · ') || 'Productos extraídos correctamente.';
+
+    // Buscar proveedor por nombre en el select
+    if (data.proveedor) {
+        const sel = document.getElementById('campo-proveedor');
+        if (sel) {
+            Array.from(sel.options).forEach(opt => {
+                if (opt.text.toLowerCase().includes(data.proveedor.toLowerCase().split(' ')[0])) {
+                    sel.value = opt.value;
+                }
+            });
         }
+    }
+
+    // Limpiar tabla y llenar con productos de IA
+    const tbody = document.getElementById('tbody-productos');
+    tbody.innerHTML = '';
+    data.productos.forEach(p => agregarFilaProducto(p));
+    actualizarContador();
+
+    // Scroll a la tabla
+    document.getElementById('form-factura').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function mostrarError(msg) {
+    ocultarCargando();
+    document.getElementById('ia-error').style.display = 'block';
+    document.getElementById('ia-error-texto').textContent = msg;
+}
+
+async function analizarConIA() {
+    mostrarCargando('Enviando PDF a Gemini IA... Esto tarda entre 5 y 20 segundos...');
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', CSRF_TOKEN);
+    if (FILENAME_EXISTENTE) formData.append('filename', FILENAME_EXISTENTE);
+
+    try {
+        const resp = await fetch(URL_ANALIZAR_IA, { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (data.exitoso) mostrarResultado(data);
+        else mostrarError(data.error || 'Error desconocido del servidor.');
+    } catch(e) {
+        mostrarError('Error de conexión: ' + e.message);
     }
 }
 
-// Al cargar la página: si la tabla está vacía (modo manual o sin productos extraídos), agregar 1 fila lista para escribir
-document.addEventListener('DOMContentLoaded', function() {
-    const tbody = document.getElementById('tbody-productos');
-    if (tbody && tbody.querySelectorAll('tr.fila-producto').length === 0) {
-        agregarFilaProducto();
+async function analizarArchivoSubido(input) {
+    if (!input.files.length) return;
+    const archivo = input.files[0];
+    mostrarCargando(`Enviando "${archivo.name}" a Gemini IA... Esto puede tardar hasta 20 segundos...`);
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', CSRF_TOKEN);
+    formData.append('archivo', archivo);
+
+    try {
+        const resp = await fetch(URL_ANALIZAR_IA, { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (data.exitoso) mostrarResultado(data);
+        else mostrarError(data.error || 'Error desconocido del servidor.');
+    } catch(e) {
+        mostrarError('Error de conexión: ' + e.message);
     }
+}
+
+// Al cargar: si no hay filas, crear una vacía
+document.addEventListener('DOMContentLoaded', () => {
+    const tbody = document.getElementById('tbody-productos');
+    if (tbody && tbody.querySelectorAll('tr.fila-producto').length === 0) agregarFilaProducto();
     actualizarContador();
 });
 </script>

@@ -2009,3 +2009,65 @@ def eliminar_todas_facturas(request):
         messages.error(request, "La carpeta de facturas no existe.")
     return redirect("inventario_gestionar_facturas")
 
+
+
+# ─── ANÁLISIS DE FACTURA CON GEMINI IA ────────────────────────────────────────
+
+@operacional_required
+@audit_read_only
+def analizar_factura_ia(request):
+    """
+    Endpoint AJAX: recibe un PDF o imagen de factura, lo analiza con Gemini Vision
+    y devuelve el JSON con los productos detectados para que el usuario los revise.
+    """
+    if request.method != "POST":
+        return JsonResponse({"exitoso": False, "error": "Método no permitido"}, status=405)
+
+    from .ai_parser import analizar_factura_con_ia
+    from django.conf import settings as django_settings
+
+    # Verificar que hay API key configurada
+    api_key = getattr(django_settings, "GEMINI_API_KEY", "").strip()
+    if not api_key:
+        return JsonResponse({
+            "exitoso": False,
+            "error": "No hay GEMINI_API_KEY configurada. Contacta al administrador del sistema."
+        })
+
+    # Puede recibir un archivo subido (nuevo) o el nombre de uno ya guardado en FACTURAS INVENTARIO
+    archivo = request.FILES.get("archivo")
+    filename_existente = request.POST.get("filename", "").strip()
+
+    ruta_archivo = None
+    ruta_tmp = None
+
+    try:
+        if archivo:
+            # Guardar temporalmente para analizarlo
+            ext = os.path.splitext(archivo.name)[1].lower()
+            if ext not in (".pdf", ".jpg", ".jpeg", ".png"):
+                return JsonResponse({"exitoso": False, "error": "Solo se admiten PDF, JPG o PNG."})
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+                for chunk in archivo.chunks():
+                    tmp.write(chunk)
+                ruta_tmp = tmp.name
+            ruta_archivo = ruta_tmp
+
+        elif filename_existente:
+            ruta_archivo = os.path.join(django_settings.BASE_DIR, "FACTURAS INVENTARIO", filename_existente)
+            if not os.path.exists(ruta_archivo):
+                return JsonResponse({"exitoso": False, "error": f"Archivo '{filename_existente}' no encontrado."})
+        else:
+            return JsonResponse({"exitoso": False, "error": "No se recibió ningún archivo."})
+
+        # ── Llamar a la IA ────────────────────────────────────────────────────
+        resultado = analizar_factura_con_ia(ruta_archivo)
+
+    finally:
+        if ruta_tmp and os.path.exists(ruta_tmp):
+            try:
+                os.unlink(ruta_tmp)
+            except Exception:
+                pass
+
+    return JsonResponse(resultado)

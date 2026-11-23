@@ -131,7 +131,7 @@ def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt):
         "contents": [{"parts": parts}],
         "generationConfig": {
             "temperature": 0.1,
-            "maxOutputTokens": 4096,
+            "maxOutputTokens": 8192,
         }
     }).encode("utf-8")
 
@@ -152,8 +152,18 @@ def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt):
             try:
                 with urllib.request.urlopen(req, timeout=40) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
-                raw_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                logger.info(f"Factura analizada exitosamente con modelo {modelo} (intento {intento + 1})")
+
+                # Concatenar TODOS los fragmentos de texto (no solo parts[0])
+                candidate = data.get("candidates", [{}])[0]
+                content = candidate.get("content", {})
+                parts_list = content.get("parts", [])
+                raw_text = "".join(p.get("text", "") for p in parts_list if "text" in p).strip()
+
+                if not raw_text:
+                    logger.warning(f"Gemini {modelo} devolvió contenido vacío en partes")
+                    continue
+
+                logger.info(f"Factura analizada exitosamente con modelo {modelo} (intento {intento + 1}, len={len(raw_text)})")
                 return _parsear_respuesta_gemini(raw_text)
             except urllib.error.HTTPError as e:
                 body = e.read().decode("utf-8")
@@ -178,15 +188,65 @@ def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt):
     return {"exitoso": False, "error": f"No se pudo contactar a Gemini ({ultimo_error})" }
 
 
-def _parsear_respuesta_gemini(raw_text):
-    match = re.search(r'\{[\s\S]*\}', raw_text)
-    if not match:
-        return {"exitoso": False, "error": f"Respuesta no reconocida de Gemini: {raw_text[:200]}"}
+def _extraer_o_reparar_json(raw_text):
+    """Extrae el objeto JSON de la respuesta de Gemini de forma ultra tolerante ante truncamiento o markdown."""
+    if not raw_text:
+        return None
 
+    # Quitar posibles fences ```json ... ```
+    texto = re.sub(r'^```(?:json)?\s*', '', raw_text.strip(), flags=re.IGNORECASE)
+    texto = re.sub(r'\s*```$', '', texto).strip()
+
+    # Intento 1: json.loads directo
     try:
-        data = json.loads(match.group())
-    except json.JSONDecodeError as e:
-        return {"exitoso": False, "error": f"JSON no válido de Gemini: {e}"}
+        return json.loads(texto)
+    except Exception:
+        pass
+
+    # Intento 2: Buscar entre la primera '{' y la última '}'
+    start = texto.find('{')
+    end = texto.rfind('}')
+    if start != -1 and end > start:
+        try:
+            return json.loads(texto[start:end + 1])
+        except Exception:
+            pass
+
+    # Intento 3: Si falta la llave final '}' por corte de longitud, intentar cerrarla
+    if start != -1:
+        fragmento = texto[start:].strip()
+        for suffix in ['}', ']}', '"}]}', '"]}', '}]}']:
+            try:
+                return json.loads(fragmento + suffix)
+            except Exception:
+                continue
+
+    # Intento 4: Extraer objetos de productos por Regex si el JSON general quedó roto
+    productos = []
+    patron = r'\{\s*"nombre"\s*:\s*"([^"]+)"[^}]*\}'
+    for match in re.finditer(patron, texto):
+        try:
+            p_obj = json.loads(match.group(0))
+            productos.append(p_obj)
+        except Exception:
+            continue
+
+    if productos:
+        prov_m = re.search(r'"proveedor"\s*:\s*"([^"]+)"', texto)
+        num_m = re.search(r'"numero_factura"\s*:\s*"([^"]+)"', texto)
+        return {
+            "proveedor": prov_m.group(1) if prov_m else "",
+            "numero_factura": num_m.group(1) if num_m else "",
+            "productos": productos,
+        }
+
+    return None
+
+
+def _parsear_respuesta_gemini(raw_text):
+    data = _extraer_o_reparar_json(raw_text)
+    if not data or not isinstance(data, dict):
+        return {"exitoso": False, "error": f"Respuesta no reconocida de Gemini: {raw_text[:200]}"}
 
     productos = []
     mapeo_unidades = {

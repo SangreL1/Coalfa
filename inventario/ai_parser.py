@@ -117,7 +117,10 @@ def _imagen_a_base64(imagen_path):
         return base64.b64encode(f.read()).decode("utf-8")
 
 
-def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt):
+def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt, parser_func=None):
+    if parser_func is None:
+        parser_func = _parsear_respuesta_gemini
+
     parts = [{"text": prompt}]
     for b64 in imagenes_b64:
         parts.append({
@@ -163,8 +166,8 @@ def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt):
                     logger.warning(f"Gemini {modelo} devolvió contenido vacío en partes")
                     continue
 
-                logger.info(f"Factura analizada exitosamente con modelo {modelo} (intento {intento + 1}, len={len(raw_text)})")
-                return _parsear_respuesta_gemini(raw_text)
+                logger.info(f"Análisis completado exitosamente con modelo {modelo} (intento {intento + 1}, len={len(raw_text)})")
+                return parser_func(raw_text)
             except urllib.error.HTTPError as e:
                 body = e.read().decode("utf-8")
                 logger.warning(f"Gemini {modelo} (intento {intento + 1}) HTTP {e.code}: {body[:150]}")
@@ -182,7 +185,7 @@ def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt):
     if es_alta_demanda:
         return {
             "exitoso": False,
-            "error": "Google Gemini está experimentando alta demanda momentánea en sus servidores (HTTP 503). Por favor espera 5 segundos y pulsa '🔄 Aplicar y Re-analizar'."
+            "error": "Google Gemini está experimentando alta demanda momentánea en sus servidores (HTTP 503). Por favor espera 5 segundos y vuelve a intentar."
         }
 
     return {"exitoso": False, "error": f"No se pudo contactar a Gemini ({ultimo_error})" }
@@ -351,3 +354,155 @@ def analizar_factura_con_ia(archivo_path, instrucciones="", catalogo=None):
 
     prompt = _construir_prompt(instrucciones_usuario=instrucciones, catalogo=catalogo)
     return _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt=prompt)
+
+
+def _construir_prompt_solicitud(productos_disponibles, areas_disponibles):
+    prompt = """Eres un asistente de bodega y control de insumos de casinos de alimentación institucional en Chile (COALFA).
+Tu tarea es leer una SOLICITUD DE INSUMOS ESCRITA A MANO EN PAPEL (comanda, libreta o vale de insumos) y cruzarla contra el inventario real que TIENE STOCK disponible en la bodega.
+
+DESAFÍO DE LECTURA DE MANUSCRITOS Y JERGA DE COCINA CHILENA:
+- La letra puede ser manuscrita, apresurada, con trazos difíciles o abreviaturas clásicas de cocina en Chile:
+  * "k", "kg", "kilos", "kl" -> Kilogramos (KG)
+  * "u", "un", "und", "unid" -> Unidades (UN)
+  * "bot", "btll", "bt" -> Botellas (UN)
+  * "cja", "caja" -> Cajas
+  * "pqte", "paq", "bolsa" -> Paquete / Bolsa (UN)
+  * "posta", "lomo", "choclillo", "carne", "vacuno" -> Carne vacuno
+  * "pechuga", "trutro", "ala", "pollo" -> Pollo
+  * "ceb", "cebolla" -> Cebolla
+  * "zan", "zanahoria" -> Zanahoria
+  * "tom", "tomate" -> Tomate
+  * "aceit" -> Aceite
+  * "lech", "lact" -> Leche
+  * "mayo" -> Mayonesa
+- Detecta si en el papel se indica el ÁREA o DESTINO que pide las cosas (ej: "Cocina caliente", "Casino", "Repostería", "Línea", "Cuarto frío", "Desayuno", etc.).
+
+ÁREAS DE DESTINO REGISTRADAS EN EL SISTEMA:
+"""
+    for key, label in areas_disponibles:
+        prompt += f'- Clave: "{key}" (Área: {label})\n'
+
+    prompt += """
+CATÁLOGO DE PRODUCTOS EN BODEGA CON STOCK DISPONIBLE (Usa EXCLUSIVAMENTE estos IDs y Nombres):
+"""
+    for p in productos_disponibles:
+        prompt += f"- ID: {p.get('id')} | Nombre: \"{p.get('nombre')}\" | Stock: {p.get('stock')} {p.get('unidad')}\n"
+
+    prompt += """
+REGLAS ESTRICTAS DE COINCIDENCIA:
+1. Solo agrega a "items" aquellos productos del papel que correspondan claramente a un producto del catálogo con stock disponible.
+2. Si un insumo del papel está en el catálogo, usa su ID numérico exacto y su nombre oficial.
+3. Si la unidad en el catálogo es 'UN' y piden 'huevos' en bandejas (ej: 2 bandejas = 60 huevos), convierte la cantidad a la unidad del catálogo.
+4. Si un insumo escrito en el papel NO está en el catálogo o no tiene stock disponible, NO inventes IDs ni agregues productos que no coincidan. Agrégalo a "no_encontrados" con el texto leído tal cual y el motivo.
+5. Si el papel especifica o da a entender el área solicitante, asígnala en "area_sugerida" con su Clave exacta. Si no se puede determinar, deja "area_sugerida": "".
+
+Responde ÚNICAMENTE con un JSON válido con esta estructura exacta (sin texto previo ni posterior):
+{
+  "area_sugerida": "CLAVE_DEL_AREA",
+  "items": [
+    {
+      "id": 1,
+      "nombre": "Nombre exacto del producto en catálogo",
+      "cantidad": 10.0,
+      "unidad": "KG"
+    }
+  ],
+  "no_encontrados": [
+    {
+      "texto_leido": "harina de fuerza 5k",
+      "motivo": "No existe en el catálogo con stock disponible"
+    }
+  ]
+}
+"""
+    return prompt
+
+
+def _parsear_respuesta_solicitud(raw_text):
+    data = _extraer_o_reparar_json(raw_text)
+    if not data or not isinstance(data, dict):
+        return {"exitoso": False, "error": f"Respuesta no reconocida de Gemini: {raw_text[:200]}"}
+
+    area_sugerida = str(data.get("area_sugerida", "") or "").strip()
+    items = []
+    for item in data.get("items", []):
+        try:
+            prod_id = int(item.get("id"))
+            nombre = str(item.get("nombre", "")).strip()
+            cant_clean = re.sub(r'[^\d.,]', '', str(item.get("cantidad", 0)))
+            cantidad = float(cant_clean.replace(",", ".")) if cant_clean else 0.0
+            unidad = str(item.get("unidad", "")).strip()
+            if prod_id and cantidad > 0:
+                items.append({
+                    "id": prod_id,
+                    "nombre": nombre,
+                    "cantidad": round(cantidad, 2),
+                    "unidad": unidad,
+                })
+        except Exception:
+            continue
+
+    no_encontrados = []
+    for ne in data.get("no_encontrados", []):
+        if isinstance(ne, dict):
+            texto = str(ne.get("texto_leido", "")).strip()
+            motivo = str(ne.get("motivo", "")).strip()
+            if texto:
+                no_encontrados.append({"texto_leido": texto, "motivo": motivo or "No disponible en bodega"})
+        elif isinstance(ne, str) and ne.strip():
+            no_encontrados.append({"texto_leido": ne.strip(), "motivo": "No disponible en bodega"})
+
+    return {
+        "exitoso": True,
+        "area_sugerida": area_sugerida,
+        "items": items,
+        "no_encontrados": no_encontrados,
+        "total_items": len(items),
+    }
+
+
+def analizar_solicitud_papel_ia(archivo_path, productos_disponibles, areas_disponibles):
+    """
+    Analiza una foto o escaneo de una comanda o solicitud de insumos en papel manuscrita.
+    Cruza la lectura con los productos que realmente tienen stock en bodega y detecta el área de destino.
+    """
+    api_key = _get_gemini_api_key()
+    if not api_key:
+        return {"exitoso": False, "error": "No hay GEMINI_API_KEY configurada en el servidor."}
+
+    ext = os.path.splitext(archivo_path)[1].lower()
+
+    if ext == ".pdf":
+        try:
+            with open(archivo_path, "rb") as f:
+                pdf_bytes = f.read()
+            imagenes_b64 = [base64.b64encode(pdf_bytes).decode("utf-8")]
+            mime_type = "application/pdf"
+        except Exception as e:
+            return {"exitoso": False, "error": f"Error leyendo PDF: {str(e)}"}
+    elif ext in (".jpg", ".jpeg"):
+        try:
+            imagenes_b64 = [_imagen_a_base64(archivo_path)]
+            mime_type = "image/jpeg"
+        except Exception as e:
+            return {"exitoso": False, "error": f"Error leyendo imagen: {str(e)}"}
+    elif ext == ".png":
+        try:
+            imagenes_b64 = [_imagen_a_base64(archivo_path)]
+            mime_type = "image/png"
+        except Exception as e:
+            return {"exitoso": False, "error": f"Error leyendo imagen: {str(e)}"}
+    elif ext == ".webp":
+        try:
+            imagenes_b64 = [_imagen_a_base64(archivo_path)]
+            mime_type = "image/webp"
+        except Exception as e:
+            return {"exitoso": False, "error": f"Error leyendo imagen: {str(e)}"}
+    else:
+        return {"exitoso": False, "error": f"Formato no soportado: {ext}. Usa fotos JPG, PNG o PDF."}
+
+    if not imagenes_b64:
+        return {"exitoso": False, "error": "El archivo de imagen está vacío o dañado."}
+
+    prompt = _construir_prompt_solicitud(productos_disponibles, areas_disponibles)
+    return _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt=prompt, parser_func=_parsear_respuesta_solicitud)

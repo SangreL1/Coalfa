@@ -101,10 +101,70 @@
         .dispatch-container { grid-template-columns: 1fr; }
         .search-panel { position: static; }
     }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
+<!-- Banner Escaneo con IA de Solicitudes en Papel -->
+<div class="card" style="margin-bottom: 2rem; background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 16px; padding: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.25rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span style="font-size: 1.5rem;">✨</span>
+                <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #38bdf8;">Escanear Solicitud en Papel con IA</h2>
+                <span class="badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 0.75rem; border: 1px solid rgba(56, 189, 248, 0.4);">Gemini Vision</span>
+            </div>
+            <p style="margin: 0.4rem 0 0 0; color: var(--text-muted); font-size: 0.9rem; max-width: 650px;">
+                ¿El personal de cocina te pasó un papel manuscrito? Sube o toma una foto: la IA leerá la letra, identificará los productos en stock y llenará el carro de despacho automáticamente.
+            </p>
+        </div>
+        <div>
+            <input type="file" id="input-foto-solicitud" accept="image/*,.pdf" capture="environment" style="display: none;">
+            <button type="button" id="btn-abrir-escaner" class="btn" style="background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%); color: #fff; font-weight: 700; padding: 0.85rem 1.6rem; border-radius: 12px; display: inline-flex; align-items: center; gap: 0.6rem; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35); cursor: pointer; border: none; transition: transform 0.15s ease;">
+                <span style="font-size: 1.2rem;">📸</span> Escanear Solicitud con IA
+            </button>
+        </div>
+    </div>
+
+    <!-- Spinner / Barra de progreso mientras escanea -->
+    <div id="ai-scan-loading" style="display: none; margin-top: 1.25rem; padding: 1.25rem; background: rgba(0,0,0,0.3); border-radius: 12px; text-align: center;">
+        <div style="display: inline-flex; align-items: center; gap: 0.8rem; font-size: 1rem; color: #38bdf8; font-weight: 600;">
+            <span style="display: inline-block; width: 22px; height: 22px; border: 3px solid rgba(56,189,248,0.25); border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite;"></span>
+            <span id="ai-scan-msg">Gemini está analizando la letra del papel y cruzando con el stock de bodega...</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.3rem;">Esto toma entre 3 y 8 segundos.</div>
+    </div>
+
+    <!-- Mensaje de éxito / Resumen -->
+    <div id="ai-scan-success" style="display: none; margin-top: 1.25rem; padding: 1rem 1.25rem; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 12px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="color: #10b981; font-weight: 600;" id="ai-success-text">
+                ✅ Solicitud procesada correctamente.
+            </div>
+            <button type="button" onclick="document.getElementById('ai-scan-success').style.display='none'" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem;">✕</button>
+        </div>
+    </div>
+
+    <!-- Advertencias de insumos no encontrados o fuera de stock -->
+    <div id="ai-scan-warnings" style="display: none; margin-top: 1.25rem; padding: 1rem 1.25rem; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 12px;">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem;">
+            <div>
+                <div style="color: #f59e0b; font-weight: 700; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>⚠️</span> Insumos leídos que NO están en stock o no se encontraron:
+                </div>
+                <ul id="ai-warnings-list" style="margin: 0; padding-left: 1.3rem; color: var(--text-main); font-size: 0.9rem;">
+                </ul>
+            </div>
+            <button type="button" onclick="document.getElementById('ai-scan-warnings').style.display='none'" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem;">✕</button>
+        </div>
+    </div>
+</div>
+
 <div class="dispatch-container">
     
     <!-- Panel Izquierdo: Buscador -->
@@ -358,6 +418,120 @@
         });
         html += '</ul>';
         content.innerHTML = html;
+    }
+
+    // ─── Escáner de Solicitud Manuscrita con IA ─────────────────────────────
+    const btnAbrirEscaner = document.getElementById('btn-abrir-escaner');
+    const inputFotoSolicitud = document.getElementById('input-foto-solicitud');
+    const aiScanLoading = document.getElementById('ai-scan-loading');
+    const aiScanSuccess = document.getElementById('ai-scan-success');
+    const aiSuccessText = document.getElementById('ai-success-text');
+    const aiScanWarnings = document.getElementById('ai-scan-warnings');
+    const aiWarningsList = document.getElementById('ai-warnings-list');
+
+    if (btnAbrirEscaner && inputFotoSolicitud) {
+        btnAbrirEscaner.addEventListener('click', () => {
+            inputFotoSolicitud.value = '';
+            inputFotoSolicitud.click();
+        });
+
+        inputFotoSolicitud.addEventListener('change', async function() {
+            const file = this.files[0];
+            if (!file) return;
+
+            // Ocultar avisos previos y mostrar spinner
+            aiScanSuccess.style.display = 'none';
+            aiScanWarnings.style.display = 'none';
+            aiScanLoading.style.display = 'block';
+            btnAbrirEscaner.disabled = true;
+            btnAbrirEscaner.style.opacity = '0.6';
+
+            const formData = new FormData();
+            formData.append('foto_solicitud', file);
+
+            try {
+                const resp = await fetch("{% url 'inventario_escanear_solicitud_ia' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: formData
+                });
+
+                const data = await resp.json();
+                aiScanLoading.style.display = 'none';
+                btnAbrirEscaner.disabled = false;
+                btnAbrirEscaner.style.opacity = '1';
+
+                if (!data.success) {
+                    alert('Error al escanear solicitud con IA: ' + (data.error || 'Desconocido'));
+                    return;
+                }
+
+                // 1. Si detectó área, seleccionarla automáticamente
+                if (data.area_sugerida) {
+                    const opt = Array.from(areaSelect.options).find(o => o.value === data.area_sugerida);
+                    if (opt) {
+                        areaSelect.value = data.area_sugerida;
+                        areaSelect.style.borderColor = '#10b981';
+                        areaSelect.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.3)';
+                    }
+                }
+
+                // 2. Agregar productos al carro de despacho
+                let agregadosCount = 0;
+                if (data.items && data.items.length > 0) {
+                    data.items.forEach(item => {
+                        const card = document.querySelector(`.product-card[data-id="${item.id}"]`);
+                        const prodStock = card ? parseFloat(card.dataset.stock) : 9999;
+                        const prodUnidad = card ? card.dataset.unidad : (item.unidad || 'UN');
+                        const prodNombre = card ? card.dataset.nombre : item.nombre;
+
+                        const existIndex = cart.findIndex(c => c.id == item.id);
+                        if (existIndex >= 0) {
+                            cart[existIndex].cantidad = item.cantidad;
+                        } else {
+                            cart.push({
+                                id: item.id.toString(),
+                                nombre: prodNombre,
+                                stock: prodStock,
+                                unidad: prodUnidad,
+                                cantidad: item.cantidad
+                            });
+                        }
+                        agregadosCount++;
+                    });
+                    renderCart();
+                }
+
+                // 3. Notificación de éxito
+                let msg = `✨ Se identificaron y cargaron <strong>${agregadosCount} insumos</strong> al carro de despacho.`;
+                if (data.area_sugerida) {
+                    const areaTxt = areaSelect.options[areaSelect.selectedIndex]?.text || data.area_sugerida;
+                    msg += ` Área asignada: <strong>${areaTxt}</strong>.`;
+                }
+                aiSuccessText.innerHTML = msg;
+                aiScanSuccess.style.display = 'block';
+
+                // 4. Mostrar advertencias si hubo insumos no encontrados o sin stock
+                if (data.no_encontrados && data.no_encontrados.length > 0) {
+                    aiWarningsList.innerHTML = '';
+                    data.no_encontrados.forEach(ne => {
+                        const li = document.createElement('li');
+                        li.style.marginTop = '0.25rem';
+                        li.innerHTML = `<strong>"${ne.texto_leido}"</strong>: <span style="color: var(--text-muted);">${ne.motivo || 'No disponible en bodega con stock'}</span>`;
+                        aiWarningsList.appendChild(li);
+                    });
+                    aiScanWarnings.style.display = 'block';
+                }
+
+            } catch (err) {
+                aiScanLoading.style.display = 'none';
+                btnAbrirEscaner.disabled = false;
+                btnAbrirEscaner.style.opacity = '1';
+                alert('Error de conexión o timeout procesando la imagen: ' + err.message);
+            }
+        });
     }
 </script>
 {% endblock %}

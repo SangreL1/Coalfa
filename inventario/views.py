@@ -1828,6 +1828,77 @@ def despacho_rapido(request):
 
 
 @operacional_required
+def escanear_solicitud_ia(request):
+    """Escanea una foto o documento de solicitud manuscrita en papel y cruza con stock en bodega con Gemini."""
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+
+    if request.user.rol == "AUDITOR":
+        return JsonResponse({
+            "success": False,
+            "error": "🔒 Acción no permitida: Tu usuario tiene el rol 'Auditor (Solo Lectura)'."
+        }, status=403)
+
+    archivo = request.FILES.get("foto_solicitud")
+    if not archivo:
+        return JsonResponse({"success": False, "error": "No se recibió ninguna imagen o archivo de solicitud."})
+
+    import tempfile
+    import os
+    ext = os.path.splitext(archivo.name)[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".pdf"]:
+        return JsonResponse({
+            "success": False,
+            "error": "Formato de archivo no soportado. Usa fotos JPG, PNG o documentos PDF."
+        })
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+        for chunk in archivo.chunks():
+            tmp.write(chunk)
+        tmp_path = tmp.name
+
+    try:
+        from .ai_parser import analizar_solicitud_papel_ia
+
+        # Consultar productos que tienen stock activo real
+        prods_qs = Producto.objects.annotate(
+            stock_total=Sum("lotes__cantidad", filter=Q(lotes__estado="ACTIVO"))
+        ).filter(stock_total__gt=0).order_by("nombre")
+
+        productos_disponibles = [
+            {
+                "id": p.id,
+                "nombre": p.nombre,
+                "stock": float(p.stock_total or 0),
+                "unidad": p.get_unidad_medida_display(),
+            }
+            for p in prods_qs
+        ]
+
+        areas_disponibles = list(Lote.UBICACION_CHOICES)
+
+        res = analizar_solicitud_papel_ia(tmp_path, productos_disponibles, areas_disponibles)
+        if not res.get("exitoso"):
+            return JsonResponse({"success": False, "error": res.get("error", "Error procesando con Gemini")})
+
+        return JsonResponse({
+            "success": True,
+            "area_sugerida": res.get("area_sugerida", ""),
+            "items": res.get("items", []),
+            "no_encontrados": res.get("no_encontrados", []),
+            "total_items": res.get("total_items", 0),
+        })
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)})
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+
+
+@operacional_required
 def ver_factura_pdf(request, filename):
     """Sirve el archivo PDF para previsualización en el navegador."""
     from django.http import FileResponse

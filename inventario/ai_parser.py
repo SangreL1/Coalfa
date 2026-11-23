@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import re
+import time
 import urllib.request
 import urllib.error
 
@@ -24,9 +25,11 @@ CATEGORIAS_VALIDAS = [
 ]
 UNIDADES_VALIDAS = ["KG", "G", "L", "ML", "UN", "CAJA"]
 
+# Modelos ordenados por disponibilidad y resiliencia ante alta demanda
 MODELOS_GEMINI = [
-    "gemini-3.1-flash-lite",
-    "gemini-2.5-pro",
+    "gemini-flash-lite-latest",
+    "gemini-3.5-flash-lite",
+    "gemini-3-flash-preview",
     "gemini-3.8-flash",
     "gemini-flash-latest",
 ]
@@ -133,6 +136,8 @@ def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt):
     }).encode("utf-8")
 
     ultimo_error = None
+    es_alta_demanda = False
+
     for modelo in MODELOS_GEMINI:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={api_key}"
         req = urllib.request.Request(
@@ -141,23 +146,36 @@ def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt):
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        try:
-            with urllib.request.urlopen(req, timeout=45) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-            raw_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-            logger.info(f"Factura analizada exitosamente con modelo {modelo}")
-            return _parsear_respuesta_gemini(raw_text)
-        except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8")
-            logger.warning(f"Gemini {modelo} HTTP {e.code}: {body[:150]}")
-            ultimo_error = f"HTTP {e.code} en {modelo}"
-            continue
-        except Exception as e:
-            logger.warning(f"Gemini {modelo} error: {e}")
-            ultimo_error = f"{modelo}: {str(e)}"
-            continue
 
-    return {"exitoso": False, "error": f"No se pudo contactar a Gemini ({ultimo_error})"}
+        # Hasta 2 intentos por modelo si hay saturación temporal (503 / 429)
+        for intento in range(2):
+            try:
+                with urllib.request.urlopen(req, timeout=40) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                raw_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                logger.info(f"Factura analizada exitosamente con modelo {modelo} (intento {intento + 1})")
+                return _parsear_respuesta_gemini(raw_text)
+            except urllib.error.HTTPError as e:
+                body = e.read().decode("utf-8")
+                logger.warning(f"Gemini {modelo} (intento {intento + 1}) HTTP {e.code}: {body[:150]}")
+                ultimo_error = f"HTTP {e.code} en {modelo}"
+                if e.code in (503, 429):
+                    es_alta_demanda = True
+                    time.sleep(1.2)  # Pausa breve antes de reintentar
+                    continue
+                break  # Otros códigos (400, 404) no se solucionan reintentando el mismo modelo
+            except Exception as e:
+                logger.warning(f"Gemini {modelo} error: {e}")
+                ultimo_error = f"{modelo}: {str(e)}"
+                break
+
+    if es_alta_demanda:
+        return {
+            "exitoso": False,
+            "error": "Google Gemini está experimentando alta demanda momentánea en sus servidores (HTTP 503). Por favor espera 5 segundos y pulsa '🔄 Aplicar y Re-analizar'."
+        }
+
+    return {"exitoso": False, "error": f"No se pudo contactar a Gemini ({ultimo_error})" }
 
 
 def _parsear_respuesta_gemini(raw_text):

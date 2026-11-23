@@ -29,6 +29,7 @@ UNIDADES_VALIDAS = ["KG", "G", "L", "ML", "UN", "CAJA"]
 MODELOS_GEMINI = [
     "gemini-flash-lite-latest",
     "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
     "gemini-3-flash-preview",
     "gemini-3.8-flash",
     "gemini-flash-latest",
@@ -112,9 +113,35 @@ def _get_gemini_api_key():
     return key.strip()
 
 
-def _imagen_a_base64(imagen_path):
-    with open(imagen_path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
+def _imagen_a_base64(imagen_path, max_dim=1600):
+    """
+    Lee y optimiza una imagen antes de enviarla a Gemini.
+    Si la foto proviene de un celular o escáner pesado (5MB-20MB), la orienta según EXIF
+    y la redimensiona a un tamaño óptimo para OCR (~1600px, ~200-300KB).
+    Esto elimina tiempos de espera excesivos, evita el error HTTP 504 Gateway Timeout y acelera la respuesta.
+    """
+    try:
+        from PIL import Image, ImageOps
+        import io
+        with Image.open(imagen_path) as img:
+            # Corregir orientación EXIF (típica en fotos de iPhone/Android)
+            img = ImageOps.exif_transpose(img)
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+
+            w, h = img.size
+            if max(w, h) > max_dim:
+                ratio = max_dim / float(max(w, h))
+                nuevo_tam = (max(1, int(w * ratio)), max(1, int(h * ratio)))
+                img = img.resize(nuevo_tam, Image.Resampling.LANCZOS)
+
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=82, optimize=True)
+            return base64.b64encode(buf.getvalue()).decode("utf-8")
+    except Exception as e:
+        logger.warning(f"No se pudo optimizar imagen con PIL: {e}. Enviando archivo en bruto.")
+        with open(imagen_path, "rb") as f:
+            return base64.b64encode(f.read()).decode("utf-8")
 
 
 def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt, parser_func=None):
@@ -150,10 +177,10 @@ def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt, parser_func=No
             method="POST",
         )
 
-        # Hasta 2 intentos por modelo si hay saturación temporal (503 / 429)
+        # Hasta 2 intentos por modelo si hay saturación temporal (503 / 504 / 429)
         for intento in range(2):
             try:
-                with urllib.request.urlopen(req, timeout=40) as resp:
+                with urllib.request.urlopen(req, timeout=50) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
 
                 # Concatenar TODOS los fragmentos de texto (no solo parts[0])
@@ -172,20 +199,24 @@ def _llamar_gemini_rest(api_key, imagenes_b64, mime_type, prompt, parser_func=No
                 body = e.read().decode("utf-8")
                 logger.warning(f"Gemini {modelo} (intento {intento + 1}) HTTP {e.code}: {body[:150]}")
                 ultimo_error = f"HTTP {e.code} en {modelo}"
-                if e.code in (503, 429):
+                if e.code in (503, 504, 502, 429):
                     es_alta_demanda = True
-                    time.sleep(1.2)  # Pausa breve antes de reintentar
+                    time.sleep(1.5)  # Pausa breve antes de reintentar
                     continue
                 break  # Otros códigos (400, 404) no se solucionan reintentando el mismo modelo
             except Exception as e:
                 logger.warning(f"Gemini {modelo} error: {e}")
                 ultimo_error = f"{modelo}: {str(e)}"
+                if "timed out" in str(e).lower():
+                    es_alta_demanda = True
+                    time.sleep(1.0)
+                    continue
                 break
 
     if es_alta_demanda:
         return {
             "exitoso": False,
-            "error": "Google Gemini está experimentando alta demanda momentánea en sus servidores (HTTP 503). Por favor espera 5 segundos y vuelve a intentar."
+            "error": "Google Gemini está experimentando alta demanda momentánea en sus servidores (HTTP 504/503). Por favor espera 5 segundos y vuelve a intentar."
         }
 
     return {"exitoso": False, "error": f"No se pudo contactar a Gemini ({ultimo_error})" }
